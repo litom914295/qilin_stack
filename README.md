@@ -118,7 +118,7 @@ pip install optuna               # 自动调参
 pip install flask flask-socketio # 实时监控
 
 # 5. 测试第一个模块（高阶因子库）
-python -c "from limitup_advanced_factors import LimitUpAdvancedFactors; print('✅ 安装成功！')"
+python -c "from factors.limitup_advanced_factors import LimitUpAdvancedFactors; print('✅ 安装成功！')"
 ```
 
 **看到 "✅ 安装成功！"？太好了，继续下一步！**
@@ -132,7 +132,7 @@ python -c "from limitup_advanced_factors import LimitUpAdvancedFactors; print('�
 ```python
 import pandas as pd
 import numpy as np
-from limitup_stacking_ensemble import LimitUpStackingEnsemble
+from models.limitup_ensemble import LimitUpEnsembleModel
 
 # 1. 准备股票数据（这里用模拟数据演示）
 np.random.seed(42)
@@ -143,7 +143,7 @@ X_test = pd.DataFrame(
 
 # 2. 加载训练好的模型
 print("\n🔮 开始预测涨停板股票...\n")
-ensemble = LimitUpStackingEnsemble()
+ensemble = LimitUpEnsembleModel()
 
 # 假设已经训练好模型（实际使用时需要先训练）
 # ensemble.load('models/best_model.pkl')
@@ -435,7 +435,7 @@ python -m decision_engine.adaptive_weights_runner --interval 3600 --lookback 3
 
 **怎么用？**
 ```python
-from limitup_advanced_factors import LimitUpAdvancedFactors
+from factors.limitup_advanced_factors import LimitUpAdvancedFactors
 import pandas as pd
 
 # 准备股票数据（需要包含：close收盘价、high最高价、volume成交量等）
@@ -469,7 +469,7 @@ print(factors_df.head())
 
 **怎么用？**
 ```python
-from limitup_sentiment_agent import LimitUpSentimentAgent
+from tradingagents_integration.limitup_sentiment_agent import LimitUpSentimentAgent
 
 agent = LimitUpSentimentAgent(use_real_data=True)  # 使用真实数据
 result = agent.analyze_sentiment('000001.SZ', days=7)  # 分析最近7天
@@ -534,9 +534,9 @@ print(f"发现了{len(best_factors)}个有效因子！")
 
 **怎么用？**
 ```python
-from limitup_stacking_ensemble import LimitUpStackingEnsemble
+from models.limitup_ensemble import LimitUpEnsembleModel
 
-ensemble = LimitUpStackingEnsemble()
+ensemble = LimitUpEnsembleModel()
 
 # 训练模型
 ensemble.train(X_train, y_train, X_val, y_val)
@@ -568,9 +568,9 @@ print(f"F1分数：{metrics['f1_score']:.2f}")
 
 **怎么用？**
 ```python
-from limitup_highfreq_analyzer import LimitUpHighFreqAnalyzer
+from qlib_enhanced.high_freq_limitup import HighFreqLimitUpAnalyzer
 
-analyzer = LimitUpHighFreqAnalyzer()
+analyzer = HighFreqLimitUpAnalyzer()
 
 # 提取单只股票的高频特征
 features = analyzer.extract_features('000001.SZ', '2024-01-15')
@@ -749,9 +749,9 @@ pipeline.plot_performance()  # 绘制性能曲线
 **怎么用？**
 ```python
 # 完整流程示例
-from limitup_advanced_factors import LimitUpAdvancedFactors
-from limitup_sentiment_agent import LimitUpSentimentAgent
-from limitup_stacking_ensemble import LimitUpStackingEnsemble
+from factors.limitup_advanced_factors import LimitUpAdvancedFactors
+from tradingagents_integration.limitup_sentiment_agent import LimitUpSentimentAgent
+from models.limitup_ensemble import LimitUpEnsembleModel
 import pandas as pd
 
 # Step 1: 获取股票列表
@@ -778,7 +778,7 @@ for stock in stock_list:
 
 # Step 3: 模型预测
 X_predict = pd.concat(all_features)
-ensemble = LimitUpStackingEnsemble()
+ensemble = LimitUpEnsembleModel()
 ensemble.load('models/best_model.pkl')  # 加载训练好的模型
 
 predictions = ensemble.predict(X_predict)

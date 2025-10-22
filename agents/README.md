@@ -27,5 +27,5 @@
 ## 📚 相关文档
 
 - [新版Agent实现](../app/agents/trading_agents_impl.py)
-- [Agent设计文档](../docs/AGENT_DESIGN.md)
+- [Agent设计文档](../docs/Technical_Architecture_v2.1_Final.md)
 - [代码审查报告](../docs/CODE_REVIEW_REPORT.md)
