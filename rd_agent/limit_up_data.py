@@ -440,6 +440,9 @@ class LimitUpFactorLibrary:
 
 
 # 使用示例
+import logging
+logger = logging.getLogger(__name__)
+
 def example_usage():
     """使用示例"""
     # 初始化数据接口
@@ -452,7 +455,7 @@ def example_usage():
         exclude_new=True
     )
     
-    print(f"找到 {len(limit_up_stocks)} 只涨停股票")
+    logger.info(f"找到 {len(limit_up_stocks)} 只涨停股票")
     
     # 获取特征
     symbols = [stock.symbol for stock in limit_up_stocks]
@@ -465,7 +468,7 @@ def example_usage():
     factor_lib = LimitUpFactorLibrary()
     # seal_strength = factor_lib.factor_seal_strength(features)
     
-    print("数据接口测试完成")
+    logger.info("数据接口测试完成")
 
 
 if __name__ == "__main__":

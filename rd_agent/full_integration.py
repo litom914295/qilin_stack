@@ -408,9 +408,12 @@ def create_full_integration(config_file: Optional[str] = None) -> FullRDAgentInt
 # 测试
 # ============================================================================
 
+import logging
+logger = logging.getLogger(__name__)
+
 async def test_full_integration():
     """测试完整集成"""
-    print("=== RD-Agent完整集成测试 ===\n")
+    logger.info("RD-Agent完整集成测试")
     
     try:
         # 创建集成
@@ -418,30 +421,30 @@ async def test_full_integration():
         
         # 检查状态
         status = integration.get_status()
-        print("系统状态:")
+        logger.info("系统状态:")
         for key, value in status.items():
-            print(f"  {key}: {value}")
+            logger.info(f"  {key}: {value}")
         
         # 测试因子发现
-        print("\n🔬 测试因子发现...")
+        logger.info("测试因子发现...")
         factor_result = await integration.discover_factors(step_n=2, loop_n=1)
         
-        print(f"\n✅ 发现 {len(factor_result.factors)} 个因子")
-        print(f"最佳因子: {factor_result.best_factor.get('name', 'N/A')}")
-        print(f"性能指标: {factor_result.performance_metrics}")
+        logger.info(f"发现 {len(factor_result.factors)} 个因子")
+        logger.info(f"最佳因子: {factor_result.best_factor.get('name', 'N/A')}")
+        logger.info(f"性能指标: {factor_result.performance_metrics}")
         
         # 测试模型优化
-        print("\n🔬 测试模型优化...")
+        logger.info("测试模型优化...")
         model_result = await integration.optimize_model(step_n=2, loop_n=1)
         
-        print(f"\n✅ 模型优化完成")
-        print(f"性能指标: {model_result.performance_metrics}")
+        logger.info("模型优化完成")
+        logger.info(f"性能指标: {model_result.performance_metrics}")
         
     except ImportError as e:
-        print(f"❌ 导入失败: {e}")
-        print("\n请确保RD-Agent已正确安装和配置")
+        logger.error(f"导入失败: {e}")
+        logger.info("请确保RD-Agent已正确安装和配置")
     except Exception as e:
-        print(f"❌ 测试失败: {e}")
+        logger.error(f"测试失败: {e}")
 
 
 if __name__ == "__main__":

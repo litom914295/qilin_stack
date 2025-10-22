@@ -20,6 +20,8 @@ import warnings
 import json
 
 warnings.filterwarnings('ignore')
+import logging
+logger = logging.getLogger(__name__)
 
 # 添加RD-Agent路径
 RDAGENT_PATH = os.getenv("RDAGENT_PATH", "D:/test/Qlib/RD-Agent")
@@ -28,8 +30,8 @@ if os.path.exists(RDAGENT_PATH):
     RDAGENT_AVAILABLE = True
 else:
     RDAGENT_AVAILABLE = False
-    print(f"⚠️  RD-Agent未找到，路径: {RDAGENT_PATH}")
-    print(f"   使用简化版本（不依赖官方代码）")
+    logger.warning(f"RD-Agent未找到，路径: {RDAGENT_PATH}")
+    logger.info("使用简化版本（不依赖官方代码）")
 
 
 class LimitUpPatternMiner:
@@ -71,8 +73,8 @@ class LimitUpPatternMiner:
             try:
                 self._init_rdagent()
             except Exception as e:
-                print(f"⚠️  RD-Agent初始化失败: {e}")
-                print(f"   使用简化版本")
+                logger.warning(f"RD-Agent初始化失败: {e}")
+                logger.info("使用简化版本")
     
     def _init_rdagent(self):
         """初始化RD-Agent官方组件"""
@@ -108,11 +110,11 @@ class LimitUpPatternMiner:
                 runner=self.runner
             )
             
-            print("✅ RD-Agent官方组件初始化成功")
+            logger.info("RD-Agent官方组件初始化成功")
             
         except ImportError as e:
-            print(f"⚠️  RD-Agent导入失败: {e}")
-            print(f"   使用简化版本（基于遗传算法）")
+            logger.warning(f"RD-Agent导入失败: {e}")
+            logger.info("使用简化版本（基于遗传算法）")
             self.developer = None
     
     async def mine_patterns(
@@ -144,27 +146,27 @@ class LimitUpPatternMiner:
             - code: 生成的因子代码
             - report: 研究报告
         """
-        print(f"\n🔬 开始挖掘涨停板一进二规律...")
-        print(f"   训练数据: {len(train_data)} 条")
-        print(f"   目标指标: {target_metric}")
-        print(f"   最大迭代: {self.max_iterations} 轮")
+        logger.info("开始挖掘涨停板一进二规律...")
+        logger.info(f"训练数据: {len(train_data)} 条")
+        logger.info(f"目标指标: {target_metric}")
+        logger.info(f"最大迭代: {self.max_iterations} 轮")
         
         # 如果有RD-Agent，使用官方进化框架
         if self.evolving and self.developer and self.runner:
-            print("   🤖 使用RD-Agent官方进化框架...")
+            logger.info("使用RD-Agent官方进化框架...")
             result = await self._mine_with_rdagent(
                 train_data, target_metric, objective
             )
         else:
-            print("   📝 使用简化版遗传算法...")
+            logger.info("使用简化版遗传算法...")
             result = self._mine_with_genetic_algorithm(
                 train_data, target_metric, objective
             )
         
-        print(f"   ✅ 挖掘完成！")
-        print(f"   发现因子数: {len(result['discovered_factors'])}")
-        print(f"   最佳IC: {result.get('best_ic', 0):.4f}")
-        print(f"   最佳F1: {result.get('best_f1', 0):.4f}")
+        logger.info("挖掘完成")
+        logger.info(f"发现因子数: {len(result['discovered_factors'])}")
+        logger.info(f"最佳IC: {result.get('best_ic', 0):.4f}")
+        logger.info(f"最佳F1: {result.get('best_f1', 0):.4f}")
         
         return result
     
@@ -193,7 +195,7 @@ class LimitUpPatternMiner:
             return result
             
         except Exception as e:
-            print(f"   ⚠️  RD-Agent进化失败: {e}，使用简化版本")
+            logger.warning(f"RD-Agent进化失败: {e}，使用简化版本")
             return self._mine_with_genetic_algorithm(
                 train_data, target_metric, objective
             )
@@ -206,7 +208,7 @@ class LimitUpPatternMiner:
     ) -> Dict[str, Any]:
         """基于遗传算法的因子挖掘"""
         
-        print("\n   🧬 遗传算法进化中...")
+        logger.info("遗传算法进化中...")
         
         # 准备数据
         X = train_data.drop(columns=['target'], errors='ignore')
@@ -239,8 +241,9 @@ class LimitUpPatternMiner:
             
             # 每10轮打印一次进度
             if (iteration + 1) % 10 == 0:
-                print(f"      迭代 {iteration + 1}/{self.max_iterations} - "
-                      f"最佳适应度: {best_fitness:.4f}")
+                logger.info(
+                    f"迭代 {iteration + 1}/{self.max_iterations} - 最佳适应度: {best_fitness:.4f}"
+                )
             
             # 选择、交叉、变异
             population = self._evolve_population(
@@ -631,13 +634,13 @@ predictions = model.predict(new_data)
         code_file = output_path / 'limitup_factors_discovered.py'
         with open(code_file, 'w', encoding='utf-8') as f:
             f.write(results['code'])
-        print(f"   ✅ 因子代码已保存: {code_file}")
+        logger.info(f"因子代码已保存: {code_file}")
         
         # 2. 保存研究报告
         report_file = output_path / 'research_report.md'
         with open(report_file, 'w', encoding='utf-8') as f:
             f.write(results['report'])
-        print(f"   ✅ 研究报告已保存: {report_file}")
+        logger.info(f"研究报告已保存: {report_file}")
         
         # 3. 保存JSON结果
         json_file = output_path / 'mining_results.json'
@@ -649,16 +652,16 @@ predictions = model.predict(new_data)
         }
         with open(json_file, 'w', encoding='utf-8') as f:
             json.dump(json_data, f, indent=2, ensure_ascii=False)
-        print(f"   ✅ JSON结果已保存: {json_file}")
+        logger.info(f"JSON结果已保存: {json_file}")
 
 
 # ==================== 使用示例 ====================
 
 async def main():
     """示例：挖掘涨停板一进二规律"""
-    print("=" * 80)
-    print("RD-Agent涨停板规律挖掘器 - 测试")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("RD-Agent涨停板规律挖掘器 - 测试")
+    logger.info("=" * 80)
     
     # 1. 初始化挖掘器
     config = {
@@ -671,7 +674,7 @@ async def main():
     miner = LimitUpPatternMiner(config)
     
     # 2. 生成模拟数据
-    print("\n📊 生成模拟数据...")
+    logger.info("📊 生成模拟数据...")
     np.random.seed(42)
     n_samples = 500
     
@@ -695,8 +698,8 @@ async def main():
         (data['leader_score'] > 0.8)
     ).astype(int)
     
-    print(f"   样本数: {len(data)}")
-    print(f"   正样本率: {data['target'].mean():.1%}")
+    logger.info(f"样本数: {len(data)}")
+    logger.info(f"正样本率: {data['target'].mean():.1%}")
     
     # 3. 挖掘规律
     results = await miner.mine_patterns(
@@ -706,24 +709,24 @@ async def main():
     )
     
     # 4. 显示结果
-    print("\n" + "=" * 80)
-    print("📊 挖掘结果")
-    print("=" * 80)
-    print(f"\n发现的因子 ({len(results['discovered_factors'])} 个):")
+    logger.info("=" * 80)
+    logger.info("📊 挖掘结果")
+    logger.info("=" * 80)
+    logger.info(f"发现的因子 ({len(results['discovered_factors'])} 个):")
     for i, factor in enumerate(results['discovered_factors'], 1):
-        print(f"  {i}. {factor}")
+        logger.info(f"  {i}. {factor}")
     
-    print(f"\n性能指标:")
-    print(f"  平均IC: {results['best_ic']:.4f}")
-    print(f"  F1分数: {results['best_f1']:.4f}")
+    logger.info("性能指标:")
+    logger.info(f"  平均IC: {results['best_ic']:.4f}")
+    logger.info(f"  F1分数: {results['best_f1']:.4f}")
     
     # 5. 保存结果
-    print("\n💾 保存结果...")
+    logger.info("💾 保存结果...")
     miner.save_results(results, output_dir='output/rd_agent')
     
-    print("\n" + "=" * 80)
-    print("✅ 测试完成！")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("✅ 测试完成！")
+    logger.info("=" * 80)
 
 
 if __name__ == '__main__':

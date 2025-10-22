@@ -362,17 +362,20 @@ def create_integration(config_file: Optional[str] = None) -> RealRDAgentIntegrat
 
 
 # 测试
+import logging
+logger = logging.getLogger(__name__)
+
 async def test_integration():
     """测试集成"""
-    print("=== RD-Agent集成测试 ===\n")
+    logger.info("RD-Agent集成测试")
     
     integration = create_integration()
     
     # 状态
     status = integration.get_status()
-    print("系统状态:")
+    logger.info("系统状态:")
     for key, value in status.items():
-        print(f"  {key}: {value}")
+        logger.info(f"  {key}: {value}")
     
     # 测试因子发现
     data = pd.DataFrame({
@@ -381,12 +384,12 @@ async def test_integration():
         'returns': np.random.randn(100) * 0.01
     })
     
-    print("\n测试因子发现...")
+    logger.info("测试因子发现...")
     factors = await integration.discover_factors(data, n_factors=3)
     
-    print(f"\n发现 {len(factors)} 个因子:")
+    logger.info(f"发现 {len(factors)} 个因子:")
     for f in factors:
-        print(f"  {f.name}: IC={f.ic:.4f}, IR={f.ir:.2f}")
+        logger.info(f"  {f.name}: IC={f.ic:.4f}, IR={f.ir:.2f}")
 
 
 if __name__ == "__main__":
