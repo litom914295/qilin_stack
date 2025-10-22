@@ -1,0 +1,47 @@
+# Qilin Stack SLO 规范（P0-9）
+version: 1
+service: qilin-stack
+owner: platform-team
+review_cycle: 7d
+
+objectives:
+  latency_p95_ms:
+    description: 端到端分析链路 P95 延迟
+    target: 1000           # ms
+    window: 7d
+    source: e2e-tests
+    measure: tests/e2e/test_mvp_slo.py::test_mvp_e2e_flow
+
+  availability:
+    description: 服务可用性（月度）
+    target: 0.999          # 99.9%
+    window: 30d
+    source: prometheus
+    metric: |
+      # 估算可用性（1 - 5xx占比）
+      (1 - (sum(rate(qilin_requests_total{status=~"5.."}[5m])) / sum(rate(qilin_requests_total[5m]))))
+
+  signal_coverage:
+    description: 可生成有效交易信号的覆盖率
+    target: 0.8            # 80%
+    window: 7d
+    source: e2e-tests
+    measure: tests/e2e/test_mvp_slo.py::test_mvp_e2e_flow
+
+  recovery_time_seconds:
+    description: 故障到系统恢复的时间（RTO）
+    target: 300            # 5 min
+    window: 90d
+    source: e2e-tests
+    measure: tests/e2e/test_mvp_slo.py::test_failover_recovery_slo
+
+  accuracy_rate:
+    description: T+1 推荐方向准确率
+    target: 0.7            # 70%
+    window: 30d
+    source: offline-batch
+    measure: pipelines/backtest or T+1 labeling
+
+notes:
+  - Prometheus/Grafana 指标名可按实际数据管道调整。
+  - e2e 测试是 MVP 阶段的验收代理指标，后续应被真实线上指标替换。

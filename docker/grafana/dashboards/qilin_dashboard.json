@@ -1,0 +1,56 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "System Weights by Source",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "system_weight"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "Weights Updated (adaptive)",
+      "targets": [
+        {"refId": "A", "expr": "sum(weights_updated_total{mode=\"adaptive\"})"}
+      ],
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 8}
+    },
+    {
+      "type": "stat",
+      "title": "Gate Rejects (last 5m)",
+      "targets": [
+        {"refId": "A", "expr": "sum(increase(gate_reject_total[5m]))"}
+      ],
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 8}
+    },
+    {
+      "type": "stat",
+      "title": "Unique Sources",
+      "targets": [
+        {"refId": "A", "expr": "count(count by (source) (system_weight))"}
+      ],
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 8}
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["qilin"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "",
+  "title": "Qilin Monitoring",
+  "version": 1
+}

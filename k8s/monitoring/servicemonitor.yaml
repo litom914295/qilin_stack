@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: qilin-metrics-servicemonitor
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: qilin-metrics
+  namespaceSelector:
+    any: true
+  endpoints:
+    - path: /metrics
+      port: http
+      interval: 15s
+      scrapeTimeout: 10s
+      scheme: http

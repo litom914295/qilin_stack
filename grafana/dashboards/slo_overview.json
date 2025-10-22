@@ -1,0 +1,36 @@
+{
+  "uid": "qilin-slo-overview",
+  "title": "Qilin SLO Overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "tags": ["qilin", "slo"],
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "E2E P95 Latency (ms)",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(qilin_e2e_latency_ms_bucket[5m])) by (le))"}
+      ],
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute","steps": [{"color": "green","value": null},{"color": "red","value": 1000}]}}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Availability (est.)",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "(1 - (sum(rate(qilin_requests_total{status=~\"5..\"}[5m])) / sum(rate(qilin_requests_total[5m]))))"}
+      ],
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute","steps": [{"color": "red","value": 0.999},{"color": "green","value": 1.0}]}}}
+    },
+    {
+      "type": "stat",
+      "title": "Last Failover Recovery (s)",
+      "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
+      "targets": [
+        {"expr": "max_over_time(qilin_failover_recovery_seconds[6h])"}
+      ]
+    }
+  ]
+}

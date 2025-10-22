@@ -1,0 +1,94 @@
+groups:
+  - name: qilin-dependency-health-alerts
+    interval: 1m
+    rules:
+      # 关键依赖不健康
+      - alert: QilinCriticalDependencyDown
+        expr: qilin_dependency_health_status{critical="true"} < 0.5
+        for: 2m
+        labels:
+          severity: page
+          team: platform
+          category: infrastructure
+        annotations:
+          summary: "关键依赖不可用"
+          description: "Critical dependency {{ $labels.dependency }} ({{ $labels.type }}) is unhealthy. Immediate action required!"
+          runbook_url: "https://wiki.qilin.internal/runbooks/critical-dependency-down"
+
+      # 数据库响应慢
+      - alert: QilinDatabaseSlowResponse
+        expr: |
+          histogram_quantile(0.95,
+            rate(qilin_dependency_probe_duration_seconds_bucket{type="database"}[5m])
+          ) > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          category: infrastructure
+        annotations:
+          summary: "数据库响应缓慢"
+          description: "Database {{ $labels.dependency }} P95 probe latency > 3s. Check database load and queries."
+
+      # Redis连接失败
+      - alert: QilinRedisProbeFailure
+        expr: increase(qilin_dependency_probe_failures_total{type="cache"}[5m]) > 3
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+          category: infrastructure
+        annotations:
+          summary: "Redis探针频繁失败"
+          description: "Redis {{ $labels.dependency }} probe failed {{ $value }} times in 5 minutes."
+
+      # 外部API不可用
+      - alert: QilinExternalAPIDown
+        expr: qilin_dependency_health_status{type="external_api"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          category: external
+        annotations:
+          summary: "外部API不可用"
+          description: "External API {{ $labels.dependency }} has been down for 10 minutes. Data ingestion may be affected."
+
+      # MLflow服务降级
+      - alert: QilinMLflowDegraded
+        expr: qilin_dependency_health_status{dependency="mlflow"} == 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: mlops
+          category: ml_service
+        annotations:
+          summary: "MLflow服务降级"
+          description: "MLflow service is degraded. Model serving may be affected."
+
+      # 整体健康状态降级
+      - alert: QilinOverallHealthDegraded
+        expr: count(qilin_dependency_health_status < 1) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          category: health
+        annotations:
+          summary: "系统整体健康状态降级"
+          description: "{{ $value }} dependencies are unhealthy or degraded. Review overall system health."
+
+      # 依赖探针超时
+      - alert: QilinDependencyProbeTimeout
+        expr: |
+          histogram_quantile(0.95,
+            rate(qilin_dependency_probe_duration_seconds_bucket[5m])
+          ) > 5
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          category: monitoring
+        annotations:
+          summary: "依赖探针超时"
+          description: "Dependency {{ $labels.dependency }} probe is timing out. Check network connectivity."

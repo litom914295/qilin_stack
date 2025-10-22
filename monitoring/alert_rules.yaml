@@ -1,0 +1,328 @@
+---
+# 麒麟量化系统告警规则
+# 红黄绿三级告警矩阵
+
+groups:
+  - name: critical_alerts
+    interval: 30s
+    rules:
+      # 红色告警 (Critical) - 立即人工介入
+      
+      - alert: APIDown
+        expr: up{job="qilin-trading"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "API服务不可用"
+          description: "{{ $labels.instance }} API服务已宕机超过1分钟"
+          runbook: "https://docs.qilin.ai/runbooks/api-down"
+      
+      - alert: DatabaseConnectionFailed
+        expr: database_connections_active == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "数据库连接失败"
+          description: "无法连接到数据库"
+          runbook: "https://docs.qilin.ai/runbooks/database-connection"
+      
+      - alert: RedisConnectionFailed
+        expr: redis_connections_active == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "Redis连接失败"
+          description: "无法连接到Redis"
+          runbook: "https://docs.qilin.ai/runbooks/redis-connection"
+      
+      - alert: DataQualityCritical
+        expr: data_quality_score < 0.5
+        for: 2m
+        labels:
+          severity: critical
+          category: data
+        annotations:
+          summary: "数据质量严重下降"
+          description: "{{ $labels.data_source }} 质量分数 {{ $value }} < 0.5"
+          runbook: "https://docs.qilin.ai/runbooks/data-quality"
+      
+      - alert: MarketDataDelayHigh
+        expr: market_data_delay_seconds > 600
+        for: 1m
+        labels:
+          severity: critical
+          category: data
+        annotations:
+          summary: "行情数据延迟严重"
+          description: "行情数据延迟 {{ $value }}秒 > 10分钟"
+          runbook: "https://docs.qilin.ai/runbooks/market-data-delay"
+      
+      - alert: RecommendationFailureRateHigh
+        expr: (recommendation_failures / recommendation_total) > 0.2
+        for: 5m
+        labels:
+          severity: critical
+          category: business
+        annotations:
+          summary: "推荐生成失败率过高"
+          description: "推荐失败率 {{ $value | humanizePercentage }} > 20%"
+          runbook: "https://docs.qilin.ai/runbooks/recommendation-failure"
+      
+      - alert: TradingSignalErrorRate
+        expr: (trading_signal_errors / trading_signal_total) > 0.1
+        for: 3m
+        labels:
+          severity: critical
+          category: business
+        annotations:
+          summary: "交易信号错误率过高"
+          description: "信号错误率 {{ $value | humanizePercentage }} > 10%"
+          runbook: "https://docs.qilin.ai/runbooks/trading-signal-error"
+
+  - name: warning_alerts
+    interval: 1m
+    rules:
+      # 黄色告警 (Warning) - 需要关注
+      
+      - alert: HighCPUUsage
+        expr: (100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "CPU使用率过高"
+          description: "{{ $labels.instance }} CPU使用率 {{ $value | humanizePercentage }}"
+          runbook: "https://docs.qilin.ai/runbooks/high-cpu"
+      
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "内存使用率过高"
+          description: "{{ $labels.instance }} 内存使用率 {{ $value | humanizePercentage }}"
+          runbook: "https://docs.qilin.ai/runbooks/high-memory"
+      
+      - alert: HighP95Latency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "P95延迟过高"
+          description: "P95延迟 {{ $value | humanizeDuration }} > 500ms"
+          runbook: "https://docs.qilin.ai/runbooks/high-latency"
+      
+      - alert: DataQualityDegraded
+        expr: data_quality_score >= 0.5 and data_quality_score < 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: data
+        annotations:
+          summary: "数据质量下降"
+          description: "{{ $labels.data_source }} 质量分数 {{ $value }} 在 0.5-0.8 之间"
+          runbook: "https://docs.qilin.ai/runbooks/data-quality"
+      
+      - alert: MarketDataDelayModerate
+        expr: market_data_delay_seconds > 300 and market_data_delay_seconds <= 600
+        for: 2m
+        labels:
+          severity: warning
+          category: data
+        annotations:
+          summary: "行情数据延迟"
+          description: "行情数据延迟 {{ $value }}秒，5-10分钟"
+          runbook: "https://docs.qilin.ai/runbooks/market-data-delay"
+      
+      - alert: RecommendationFailureRateModerate
+        expr: (recommendation_failures / recommendation_total) > 0.1 and (recommendation_failures / recommendation_total) <= 0.2
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "推荐失败率偏高"
+          description: "推荐失败率 {{ $value | humanizePercentage }} 在 10-20%"
+          runbook: "https://docs.qilin.ai/runbooks/recommendation-failure"
+      
+      - alert: LowDailyRecommendations
+        expr: daily_recommendations_count < 1
+        for: 1h
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "当日推荐数量过少"
+          description: "当日推荐数量仅 {{ $value }}"
+          runbook: "https://docs.qilin.ai/runbooks/low-recommendations"
+      
+      - alert: HighErrorRate
+        expr: (rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m])) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "HTTP错误率过高"
+          description: "5xx错误率 {{ $value | humanizePercentage }} > 5%"
+          runbook: "https://docs.qilin.ai/runbooks/high-error-rate"
+
+  - name: info_alerts
+    interval: 5m
+    rules:
+      # 绿色告警 (Info) - 信息通知
+      
+      - alert: ServiceRestarted
+        expr: changes(process_start_time_seconds[5m]) > 0
+        labels:
+          severity: info
+          category: system
+        annotations:
+          summary: "服务重启"
+          description: "{{ $labels.instance }} 服务已重启"
+      
+      - alert: ConfigurationChanged
+        expr: changes(config_last_reload_timestamp_seconds[5m]) > 0
+        labels:
+          severity: info
+          category: system
+        annotations:
+          summary: "配置变更"
+          description: "{{ $labels.instance }} 配置已重新加载"
+      
+      - alert: DataQualityGood
+        expr: data_quality_score >= 0.8 and data_quality_score < 0.9
+        for: 10m
+        labels:
+          severity: info
+          category: data
+        annotations:
+          summary: "数据质量良好"
+          description: "{{ $labels.data_source }} 质量分数 {{ $value }}"
+      
+      - alert: NewRecommendationGenerated
+        expr: increase(recommendations_generated_total[5m]) > 0
+        labels:
+          severity: info
+          category: business
+        annotations:
+          summary: "新推荐生成"
+          description: "最近5分钟生成了 {{ $value }} 条新推荐"
+
+  - name: slo_alerts
+    interval: 1m
+    rules:
+      # SLO违反告警
+      
+      - alert: SLOAvailabilityViolation
+        expr: (sum(rate(http_requests_total{status=~"2.."}[7d])) / sum(rate(http_requests_total[7d]))) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          category: slo
+        annotations:
+          summary: "SLO可用性违反"
+          description: "7天可用性 {{ $value | humanizePercentage }} < 99.9%"
+          runbook: "https://docs.qilin.ai/runbooks/slo-availability"
+      
+      - alert: SLOLatencyViolation
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[7d])) > 1
+        for: 10m
+        labels:
+          severity: critical
+          category: slo
+        annotations:
+          summary: "SLO延迟违反"
+          description: "7天P95延迟 {{ $value | humanizeDuration }} > 1秒"
+          runbook: "https://docs.qilin.ai/runbooks/slo-latency"
+      
+      - alert: SLOAccuracyViolation
+        expr: (sum(recommendation_hits) / sum(recommendation_total)) < 0.7
+        for: 24h
+        labels:
+          severity: warning
+          category: slo
+        annotations:
+          summary: "SLO准确率违反"
+          description: "24小时推荐命中率 {{ $value | humanizePercentage }} < 70%"
+          runbook: "https://docs.qilin.ai/runbooks/slo-accuracy"
+
+---
+# AlertManager路由配置
+route:
+  group_by: ['alertname', 'severity', 'category']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  
+  receiver: 'default'
+  
+  routes:
+    # Critical告警 → PagerDuty
+    - match:
+        severity: critical
+      receiver: 'pagerduty'
+      continue: true
+    
+    # Warning告警 → Slack + Email
+    - match:
+        severity: warning
+      receiver: 'slack-warnings'
+      continue: true
+    
+    # Info告警 → Slack
+    - match:
+        severity: info
+      receiver: 'slack-info'
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://alertmanager-webhook:5000/alerts'
+  
+  - name: 'pagerduty'
+    pagerduty_configs:
+      - service_key: '<PAGERDUTY_SERVICE_KEY>'
+        description: '{{ .GroupLabels.alertname }}'
+  
+  - name: 'slack-warnings'
+    slack_configs:
+      - api_url: '<SLACK_WEBHOOK_URL>'
+        channel: '#qilin-alerts'
+        title: '⚠️ {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+  
+  - name: 'slack-info'
+    slack_configs:
+      - api_url: '<SLACK_WEBHOOK_URL>'
+        channel: '#qilin-notifications'
+        title: 'ℹ️ {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+inhibit_rules:
+  # API Down时抑制其他系统告警
+  - source_match:
+      alertname: 'APIDown'
+    target_match:
+      category: 'system'
+    equal: ['instance']
+  
+  # Critical数据质量问题时抑制Warning数据告警
+  - source_match:
+      severity: 'critical'
+      category: 'data'
+    target_match:
+      severity: 'warning'
+      category: 'data'
+    equal: ['data_source']

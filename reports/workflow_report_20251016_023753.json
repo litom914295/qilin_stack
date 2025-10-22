@@ -1,0 +1,340 @@
+{
+  "summary": {
+    "total_analyzed": 2,
+    "total_signals": 0,
+    "total_executed": 0,
+    "execution_time": 0.04592275619506836,
+    "avg_analysis_time": 0.02296137809753418,
+    "timestamp": "2025-10-16T02:37:53.618698"
+  },
+  "scores": {
+    "average": 48.81640898897865,
+    "max": 49.64081244004943,
+    "min": 47.99200553790787,
+    "distribution": {
+      "excellent": 0,
+      "good": 0,
+      "moderate": 2,
+      "poor": 0
+    }
+  },
+  "top_stocks": [
+    {
+      "rank": 1,
+      "symbol": "000001",
+      "score": 49.64081244004943,
+      "decision": "watch"
+    },
+    {
+      "rank": 2,
+      "symbol": "000002",
+      "score": 47.99200553790787,
+      "decision": "watch"
+    }
+  ],
+  "signals": [],
+  "execution": [],
+  "details": {
+    "analysis_results": [
+      {
+        "symbol": "000001",
+        "timestamp": "2025-10-16T02:37:53.617080",
+        "total_score": 447.1351555006179,
+        "weighted_score": 49.64081244004943,
+        "decision": {
+          "action": "watch",
+          "confidence": 0.5,
+          "position": "0%",
+          "reason": "观望为主，等待更好时机",
+          "risk_level": "high",
+          "entry_price": null,
+          "stop_loss": null,
+          "take_profit": null
+        },
+        "details": {
+          "zt_quality": {
+            "score": 90.0,
+            "weight": 0.15,
+            "weighted": 13.5,
+            "details": {
+              "seal_ratio": 0.10127035216115186,
+              "zt_time": "11:00",
+              "open_times": 0,
+              "turnover_rate": 13.111344589024775,
+              "volume_ratio": 1.7638743770858838
+            }
+          },
+          "leader": {
+            "score": 31.0,
+            "weight": 0.15,
+            "weighted": 4.6499999999999995,
+            "details": {
+              "sector_rank": 5,
+              "consecutive_limit": 2,
+              "news_count": 3,
+              "money_flow": 0,
+              "history_leader": 0
+            }
+          },
+          "auction": {
+            "score": 68.0,
+            "weight": 0.12,
+            "weighted": 8.16,
+            "details": {
+              "auction_change": 4.305942297589288,
+              "auction_volume_ratio": 0.13840216753859522,
+              "bid_ask_ratio": 2.742044818534786,
+              "auction_volatility": 0.8072706615770245,
+              "large_order_ratio": 0.3804828961659628
+            }
+          },
+          "money_flow": {
+            "score": 25.0,
+            "weight": 0.12,
+            "weighted": 3.0,
+            "details": {
+              "main_netflow": -2.044155903535194,
+              "super_large_ratio": 0.25775255909089845,
+              "consecutive_inflow": 1,
+              "sector_flow": 0.6295690287456548,
+              "northbound": -0.9979862970557742
+            }
+          },
+          "emotion": {
+            "score": 51.0,
+            "weight": 0.1,
+            "weighted": 5.1000000000000005,
+            "details": {
+              "market_mood": 78.18477863117539,
+              "stock_heat": 56.681307624296274,
+              "news_sentiment": 1,
+              "retail_sentiment": 33.94080732405349,
+              "institution_rating": 4.517315731777487
+            }
+          },
+          "technical": {
+            "score": 67.0,
+            "weight": 0.08,
+            "weighted": 5.36,
+            "details": {
+              "trend": "strong",
+              "rsi": 33.70050664943389,
+              "volume_ratio": 1.3793457298822631,
+              "resistance_distance": 0.06972607015153476,
+              "pattern": "cup_handle"
+            }
+          },
+          "position": {
+            "score": 53.0,
+            "weight": 0.08,
+            "weighted": 4.24,
+            "details": {
+              "market_strength": 0.7818477863117539,
+              "stock_rs": 48.00147343789155,
+              "volatility": 0.03197191782512553,
+              "correlation": 0.7661365165626279,
+              "timing_score": 67.92606866915166,
+              "suggested_position": "15.9%"
+            }
+          },
+          "risk": {
+            "score": 38.0,
+            "weight": 0.1,
+            "weighted": 3.8000000000000003,
+            "details": {
+              "system_risk": 78.18477863117539,
+              "stock_volatility": 0.03197191782512553,
+              "liquidity": 13.111344589024775,
+              "regulatory": "high",
+              "financial_health": 44.85531860024825,
+              "risk_list": [
+                "高系统性风险",
+                "中等波动风险",
+                "高监管风险",
+                "财务风险较高"
+              ],
+              "risk_level": "high"
+            }
+          },
+          "news": {
+            "score": 14.135155500617874,
+            "weight": 0.08,
+            "weighted": 1.13081244004943,
+            "details": {
+              "major_positive": 0,
+              "moderate_positive": 0,
+              "negative": 0,
+              "news_count": 3,
+              "freshness": 0.20675777503089365,
+              "news_impact": []
+            }
+          },
+          "sector": {
+            "score": 10.0,
+            "weight": 0.07,
+            "weighted": 0.7000000000000001,
+            "details": {
+              "sector_strength": -0.6832780582349351,
+              "sector_position": 27,
+              "rotation_score": 20.907658401079367,
+              "sector_money": 0.6295690287456548,
+              "sector_hot_days": 9
+            }
+          }
+        },
+        "analysis_time": 0.028815
+      },
+      {
+        "symbol": "000002",
+        "timestamp": "2025-10-16T02:37:53.617496",
+        "total_score": 448.02506922384845,
+        "weighted_score": 47.99200553790787,
+        "decision": {
+          "action": "watch",
+          "confidence": 0.5,
+          "position": "0%",
+          "reason": "观望为主，等待更好时机",
+          "risk_level": "high",
+          "entry_price": null,
+          "stop_loss": null,
+          "take_profit": null
+        },
+        "details": {
+          "zt_quality": {
+            "score": 60.0,
+            "weight": 0.15,
+            "weighted": 9.0,
+            "details": {
+              "seal_ratio": 0.03584954965851011,
+              "zt_time": "09:35",
+              "open_times": 1,
+              "turnover_rate": 12.583993635064981,
+              "volume_ratio": 0.7411886703713818
+            }
+          },
+          "leader": {
+            "score": 40.0,
+            "weight": 0.15,
+            "weighted": 6.0,
+            "details": {
+              "sector_rank": 6,
+              "consecutive_limit": 3,
+              "news_count": 3,
+              "money_flow": 0,
+              "history_leader": 2
+            }
+          },
+          "auction": {
+            "score": 58.0,
+            "weight": 0.12,
+            "weighted": 6.96,
+            "details": {
+              "auction_change": -0.17120372864059807,
+              "auction_volume_ratio": 0.12177054777099688,
+              "bid_ask_ratio": 2.82499130065996,
+              "auction_volatility": 0.1861961010765284,
+              "large_order_ratio": 0.34408249879395847
+            }
+          },
+          "money_flow": {
+            "score": 45.0,
+            "weight": 0.12,
+            "weighted": 5.3999999999999995,
+            "details": {
+              "main_netflow": -2.8842598100591714,
+              "super_large_ratio": 0.21436914120513306,
+              "consecutive_inflow": 4,
+              "sector_flow": 0.6295690287456548,
+              "northbound": 1.4717816327485442
+            }
+          },
+          "emotion": {
+            "score": 31.0,
+            "weight": 0.1,
+            "weighted": 3.1,
+            "details": {
+              "market_mood": 78.18477863117539,
+              "stock_heat": 19.708213941223896,
+              "news_sentiment": 2,
+              "retail_sentiment": 25.38824776973455,
+              "institution_rating": 3.6150653892403106
+            }
+          },
+          "technical": {
+            "score": 38.0,
+            "weight": 0.08,
+            "weighted": 3.04,
+            "details": {
+              "trend": "weak",
+              "rsi": 36.977416796417096,
+              "volume_ratio": 0.9684804862185917,
+              "resistance_distance": 0.06869854368045471,
+              "pattern": "consolidation"
+            }
+          },
+          "position": {
+            "score": 66.0,
+            "weight": 0.08,
+            "weighted": 5.28,
+            "details": {
+              "market_strength": 0.7818477863117539,
+              "stock_rs": 79.03901206342316,
+              "volatility": 0.034948030167477454,
+              "correlation": 0.4937524803552399,
+              "timing_score": 43.54589190192125,
+              "suggested_position": "19.8%"
+            }
+          },
+          "risk": {
+            "score": 38.0,
+            "weight": 0.1,
+            "weighted": 3.8000000000000003,
+            "details": {
+              "system_risk": 78.18477863117539,
+              "stock_volatility": 0.034948030167477454,
+              "liquidity": 12.583993635064981,
+              "regulatory": "high",
+              "financial_health": 40.56625594264558,
+              "risk_list": [
+                "高系统性风险",
+                "中等波动风险",
+                "高监管风险",
+                "财务风险较高"
+              ],
+              "risk_level": "high"
+            }
+          },
+          "news": {
+            "score": 37.025069223848426,
+            "weight": 0.08,
+            "weighted": 2.9620055379078742,
+            "details": {
+              "major_positive": 1,
+              "moderate_positive": 0,
+              "negative": 0,
+              "news_count": 3,
+              "freshness": 0.6012534611924214,
+              "news_impact": [
+                "重大利好: 000002股价创历史新高..."
+              ]
+            }
+          },
+          "sector": {
+            "score": 35.0,
+            "weight": 0.07,
+            "weighted": 2.45,
+            "details": {
+              "sector_strength": -0.6832780582349351,
+              "sector_position": 2,
+              "rotation_score": 20.907658401079367,
+              "sector_money": 0.6295690287456548,
+              "sector_hot_days": 9
+            }
+          }
+        },
+        "analysis_time": 0.022793
+      }
+    ],
+    "timestamp": "2025-10-16T02:37:53.618740"
+  }
+}

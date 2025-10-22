@@ -1,0 +1,10 @@
+# 运行Dashboard与自适应权重服务的基础依赖
+streamlit
+plotly
+pandas
+numpy
+prometheus-client
+pyyaml
+redis
+websocket-client
+aiohttp

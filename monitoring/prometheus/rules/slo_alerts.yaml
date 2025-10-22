@@ -1,0 +1,43 @@
+groups:
+  - name: qilin-slo-alerts
+    interval: 1m
+    rules:
+      # P95 延迟超标（E2E链路）
+      - alert: QilinE2EHighLatencyP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(qilin_e2e_latency_ms_bucket[5m])) by (le)) > 1000
+        for: 5m
+        labels:
+          severity: page
+          slo: e2e_latency
+          team: platform
+        annotations:
+          summary: "E2E P95 延迟超标"
+          description: "P95 latency > 1000ms over 5m. Investigate upstream data, feature, agent pipeline and risk-check."
+
+      # 可用性跌破阈值（估算：1 - 5xx占比）
+      - alert: QilinAvailabilitySLOViolation
+        expr: |
+          (1 - (sum(rate(qilin_requests_total{status=~"5.."}[5m])) / sum(rate(qilin_requests_total[5m])))) < 0.999
+        for: 10m
+        labels:
+          severity: page
+          slo: availability
+          team: platform
+        annotations:
+          summary: "服务可用性低于 99.9%"
+          description: "Availability below SLO. Check upstream deps, error rate, pod restarts, and network."
+
+      # 故障恢复时间超标（需要导出度量：qilin_failover_recovery_seconds）
+      - alert: QilinFailoverRecoveryExceeded
+        expr: qilin_failover_recovery_seconds > 300
+        for: 5m
+        labels:
+          severity: page
+          slo: recovery
+          team: platform
+        annotations:
+          summary: "恢复时间超过 5 分钟"
+          description: "Failover recovery exceeded 5 minutes. Verify degradation path, caches and backup sources."
+
+# 提示：将指标名按实际导出对齐；为直方图延迟指标提供 *_bucket 系列。

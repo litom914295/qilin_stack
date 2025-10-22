@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: qilin-slo-rules
+  labels:
+    release: prometheus
+spec:
+  groups:
+  - name: qilin-slo-alerts
+    interval: 1m
+    rules:
+      - alert: QilinE2EHighLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(qilin_e2e_latency_ms_bucket[5m])) by (le)) > 1000
+        for: 5m
+        labels:
+          severity: page
+          slo: e2e_latency
+          team: platform
+        annotations:
+          summary: "E2E P95 延迟超标"
+          description: "P95 latency > 1000ms over 5m. Investigate upstream data, feature, agent pipeline and risk-check."
+      - alert: QilinAvailabilitySLOViolation
+        expr: (1 - (sum(rate(qilin_requests_total{status=~"5.."}[5m])) / sum(rate(qilin_requests_total[5m])))) < 0.999
+        for: 10m
+        labels:
+          severity: page
+          slo: availability
+          team: platform
+        annotations:
+          summary: "服务可用性低于 99.9%"
+          description: "Availability below SLO. Check upstream deps, error rate, pod restarts, and network."
+      - alert: QilinFailoverRecoveryExceeded
+        expr: qilin_failover_recovery_seconds > 300
+        for: 5m
+        labels:
+          severity: page
+          slo: recovery
+          team: platform
+        annotations:
+          summary: "恢复时间超过 5 分钟"
+          description: "Failover recovery exceeded 5 minutes. Verify degradation path, caches and backup sources."

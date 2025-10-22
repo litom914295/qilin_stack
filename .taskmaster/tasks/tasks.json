@@ -1,0 +1,22 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "实现零信任安全框架",
+        "description": "根据技术架构v2.1，实现完整的零信任安全框架，包括身份验证、设备验证、上下文验证、权限验证、威胁检测等功能",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-10-15T14:34:15.194Z",
+      "description": "Default tasks context",
+      "updated": "2025-10-15T16:30:52.020Z"
+    }
+  }
+}

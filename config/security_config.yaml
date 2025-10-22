@@ -1,0 +1,241 @@
+# 零信任安全框架配置文件
+# 基于技术架构v2.1的安全要求
+
+# JWT配置
+jwt:
+  secret: "${JWT_SECRET}"  # 从环境变量读取
+  algorithm: "HS256"
+  expiration_hours: 24
+  refresh_token_expiration_days: 7
+
+# 加密配置
+encryption:
+  password: "${ENCRYPTION_PASSWORD}"  # 从环境变量读取
+  salt: "${ENCRYPTION_SALT}"
+  algorithm: "AES-256-GCM"
+  key_derivation_iterations: 100000
+
+# Redis配置
+redis:
+  url: "${REDIS_URL:-redis://localhost:6379}"
+  db: 0
+  password: "${REDIS_PASSWORD}"
+  pool_size: 10
+  timeout: 30
+
+# 认证配置
+authentication:
+  max_login_attempts: 5
+  lockout_duration_minutes: 30
+  password_min_length: 12
+  password_require_uppercase: true
+  password_require_lowercase: true
+  password_require_numbers: true
+  password_require_special: true
+  mfa_required: true
+  mfa_algorithm: "TOTP"
+  session_timeout_minutes: 60
+
+# 设备管理配置
+device_management:
+  min_trust_level: 0.5
+  fingerprint_ttl_days: 30
+  max_devices_per_user: 5
+  device_verification_required: true
+
+# 风险评估配置
+risk_assessment:
+  max_risk_score: 0.7
+  high_risk_threshold: 0.6
+  medium_risk_threshold: 0.4
+  risk_factors:
+    - unusual_location: 0.3
+    - new_device: 0.2
+    - failed_auth_attempts: 0.4
+    - suspicious_activity: 0.5
+
+# 访问控制配置
+access_control:
+  rbac_enabled: true
+  default_role: "viewer"
+  roles:
+    admin:
+      permissions:
+        - "*:*"  # 所有权限
+    trader:
+      permissions:
+        - "read:market_data"
+        - "write:orders"
+        - "execute:trades"
+        - "read:positions"
+        - "read:account"
+    analyst:
+      permissions:
+        - "read:market_data"
+        - "read:research"
+        - "write:research"
+        - "read:positions"
+    viewer:
+      permissions:
+        - "read:market_data"
+        - "read:public_research"
+    
+# API网关配置
+api_gateway:
+  rate_limiting:
+    enabled: true
+    default_limit: 1000  # 每小时请求数
+    burst_size: 100     # 突发请求数
+    by_endpoint:
+      "/api/v1/trades": 100
+      "/api/v1/orders": 500
+      "/api/v1/market_data": 5000
+  
+  waf:
+    enabled: true
+    rules_file: "waf_rules.json"
+    block_suspicious_patterns: true
+    log_blocked_requests: true
+  
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://app.qilin.trade"
+      - "http://localhost:3000"  # 开发环境
+    allowed_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "OPTIONS"
+    allowed_headers:
+      - "Content-Type"
+      - "Authorization"
+      - "X-Request-ID"
+      - "X-API-Key"
+
+# 审计日志配置
+audit_logging:
+  enabled: true
+  log_level: "INFO"
+  log_file: "logs/audit.log"
+  max_file_size_mb: 100
+  max_backup_files: 30
+  log_to_database: true
+  log_to_siem: false
+  sensitive_fields_mask: true
+  events_to_log:
+    - "authentication"
+    - "authorization"
+    - "data_access"
+    - "configuration_change"
+    - "security_violation"
+    - "trade_execution"
+
+# 威胁检测配置
+threat_detection:
+  enabled: true
+  ml_model_path: "models/threat_detection.pkl"
+  patterns:
+    sql_injection:
+      enabled: true
+      patterns:
+        - "union select"
+        - "drop table"
+        - "exec sp_"
+        - "xp_cmdshell"
+    xss:
+      enabled: true
+      patterns:
+        - "<script"
+        - "javascript:"
+        - "onerror="
+        - "onload="
+    path_traversal:
+      enabled: true
+      patterns:
+        - "../"
+        - "..%2F"
+        - "..%5C"
+    command_injection:
+      enabled: true
+      patterns:
+        - "|"
+        - "&"
+        - ";"
+        - "$("
+        - "`"
+
+# 数据保护配置
+data_protection:
+  pii_detection:
+    enabled: true
+    auto_encrypt: true
+    auto_mask: true
+  field_encryption:
+    enabled: true
+    fields:
+      - "password"
+      - "api_key"
+      - "secret"
+      - "token"
+      - "credit_card"
+      - "bank_account"
+      - "id_card"
+      - "phone"
+      - "email"
+  data_masking:
+    enabled: true
+    rules:
+      phone: "XXX-XXXX-{last4}"
+      email: "XXX@{domain}"
+      id_card: "{first6}********{last4}"
+      credit_card: "****-****-****-{last4}"
+
+# 安全响应配置
+security_response:
+  auto_response_enabled: true
+  actions:
+    high_threat:
+      - "block_ip"
+      - "lock_account"
+      - "alert_security_team"
+      - "capture_forensics"
+    medium_threat:
+      - "increase_monitoring"
+      - "require_mfa"
+      - "alert_user"
+    low_threat:
+      - "log_event"
+      - "update_risk_score"
+
+# 合规性配置
+compliance:
+  standards:
+    - "ISO27001"
+    - "SOC2"
+    - "GDPR"
+  data_retention_days: 365
+  audit_trail_retention_days: 2555  # 7年
+  encryption_at_rest: true
+  encryption_in_transit: true
+
+# 监控和告警配置
+monitoring:
+  metrics_enabled: true
+  metrics_endpoint: "/metrics"
+  health_check_endpoint: "/health"
+  alerts:
+    failed_auth_threshold: 10
+    high_risk_score_threshold: 0.8
+    api_error_rate_threshold: 0.05
+    response_time_threshold_ms: 1000
+  notification_channels:
+    - type: "email"
+      recipients:
+        - "security@qilin.trade"
+    - type: "webhook"
+      url: "${ALERT_WEBHOOK_URL}"
+    - type: "sms"
+      recipients:
+        - "+86-138-xxxx-xxxx"

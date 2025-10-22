@@ -1,0 +1,12 @@
+apiVersion: 1
+
+# 默认数据源：Prometheus
+# 登录 Grafana（默认 admin / ${GRAFANA_ADMIN_PASSWORD:-admin}）后即可使用
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

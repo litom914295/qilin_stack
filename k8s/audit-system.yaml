@@ -1,0 +1,420 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: qilin-audit
+  labels:
+    name: qilin-audit
+
+---
+# 审计日志存储PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: audit-logs-pvc
+  namespace: qilin-audit
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+# 审计报告存储PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: audit-reports-pvc
+  namespace: qilin-audit
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard
+
+---
+# ConfigMap - 审计配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audit-config
+  namespace: qilin-audit
+data:
+  audit_config.yaml: |
+    log_dir: /var/log/audit
+    report_dir: /var/reports/audit
+    enable_pii_masking: true
+    enable_anomaly_detection: true
+    retention_days: 90
+    
+    anomaly_rules:
+      login_failure:
+        enabled: true
+        threshold: 5
+        time_window: 300
+      
+      bulk_export:
+        enabled: true
+        threshold: 10000
+      
+      api_rate_limit:
+        enabled: true
+        threshold: 100
+        time_window: 60
+
+---
+# Deployment - 审计服务
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-service
+  namespace: qilin-audit
+  labels:
+    app: audit-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: audit-service
+  template:
+    metadata:
+      labels:
+        app: audit-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: audit-service
+      containers:
+        - name: audit-service
+          image: qilin/audit-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+            - name: metrics
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: AUDIT_LOG_DIR
+              value: "/var/log/audit"
+            - name: AUDIT_REPORT_DIR
+              value: "/var/reports/audit"
+            - name: ENABLE_PII_MASKING
+              value: "true"
+            - name: ENABLE_ANOMALY_DETECTION
+              value: "true"
+            - name: REDIS_HOST
+              value: "redis.qilin-system.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+          volumeMounts:
+            - name: audit-logs
+              mountPath: /var/log/audit
+            - name: audit-reports
+              mountPath: /var/reports/audit
+            - name: config
+              mountPath: /etc/audit
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: audit-logs
+          persistentVolumeClaim:
+            claimName: audit-logs-pvc
+        - name: audit-reports
+          persistentVolumeClaim:
+            claimName: audit-reports-pvc
+        - name: config
+          configMap:
+            name: audit-config
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-service
+  namespace: qilin-audit
+  labels:
+    app: audit-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: audit-service
+
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: audit-service
+  namespace: qilin-audit
+
+---
+# Role - 审计服务权限
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: audit-service-role
+  namespace: qilin-audit
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: audit-service-rolebinding
+  namespace: qilin-audit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: audit-service-role
+subjects:
+  - kind: ServiceAccount
+    name: audit-service
+    namespace: qilin-audit
+
+---
+# CronJob - 日报生成
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audit-daily-report
+  namespace: qilin-audit
+spec:
+  schedule: "0 2 * * *"  # 每天凌晨2点
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: audit-service
+          containers:
+            - name: report-generator
+              image: qilin/audit-service:latest
+              command:
+                - python
+                - -m
+                - security.audit_report
+                - daily
+              env:
+                - name: AUDIT_LOG_DIR
+                  value: "/var/log/audit"
+                - name: AUDIT_REPORT_DIR
+                  value: "/var/reports/audit"
+              volumeMounts:
+                - name: audit-logs
+                  mountPath: /var/log/audit
+                  readOnly: true
+                - name: audit-reports
+                  mountPath: /var/reports/audit
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+          volumes:
+            - name: audit-logs
+              persistentVolumeClaim:
+                claimName: audit-logs-pvc
+            - name: audit-reports
+              persistentVolumeClaim:
+                claimName: audit-reports-pvc
+          restartPolicy: OnFailure
+
+---
+# CronJob - 周报生成
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audit-weekly-report
+  namespace: qilin-audit
+spec:
+  schedule: "0 3 * * 1"  # 每周一凌晨3点
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: audit-service
+          containers:
+            - name: report-generator
+              image: qilin/audit-service:latest
+              command:
+                - python
+                - -m
+                - security.audit_report
+                - weekly
+              env:
+                - name: AUDIT_LOG_DIR
+                  value: "/var/log/audit"
+                - name: AUDIT_REPORT_DIR
+                  value: "/var/reports/audit"
+              volumeMounts:
+                - name: audit-logs
+                  mountPath: /var/log/audit
+                  readOnly: true
+                - name: audit-reports
+                  mountPath: /var/reports/audit
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+          volumes:
+            - name: audit-logs
+              persistentVolumeClaim:
+                claimName: audit-logs-pvc
+            - name: audit-reports
+              persistentVolumeClaim:
+                claimName: audit-reports-pvc
+          restartPolicy: OnFailure
+
+---
+# CronJob - 月报生成
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audit-monthly-report
+  namespace: qilin-audit
+spec:
+  schedule: "0 4 1 * *"  # 每月1号凌晨4点
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: audit-service
+          containers:
+            - name: report-generator
+              image: qilin/audit-service:latest
+              command:
+                - python
+                - -m
+                - security.audit_report
+                - monthly
+              env:
+                - name: AUDIT_LOG_DIR
+                  value: "/var/log/audit"
+                - name: AUDIT_REPORT_DIR
+                  value: "/var/reports/audit"
+              volumeMounts:
+                - name: audit-logs
+                  mountPath: /var/log/audit
+                  readOnly: true
+                - name: audit-reports
+                  mountPath: /var/reports/audit
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+          volumes:
+            - name: audit-logs
+              persistentVolumeClaim:
+                claimName: audit-logs-pvc
+            - name: audit-reports
+              persistentVolumeClaim:
+                claimName: audit-reports-pvc
+          restartPolicy: OnFailure
+
+---
+# CronJob - 审计日志清理
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: audit-log-cleanup
+  namespace: qilin-audit
+spec:
+  schedule: "0 1 * * *"  # 每天凌晨1点
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: audit-service
+          containers:
+            - name: log-cleanup
+              image: busybox:latest
+              command:
+                - sh
+                - -c
+                - |
+                  # 删除90天前的审计日志
+                  find /var/log/audit -name "audit_*.log" -mtime +90 -delete
+                  echo "Audit logs older than 90 days cleaned"
+              volumeMounts:
+                - name: audit-logs
+                  mountPath: /var/log/audit
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+          volumes:
+            - name: audit-logs
+              persistentVolumeClaim:
+                claimName: audit-logs-pvc
+          restartPolicy: OnFailure
+
+---
+# ServiceMonitor - Prometheus监控
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: audit-service
+  namespace: qilin-audit
+  labels:
+    app: audit-service
+spec:
+  selector:
+    matchLabels:
+      app: audit-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

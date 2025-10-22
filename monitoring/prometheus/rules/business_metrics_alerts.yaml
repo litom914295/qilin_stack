@@ -1,0 +1,125 @@
+groups:
+  - name: qilin-business-metrics-alerts
+    interval: 5m
+    rules:
+      # 推荐命中率低于阈值
+      - alert: QilinLowHitRate
+        expr: qilin_recommendation_hit_rate{timeframe="1d"} < 0.6
+        for: 1h
+        labels:
+          severity: warning
+          team: quant
+          category: business
+        annotations:
+          summary: "推荐命中率低于60%"
+          description: "Daily hit rate is {{ $value | humanizePercentage }}. Target: ≥60%. Review recommendation logic and signal quality."
+          runbook_url: "https://wiki.qilin.internal/runbooks/low-hit-rate"
+
+      # 推荐命中率严重低于阈值
+      - alert: QilinCriticalLowHitRate
+        expr: qilin_recommendation_hit_rate{timeframe="1d"} < 0.4
+        for: 30m
+        labels:
+          severity: page
+          team: quant
+          category: business
+        annotations:
+          summary: "推荐命中率严重偏低"
+          description: "CRITICAL: Daily hit rate dropped to {{ $value | humanizePercentage }}. Immediate investigation required!"
+          runbook_url: "https://wiki.qilin.internal/runbooks/critical-low-hit-rate"
+
+      # 平均收益率为负
+      - alert: QilinNegativeReturn
+        expr: qilin_avg_return_percent{timeframe="7d"} < -2
+        for: 2h
+        labels:
+          severity: warning
+          team: quant
+          category: business
+        annotations:
+          summary: "7日平均收益率为负"
+          description: "7-day average return is {{ $value }}%. Review strategy parameters and market conditions."
+          runbook_url: "https://wiki.qilin.internal/runbooks/negative-return"
+
+      # 推荐数量异常低
+      - alert: QilinLowRecommendationVolume
+        expr: sum(qilin_daily_recommendations) < 5
+        for: 3h
+        labels:
+          severity: warning
+          team: quant
+          category: business
+        annotations:
+          summary: "每日推荐数量过低"
+          description: "Only {{ $value }} recommendations generated today. Check data pipeline and agent logic."
+          runbook_url: "https://wiki.qilin.internal/runbooks/low-recommendation-volume"
+
+      # 推荐数量异常高（可能异常）
+      - alert: QilinHighRecommendationVolume
+        expr: sum(qilin_daily_recommendations) > 500
+        for: 1h
+        labels:
+          severity: warning
+          team: quant
+          category: business
+        annotations:
+          summary: "每日推荐数量异常高"
+          description: "{{ $value }} recommendations generated today. Verify recommendation logic is not malfunctioning."
+          runbook_url: "https://wiki.qilin.internal/runbooks/high-recommendation-volume"
+
+      # 信号覆盖率过低
+      - alert: QilinLowSignalCoverage
+        expr: qilin_signal_coverage < 0.05
+        for: 2h
+        labels:
+          severity: warning
+          team: quant
+          category: business
+        annotations:
+          summary: "信号覆盖率过低"
+          description: "Signal coverage is {{ $value | humanizePercentage }}. Target: ≥5%. Check data availability and filters."
+          runbook_url: "https://wiki.qilin.internal/runbooks/low-signal-coverage"
+
+      # 高质量推荐占比过低
+      - alert: QilinLowHighQualitySignals
+        expr: |
+          (qilin_recommendations_total{quality="high"} / 
+          (qilin_recommendations_total{quality="high"} + 
+           qilin_recommendations_total{quality="medium"} + 
+           qilin_recommendations_total{quality="low"})) < 0.2
+        for: 6h
+        labels:
+          severity: warning
+          team: quant
+          category: business
+        annotations:
+          summary: "高质量推荐占比过低"
+          description: "High-quality signals are less than 20% of total. Review confidence scoring and thresholds."
+
+      # 7日命中率显著下降
+      - alert: QilinHitRateDrop
+        expr: |
+          (qilin_recommendation_hit_rate{timeframe="7d"} - 
+           qilin_recommendation_hit_rate{timeframe="7d"} offset 7d) < -0.1
+        for: 1h
+        labels:
+          severity: warning
+          team: quant
+          category: business
+        annotations:
+          summary: "7日命中率显著下降"
+          description: "7-day hit rate dropped by {{ $value | humanizePercentage }} compared to last week. Investigate strategy drift."
+
+      # 单日亏损推荐过多
+      - alert: QilinHighLossRecommendations
+        expr: |
+          histogram_quantile(0.5, 
+            rate(qilin_recommendation_return_percent_bucket[1d])) < -5
+        for: 4h
+        labels:
+          severity: warning
+          team: quant
+          category: business
+        annotations:
+          summary: "亏损推荐占比过高"
+          description: "Median recommendation return is {{ $value }}%. Review risk management."

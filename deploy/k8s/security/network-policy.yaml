@@ -1,0 +1,161 @@
+---
+# 默认拒绝所有入站流量
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+---
+# 允许Qilin应用的特定入站流量
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: qilin-app-ingress
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: qilin-trading
+  policyTypes:
+  - Ingress
+  ingress:
+  # 允许来自Ingress Controller的HTTP/HTTPS流量
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+    - protocol: TCP
+      port: 8443
+  
+  # 允许Prometheus抓取metrics
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+      podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  
+  # 允许同命名空间内的Pod间通信
+  - from:
+    - podSelector:
+        matchLabels:
+          app: qilin-trading
+    ports:
+    - protocol: TCP
+      port: 8000
+---
+# 允许Qilin应用的出站流量
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: qilin-app-egress
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: qilin-trading
+  policyTypes:
+  - Egress
+  egress:
+  # 允许访问Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  
+  # 允许访问PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # 允许访问DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  
+  # 允许访问外部API（行情数据源等）
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+  
+  # 允许访问MLflow服务
+  - to:
+    - podSelector:
+        matchLabels:
+          app: mlflow
+    ports:
+    - protocol: TCP
+      port: 5000
+---
+# Redis的网络策略
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-network-policy
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  ingress:
+  # 只允许来自Qilin应用的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          app: qilin-trading
+    ports:
+    - protocol: TCP
+      port: 6379
+---
+# PostgreSQL的网络策略
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-network-policy
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+  - Ingress
+  ingress:
+  # 只允许来自Qilin应用的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          app: qilin-trading
+    ports:
+    - protocol: TCP
+      port: 5432

@@ -1,0 +1,99 @@
+groups:
+  - name: qilin_stack_alerts
+    interval: 30s
+    rules:
+      # 高错误率告警
+      - alert: HighErrorRate
+        expr: rate(error_count_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "系统错误率过高"
+          description: "过去5分钟错误率: {{ $value | humanizePercentage }}"
+          action: "检查系统日志，排查错误原因"
+
+      # 低置信度告警
+      - alert: LowSignalConfidence
+        expr: avg(signal_confidence) < 0.4
+        for: 10m
+        labels:
+          severity: warning
+          component: decision_engine
+        annotations:
+          summary: "信号置信度过低"
+          description: "平均置信度: {{ $value | humanizePercentage }}"
+          action: "检查数据质量，考虑重新训练模型"
+
+      # 决策延迟告警
+      - alert: HighDecisionLatency
+        expr: histogram_quantile(0.95, rate(decision_latency_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: decision_engine
+        annotations:
+          summary: "决策延迟过高"
+          description: "P95延迟: {{ $value }}秒"
+          action: "检查系统负载，优化性能"
+
+      # 服务宕机告警
+      - alert: ServiceDown
+        expr: up{job="qilin-stack"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Qilin Stack服务宕机"
+          description: "服务无响应超过1分钟"
+          action: "立即检查服务状态，重启服务"
+
+      # 决策数量异常
+      - alert: LowDecisionVolume
+        expr: rate(decision_made_total[10m]) < 0.01
+        for: 15m
+        labels:
+          severity: warning
+          component: decision_engine
+        annotations:
+          summary: "决策量异常偏低"
+          description: "每分钟决策数: {{ $value }}"
+          action: "检查数据输入，确认系统正常运行"
+
+      # 内存使用告警
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 / 1024 > 4
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "内存使用过高"
+          description: "当前内存: {{ $value }}GB"
+          action: "检查内存泄漏，考虑增加内存或优化代码"
+
+      # 市场状态异常
+      - alert: UnknownMarketState
+        expr: market_state == 0
+        for: 30m
+        labels:
+          severity: info
+          component: adaptive_system
+        annotations:
+          summary: "市场状态未知持续过长"
+          description: "已持续30分钟"
+          action: "检查市场数据质量"
+
+      # 系统权重失衡
+      - alert: WeightImbalance
+        expr: max(system_weight) - min(system_weight) > 0.5
+        for: 1h
+        labels:
+          severity: info
+          component: decision_engine
+        annotations:
+          summary: "系统权重严重失衡"
+          description: "权重差异: {{ $value }}"
+          action: "检查各系统性能，考虑手动调整权重"

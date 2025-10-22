@@ -1,0 +1,54 @@
+groups:
+  - name: qilin-cert-expiry-alerts
+    interval: 1h
+    rules:
+      # 证书30天内到期（警告）
+      - alert: QilinCertExpiryWarning
+        expr: qilin_cert_expiry_days < 30
+        for: 1h
+        labels:
+          severity: warning
+          team: platform
+          category: security
+        annotations:
+          summary: "证书即将到期"
+          description: "Service {{ $labels.service }} certificate expires in {{ $value }} days. Plan renewal soon."
+          runbook_url: "https://wiki.qilin.internal/runbooks/cert-renewal"
+
+      # 证书7天内到期（严重）
+      - alert: QilinCertExpiryCritical
+        expr: qilin_cert_expiry_days < 7
+        for: 30m
+        labels:
+          severity: page
+          team: platform
+          category: security
+        annotations:
+          summary: "证书紧急到期"
+          description: "URGENT: Service {{ $labels.service }} certificate expires in {{ $value }} days! Renew immediately."
+          runbook_url: "https://wiki.qilin.internal/runbooks/cert-renewal"
+
+      # 证书已过期
+      - alert: QilinCertExpired
+        expr: qilin_cert_expiry_days < 0
+        for: 5m
+        labels:
+          severity: page
+          team: platform
+          category: security
+        annotations:
+          summary: "证书已过期"
+          description: "CRITICAL: Service {{ $labels.service }} certificate has EXPIRED {{ $value }} days ago! Service may be degraded."
+          runbook_url: "https://wiki.qilin.internal/runbooks/cert-expired"
+
+      # 证书轮换失败（如果有导出指标）
+      - alert: QilinCertRotationFailed
+        expr: qilin_cert_rotation_failures_total > 0
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+          category: security
+        annotations:
+          summary: "证书轮换失败"
+          description: "Certificate rotation for {{ $labels.service }} has failed {{ $value }} times. Check cert-manager logs."

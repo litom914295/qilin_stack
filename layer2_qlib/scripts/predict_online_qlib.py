@@ -1,0 +1,1 @@
+import os, pandas as pd; from datetime import datetime as d; os.makedirs('layer2_qlib/artifacts', exist_ok=True); day=d.now().strftime('%Y%m%d'); pd.DataFrame([{'symbol':'SZ000001','score':0.61},{'symbol':'SH600000','score':0.59},{'symbol':'SZ000002','score':0.57}]).to_csv(f'layer2_qlib/artifacts/preds_{day}.csv', index=False); print('demo preds written')

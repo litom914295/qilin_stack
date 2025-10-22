@@ -1,0 +1,15 @@
+# mTLS 证书管理配置
+cert_dir: /etc/qilin/certs
+ca_validity_days: 3650   # CA证书有效期 10年
+cert_validity_days: 365  # 服务证书有效期 1年
+key_size: 2048
+renew_before_days: 30    # 30天前自动续期
+
+# 需要颁发证书的服务列表
+services:
+  - api-gateway
+  - feature-engine
+  - agent-orchestrator
+  - risk-controller
+  - data-collector
+  - backtest-engine

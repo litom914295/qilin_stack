@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qilin-dependency-probe
+  namespace: default
+  labels:
+    app: qilin-stack
+    component: dependency-probe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qilin-stack
+      component: dependency-probe
+  template:
+    metadata:
+      labels:
+        app: qilin-stack
+        component: dependency-probe
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: probe
+          image: qilin-stack/dependency-probe:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: PROBE_INTERVAL
+              value: "30"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: qilin-secrets
+                  key: postgres-password
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: dependency-probe-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qilin-dependency-probe
+  namespace: default
+  labels:
+    app: qilin-stack
+    component: dependency-probe
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: qilin-stack
+    component: dependency-probe
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dependency-probe-config
+  namespace: default
+data:
+  dependencies.yaml: |
+    dependencies:
+      - name: postgres
+        type: database
+        endpoint: postgresql://qilin_user:${POSTGRES_PASSWORD}@postgres-service:5432/qilin_db
+        timeout_seconds: 5.0
+        critical: true
+      
+      - name: redis
+        type: cache
+        endpoint: redis://redis-service:6379/0
+        timeout_seconds: 3.0
+        critical: true
+      
+      - name: mlflow
+        type: ml_service
+        endpoint: http://mlflow-service:5000/health
+        timeout_seconds: 10.0
+        critical: false
+    
+    probe_config:
+      interval_seconds: 30
+      retry_count: 3
+      retry_delay_seconds: 5
+
+---
+# ServiceMonitor for Prometheus Operator
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: qilin-dependency-probe
+  namespace: default
+  labels:
+    app: qilin-stack
+    component: dependency-probe
+spec:
+  selector:
+    matchLabels:
+      app: qilin-stack
+      component: dependency-probe
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

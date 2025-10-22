@@ -1,0 +1,22 @@
+# 精简运行依赖（容器内先跑通主流程）
+numpy>=1.21.0
+pandas>=2.0.0
+scipy>=1.7.0
+
+# 异步与Web
+aiohttp>=3.8.0
+aiofiles>=23.0.0
+fastapi>=0.95.0
+uvicorn>=0.20.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# 配置与监控
+pyyaml>=6.0
+prometheus-client>=0.16.0
+python-json-logger>=2.0.0
+loguru>=0.6.0
+
+# 工具
+python-dotenv>=1.0.0
+rich>=13.3.0

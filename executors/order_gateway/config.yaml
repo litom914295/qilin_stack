@@ -1,0 +1,19 @@
+
+mode: csv
+csv:
+  dir: "orders"
+http:
+  endpoint: "http://localhost:5000/order"
+  api_key: ""
+  api_secret: ""
+risk:
+  max_notional_per_order: 200000
+  max_position_pct: 0.2
+  min_turnover: 1e8
+  price_bounds: [2, 60]
+account:
+  default_cash: 2000000
+  default_side: BUY
+  default_qty: 1000
+security:
+  enable_sig: true

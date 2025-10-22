@@ -1,0 +1,54 @@
+name: SLO CI
+
+on:
+  push:
+    paths:
+      - 'qilin_stack_with_ta/**'
+  pull_request:
+    paths:
+      - 'qilin_stack_with_ta/**'
+
+jobs:
+  test-and-slo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: qilin_stack_with_ta
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          # 允许无 xdist 情况
+          pip install pytest pytest-cov
+          pip install prometheus-client aiohttp pandas numpy
+
+      - name: Run unit tests (override ini)
+        working-directory: qilin_stack_with_ta
+        run: |
+          python -m pytest tests/unit -q --override-ini addopts=""
+
+      - name: Run SLO E2E tests
+        working-directory: qilin_stack_with_ta
+        run: |
+          python -m pytest tests/e2e/test_mvp_slo.py -q --override-ini addopts="" --junitxml reports/slo_junit.xml
+
+      - name: Generate SLO JSON report
+        working-directory: qilin_stack_with_ta
+        run: |
+          python scripts/generate_slo_report.py || true
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slo-reports
+          path: |
+            qilin_stack_with_ta/reports/*.json
+            qilin_stack_with_ta/reports/*.xml

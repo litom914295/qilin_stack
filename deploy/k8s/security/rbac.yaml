@@ -1,0 +1,112 @@
+---
+# Service Account for Qilin Trading System
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: qilin-service-account
+  namespace: production
+  labels:
+    app: qilin-trading
+---
+# Role - 限制权限范围到本命名空间
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: qilin-app-role
+  namespace: production
+rules:
+# ConfigMaps - 只读
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+# Secrets - 只读特定密钥
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["qilin-secrets", "qilin-tls-certs"]
+  verbs: ["get"]
+# Pods - 只读自己的信息
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+# Services - 只读
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+---
+# RoleBinding - 绑定Role到ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: qilin-app-rolebinding
+  namespace: production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: qilin-app-role
+subjects:
+- kind: ServiceAccount
+  name: qilin-service-account
+  namespace: production
+---
+# ClusterRole - 用于跨命名空间监控（仅限必要）
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: qilin-monitoring-reader
+rules:
+# 只允许读取 metrics
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+---
+# 管理员Role - 仅用于运维人员
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: qilin-admin-role
+  namespace: production
+rules:
+- apiGroups: ["", "apps", "batch"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+# 管理员RoleBinding - 绑定到特定用户组
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: qilin-admin-rolebinding
+  namespace: production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: qilin-admin-role
+subjects:
+- kind: Group
+  name: qilin-admins
+  apiGroup: rbac.authorization.k8s.io
+---
+# 只读Role - 用于监控和审计
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: qilin-readonly-role
+  namespace: production
+rules:
+- apiGroups: ["", "apps", "batch"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+---
+# 只读RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: qilin-readonly-rolebinding
+  namespace: production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: qilin-readonly-role
+subjects:
+- kind: Group
+  name: qilin-viewers
+  apiGroup: rbac.authorization.k8s.io

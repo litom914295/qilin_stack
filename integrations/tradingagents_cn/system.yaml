@@ -1,0 +1,7 @@
+sla:
+  max_runtime_sec: 45
+  deadline_local: "08:55:00"
+fallback:
+  strategy: qlib_only
+logging:
+  level: INFO

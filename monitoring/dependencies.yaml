@@ -1,0 +1,55 @@
+# 依赖配置（P0-12）
+dependencies:
+  # 数据库
+  - name: postgres
+    type: database
+    endpoint: postgresql://qilin_user:${POSTGRES_PASSWORD}@postgres-service:5432/qilin_db
+    timeout_seconds: 5.0
+    critical: true
+    
+  # 缓存
+  - name: redis
+    type: cache
+    endpoint: redis://redis-service:6379/0
+    timeout_seconds: 3.0
+    critical: true
+  
+  # 消息队列
+  - name: kafka
+    type: message_queue
+    endpoint: http://kafka-service:9092/health
+    timeout_seconds: 5.0
+    critical: true
+  
+  # ML服务
+  - name: mlflow
+    type: ml_service
+    endpoint: http://mlflow-service:5000/health
+    timeout_seconds: 10.0
+    critical: false
+  
+  # 外部API
+  - name: tushare-api
+    type: external_api
+    endpoint: http://api.tushare.pro/health
+    timeout_seconds: 10.0
+    critical: false
+  
+  - name: akshare-api
+    type: external_api
+    endpoint: http://akshare.example.com/health
+    timeout_seconds: 10.0
+    critical: false
+  
+  # 存储
+  - name: s3-storage
+    type: storage
+    endpoint: http://minio-service:9000/minio/health/live
+    timeout_seconds: 5.0
+    critical: false
+
+# 探针配置
+probe_config:
+  interval_seconds: 30    # 探测间隔
+  retry_count: 3          # 失败重试次数
+  retry_delay_seconds: 5  # 重试延迟

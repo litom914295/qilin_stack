@@ -1,0 +1,130 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: qilin-cert-rotation
+  namespace: default
+  labels:
+    app: qilin-stack
+    component: cert-rotation
+spec:
+  # 每天凌晨2点检查并轮换证书
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: qilin-stack
+            job: cert-rotation
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: cert-manager
+          containers:
+            - name: cert-rotator
+              image: qilin-stack/cert-manager:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - security/mtls/cert_manager.py
+                - --provision
+              env:
+                - name: CONFIG_PATH
+                  value: /config/config.yaml
+              volumeMounts:
+                - name: cert-dir
+                  mountPath: /etc/qilin/certs
+                - name: config
+                  mountPath: /config
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+          volumes:
+            - name: cert-dir
+              persistentVolumeClaim:
+                claimName: qilin-certs-pvc
+            - name: config
+              configMap:
+                name: mtls-config
+
+---
+# ServiceAccount for cert rotation
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-manager
+  namespace: default
+
+---
+# Role for cert manager
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-manager
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-manager
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: cert-manager
+    namespace: default
+roleRef:
+  kind: Role
+  name: cert-manager
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# PVC for storing certificates
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qilin-certs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard
+
+---
+# ConfigMap for mTLS config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mtls-config
+  namespace: default
+data:
+  config.yaml: |
+    cert_dir: /etc/qilin/certs
+    ca_validity_days: 3650
+    cert_validity_days: 365
+    key_size: 2048
+    renew_before_days: 30
+    services:
+      - api-gateway
+      - feature-engine
+      - agent-orchestrator
+      - risk-controller
+      - data-collector
+      - backtest-engine

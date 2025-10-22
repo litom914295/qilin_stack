@@ -1,0 +1,149 @@
+groups:
+  - name: audit_alerts
+    interval: 30s
+    rules:
+      # 审计事件失败率过高
+      - alert: HighAuditFailureRate
+        expr: |
+          rate(audit_failures_total[5m]) / rate(audit_events_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: audit
+        annotations:
+          summary: "审计事件失败率过高"
+          description: "最近5分钟审计事件失败率超过10%，当前值: {{ $value | humanizePercentage }}"
+      
+      # PII脱敏失败
+      - alert: PIIMaskingFailure
+        expr: audit_pii_masking_success_rate < 0.95
+        for: 2m
+        labels:
+          severity: critical
+          component: audit
+        annotations:
+          summary: "PII脱敏成功率过低"
+          description: "PII脱敏成功率低于95%，当前值: {{ $value | humanizePercentage }}"
+      
+      # 安全事件频繁触发
+      - alert: FrequentSecurityEvents
+        expr: rate(audit_security_events_total{severity="high"}[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: critical
+          component: audit
+        annotations:
+          summary: "高危安全事件频繁触发"
+          description: "检测到高危安全事件频繁触发: {{ $labels.event_subtype }}"
+      
+      # 登录失败次数过多
+      - alert: MultipleLoginFailures
+        expr: |
+          sum by (user_id) (
+            rate(audit_user_actions_total{action="login", result="failure"}[5m])
+          ) > 5
+        for: 2m
+        labels:
+          severity: high
+          component: audit
+        annotations:
+          summary: "用户登录失败次数过多"
+          description: "用户 {{ $labels.user_id }} 登录失败次数过多"
+      
+      # 数据导出异常
+      - alert: SuspiciousDataExport
+        expr: |
+          rate(audit_data_exports_total{contains_pii="true"}[10m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: audit
+        annotations:
+          summary: "可疑的数据导出行为"
+          description: "检测到频繁的PII数据导出操作，用户: {{ $labels.user_id }}"
+      
+      # 审计日志文件过大
+      - alert: AuditLogFileTooLarge
+        expr: audit_log_file_size_bytes > 1073741824  # 1GB
+        for: 5m
+        labels:
+          severity: warning
+          component: audit
+        annotations:
+          summary: "审计日志文件过大"
+          description: "审计日志文件 {{ $labels.log_date }} 超过1GB，当前大小: {{ $value | humanize1024 }}"
+      
+      # 活跃用户数异常
+      - alert: UnusualActiveUsers
+        expr: |
+          abs(audit_active_users - avg_over_time(audit_active_users[1h])) / 
+          avg_over_time(audit_active_users[1h]) > 0.5
+        for: 10m
+        labels:
+          severity: info
+          component: audit
+        annotations:
+          summary: "活跃用户数异常"
+          description: "当前活跃用户数与近1小时平均值偏差超过50%"
+      
+      # 越权访问尝试
+      - alert: UnauthorizedAccessAttempts
+        expr: |
+          sum(rate(audit_security_events_total{event_subtype="unauthorized_access"}[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: high
+          component: audit
+        annotations:
+          summary: "检测到越权访问尝试"
+          description: "检测到频繁的越权访问尝试"
+      
+      # API调用频率过高
+      - alert: APIRateLimitExceeded
+        expr: |
+          sum by (user_id) (
+            rate(audit_user_actions_total{action=~"GET|POST|PUT|DELETE"}[1m])
+          ) > 100
+        for: 2m
+        labels:
+          severity: warning
+          component: audit
+        annotations:
+          summary: "API调用频率过高"
+          description: "用户 {{ $labels.user_id }} API调用频率超过限制"
+      
+      # 配置变更告警
+      - alert: ConfigurationChanged
+        expr: |
+          increase(audit_events_total{event_type="config_change"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: high
+          component: audit
+        annotations:
+          summary: "系统配置发生变更"
+          description: "检测到系统配置变更操作"
+      
+      # 非工作时间敏感操作
+      - alert: OffHoursSensitiveOperation
+        expr: |
+          sum(rate(audit_security_events_total{event_subtype="off_hours_access"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: medium
+          component: audit
+        annotations:
+          summary: "非工作时间敏感操作"
+          description: "检测到非工作时间进行敏感操作"
+      
+      # 批量数据导出告警
+      - alert: BulkDataExport
+        expr: |
+          sum(rate(audit_security_events_total{event_subtype="bulk_export"}[10m])) > 0
+        for: 2m
+        labels:
+          severity: medium
+          component: audit
+        annotations:
+          summary: "批量数据导出"
+          description: "检测到批量数据导出操作"

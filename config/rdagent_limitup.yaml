@@ -1,0 +1,112 @@
+rdagent:
+  # 涨停板场景专用配置
+  
+  # RD-Agent路径
+  rdagent_path: "D:/test/Qlib/RD-Agent"
+  
+  # LLM配置 - 涨停板专用高级模型
+  llm_provider: "openai"
+  llm_model: "gpt-5-thinking-all"
+  # llm_api_key: ${OPENAI_API_KEY}  # 请通过环境变量提供
+  llm_api_base: "https://api.tu-zi.com"
+  llm_temperature: 0.7
+  llm_max_tokens: 8000  # 涨停板分析需要更多token
+  
+  # 研究配置
+  research_mode: "factor"  # 先做因子研究
+  max_iterations: 30  # 涨停板因子更复杂，需要更多迭代
+  parallel_tasks: 5
+  enable_cache: true
+  cache_dir: "./workspace/rdagent_limitup_cache"
+  
+  # 因子研究配置 - 涨停板特化
+  factor_pool_size: 100
+  factor_selection_top_k: 20
+  factor_ic_threshold: 0.05  # 涨停板IC阈值更高
+  factor_ir_threshold: 1.0
+  
+  # 涨停板专用因子类别
+  factor_categories:
+    - "seal_strength"      # 封板强度
+    - "continuous_board"   # 连板高度
+    - "concept_synergy"    # 题材共振
+    - "timing"             # 涨停时机
+    - "volume_pattern"     # 量能形态
+    - "order_flow"         # 资金流向
+  
+  # 模型研究配置
+  model_types:
+    - "lightgbm"
+    - "xgboost"
+    - "catboost"
+  model_selection_metric: "next_day_limit_up_rate"  # 次日涨停率
+  model_cv_folds: 5
+  
+  # 优化配置
+  optim_method: "optuna"
+  optim_trials: 200  # 涨停板需要更多优化
+  optim_timeout: 7200  # 2小时
+  
+  # 数据配置 - 涨停板专用
+  data_provider: "qlib"
+  train_start: "2020-01-01"
+  train_end: "2023-12-31"
+  valid_start: "2024-01-01"
+  valid_end: "2024-06-30"
+  test_start: "2024-07-01"
+  test_end: "2024-12-31"
+  
+  # 涨停板数据筛选
+  limit_up_filters:
+    min_price: 2.0
+    max_price: 300.0
+    exclude_st: true
+    exclude_new: true  # 排除上市<60天
+    min_market_cap: 10  # 最小市值10亿
+    max_continuous_board: 10  # 最大连板数
+  
+  # 预测目标
+  prediction_targets:
+    - "next_day_limit_up"       # 次日是否涨停
+    - "next_day_high_return"    # 次日最高收益
+    - "open_premium"            # 开盘溢价
+    - "continuous_probability"  # 继续连板概率
+  
+  # 报告配置
+  enable_report: true
+  report_format: "markdown"
+  report_dir: "./reports/rdagent_limitup"
+  
+  # 性能配置
+  timeout: 600  # 涨停板分析更耗时
+  max_retries: 3
+  enable_parallel: true
+  num_workers: 6
+  
+  # 日志配置
+  log_level: "INFO"
+  log_file: "./logs/rdagent_limitup.log"
+  verbose: true
+  
+  # 涨停板策略配置
+  strategy:
+    entry_time: "09:35:00"  # 打板时机
+    exit_time: "14:55:00"   # 退出时机
+    max_position: 0.3       # 单只最大仓位
+    stop_loss: -0.05        # 止损-5%
+    target_profit: 0.20     # 目标利润+20%
+    
+    # 选股条件
+    selection_rules:
+      - "limit_up_strength > 80"
+      - "seal_quality > 3.0"
+      - "concept_heat > 5"
+      - "continuous_board <= 3"
+      - "volume_surge > 2.0"
+    
+    # 过滤条件
+    exclude_conditions:
+      - "ST股"
+      - "次新股"
+      - "一字板"
+      - "开板次数>3"

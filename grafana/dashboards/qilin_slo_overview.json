@@ -1,0 +1,83 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "E2E Latency P95 (ms)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(qilin_e2e_latency_ms_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "type": "gauge",
+      "title": "Availability (est)",
+      "targets": [
+        {
+          "expr": "(1 - (sum(rate(qilin_requests_total{status=~\"5..\"}[5m])) / sum(rate(qilin_requests_total[5m]))))",
+          "legendFormat": "avail"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percentunit"}},
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+    },
+    {
+      "type": "gauge",
+      "title": "Failover Recovery (s)",
+      "targets": [
+        {"expr": "qilin_failover_recovery_seconds", "legendFormat": "recovery"}
+      ],
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP Success Rate",
+      "targets": [
+        {
+          "expr": "qilin_http_success_rate",
+          "legendFormat": "success_rate"
+        }
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP Request Avg Latency (s)",
+      "targets": [
+        {"expr": "qilin_http_request_seconds_avg", "legendFormat": "avg"},
+        {"expr": "qilin_http_request_seconds_max", "legendFormat": "max"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "DB Pool Size (current/in-use)",
+      "targets": [
+        {"expr": "sum(qilin_db_pool_current_size) by (pool)", "legendFormat": "{{pool}} current"},
+        {"expr": "sum(qilin_db_pool_in_use) by (pool)", "legendFormat": "{{pool}} in_use"}
+      ],
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8}
+    }
+  ],
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["qilin", "slo"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "Qilin SLO Overview",
+  "version": 1,
+  "weekStart": ""
+}

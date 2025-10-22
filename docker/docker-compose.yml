@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["python","-m","streamlit","run","web/unified_dashboard.py","--server.port=8501","--server.address=0.0.0.0"]
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../:/app
+    environment:
+      # 可选：在这里配置你的外部依赖，例如TradingAgents路径或API Key（请使用Docker Secrets/Env文件）
+      # TRADINGAGENTS_PATH: 
+      # OPENAI_API_KEY: 
+      STREAMLIT_SERVER_HEADLESS: "true"
+    restart: unless-stopped
+
+  adaptive_weights:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["python","-m","decision_engine.adaptive_weights_runner","--interval","${ADAPTIVE_INTERVAL:-3600}","--lookback","${ADAPTIVE_LOOKBACK:-3}"]
+    volumes:
+      - ../:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+    restart: unless-stopped
+
+  metrics_exporter:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["python","-m","monitoring.prom_exporter"]
+    volumes:
+      - ../:/app
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - metrics_exporter
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    restart: unless-stopped

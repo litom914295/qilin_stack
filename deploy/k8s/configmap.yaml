@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qilin-config
+  namespace: production
+data:
+  redis-url: "redis://redis-service:6379"
+  log-level: "INFO"
+  max-positions: "5"
+  api-timeout: "30"
+  
+  # 应用配置文件
+  app-config.yaml: |
+    system:
+      name: "麒麟量化系统"
+      version: "2.1"
+      mode: "production"
+    
+    data:
+      sources: ["tushare", "akshare"]
+      cache_enabled: true
+      cache_ttl: 300
+    
+    trading:
+      max_positions: 5
+      position_size: 0.2
+      stop_loss: 0.05
+      take_profit: 0.10
+    
+    monitoring:
+      enabled: true
+      metrics_port: 9090
+      health_check_interval: 60
