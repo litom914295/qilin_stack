@@ -14,7 +14,9 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
 import warnings
+import logging
 
+logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
 
 # 尝试导入各种模型库
@@ -25,21 +27,21 @@ try:
     MODELS_AVAILABLE['xgboost'] = True
 except ImportError:
     MODELS_AVAILABLE['xgboost'] = False
-    print("⚠️  XGBoost未安装")
+    logger.warning("XGBoost 未安装，相关基学习器将被跳过")
 
 try:
     import lightgbm as lgb
     MODELS_AVAILABLE['lightgbm'] = True
 except ImportError:
     MODELS_AVAILABLE['lightgbm'] = False
-    print("⚠️  LightGBM未安装")
+    logger.warning("LightGBM 未安装，相关基学习器将被跳过")
 
 try:
     import catboost as cb
     MODELS_AVAILABLE['catboost'] = True
 except ImportError:
     MODELS_AVAILABLE['catboost'] = False
-    print("⚠️  CatBoost未安装")
+    logger.warning("CatBoost 未安装，相关基学习器将被跳过")
 
 
 class LimitUpEnsembleModel:
@@ -99,10 +101,10 @@ class LimitUpEnsembleModel:
         
         # 如果没有任何模型，使用简单分类器
         if not self.base_models:
-            print("⚠️  没有可用的ML库，使用简单规则分类器")
+            logger.warning("没有可用的 ML 库，使用简单规则分类器(SimpleClassifier)")
             self.base_models['simple'] = SimpleClassifier()
         
-        print(f"✅ 初始化了 {len(self.base_models)} 个基础模型: {list(self.base_models.keys())}")
+        logger.info(f"初始化 {len(self.base_models)} 个基础模型: {list(self.base_models.keys())}")
     
     def fit(
         self,
@@ -125,59 +127,43 @@ class LimitUpEnsembleModel:
         y_val : pd.Series, optional
             验证集标签
         """
-        print(f"\n🏋️  训练集成模型...")
-        print(f"   训练集: {len(X_train)} 样本")
+        logger.info("训练集成模型...")
+        logger.info(f"训练集: {len(X_train)} 样本")
         if X_val is not None:
-            print(f"   验证集: {len(X_val)} 样本")
+            logger.info(f"验证集: {len(X_val)} 样本")
         
         # 训练所有基础模型
         base_predictions_train = {}
         base_predictions_val = {}
         
         for name, model in self.base_models.items():
-            print(f"\n   训练 {name}...")
-            
+            logger.info(f"开始训练基模型 {name} ...")
             try:
                 model.fit(X_train, y_train)
-                
-                # 获取训练集预测（用于meta模型）
                 base_predictions_train[name] = model.predict_proba(X_train)[:, 1]
-                
                 if X_val is not None:
                     base_predictions_val[name] = model.predict_proba(X_val)[:, 1]
-                    
-                    # 计算验证集准确率
                     val_pred = model.predict(X_val)
                     val_acc = (val_pred == y_val).mean()
-                    print(f"      验证集准确率: {val_acc:.2%}")
-                
-                print(f"      ✅ {name} 训练完成")
-                
+                    logger.info(f"{name} 验证集准确率: {val_acc:.2%}")
+                logger.info(f"{name} 训练完成")
             except Exception as e:
-                print(f"      ❌ {name} 训练失败: {e}")
-                # 移除失败的模型
+                logger.exception(f"基模型 {name} 训练失败: {e}")
                 del self.base_models[name]
         
         # 训练meta模型（使用基础模型的预测作为特征）
         if len(self.base_models) > 0:
-            print(f"\n   训练元模型（Stacking层）...")
-            
-            # 构建meta特征
+            logger.info("训练元模型（Stacking 层）...")
             meta_X_train = pd.DataFrame(base_predictions_train)
-            
-            # 使用简单的LR或简单规则作为meta模型
             self.meta_model = SimpleMetaModel()
             self.meta_model.fit(meta_X_train, y_train)
-            
             if X_val is not None:
                 meta_X_val = pd.DataFrame(base_predictions_val)
                 meta_pred = self.meta_model.predict(meta_X_val)
                 meta_acc = (meta_pred == y_val).mean()
-                print(f"      元模型验证集准确率: {meta_acc:.2%}")
-            
-            print(f"      ✅ 元模型训练完成")
-        
-        print(f"\n✅ 集成模型训练完成！")
+                logger.info(f"元模型验证集准确率: {meta_acc:.2%}")
+            logger.info("元模型训练完成")
+        logger.info("集成模型训练完成")
     
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """预测类别"""

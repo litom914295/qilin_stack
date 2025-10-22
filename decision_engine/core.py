@@ -321,8 +321,7 @@ class TradingAgentsSignalGenerator(SignalGenerator):
                 }
             }
         except Exception as e:
-            logger.debug(f"TradingAgents 市场数据构造失败: {e}
-")
+            logger.debug(f"TradingAgents 市场数据构造失败: {e}")
             market_data = {'technical_indicators': {}}
         # 调用多智能体系统
         try:

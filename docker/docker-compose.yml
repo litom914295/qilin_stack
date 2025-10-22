@@ -11,9 +11,6 @@ services:
     volumes:
       - ../:/app
     environment:
-      # 可选：在这里配置你的外部依赖，例如TradingAgents路径或API Key（请使用Docker Secrets/Env文件）
-      # TRADINGAGENTS_PATH: 
-      # OPENAI_API_KEY: 
       STREAMLIT_SERVER_HEADLESS: "true"
     restart: unless-stopped
 
@@ -39,7 +36,10 @@ services:
       - "9100:9100"
     restart: unless-stopped
 
+  # Optional observability stack (requires local config files).
+  # Enable with: docker compose --profile observability up -d
   prometheus:
+    profiles: ["observability"]
     image: prom/prometheus:latest
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -50,6 +50,7 @@ services:
     restart: unless-stopped
 
   grafana:
+    profiles: ["observability"]
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
