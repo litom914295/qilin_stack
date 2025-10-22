@@ -4,6 +4,64 @@
 
 ---
 
+## 💻 机器配置与环境准备（必读）
+
+> 初次使用，环境准备最关键，也最容易出问题。强烈建议先按本节准备好环境再运行示例。
+
+- 操作系统：Windows 10/11、macOS、Linux 均可（文档默认以 Windows PowerShell 为例）
+- Python 版本：3.9 ~ 3.11（推荐 3.10）
+- 内存（RAM）：
+  - 最低可运行：8 GB（仅CPU、少量数据）
+  - 推荐：16 GB（流畅）/ 32 GB（更稳）
+- 磁盘空间（数据+缓存）——下载数据前请预留：
+  - Qlib 日线数据（cn_data）：约 12 ~ 20 GB
+  - 中间缓存/特征/日志：约 3 ~ 10 GB
+  - 模型与结果：约 1 ~ 3 GB
+  - 建议最低可用空间（仅日线）：≥ 30 ~ 50 GB
+  - 如需分钟级数据（可选）：额外 80 ~ 150 GB（不装则无此占用）
+- GPU（可选，用于加速训练，非必需）：
+  - 最低建议显存：≥ 6 GB（能跑 XGBoost/LightGBM GPU 版小数据）
+  - 推荐显存：8 ~ 12 GB（更稳更快）
+  - 性价比推荐：RTX 3060 12GB / RTX 4060 8GB / RTX 4070 12GB（按预算选择）。无 GPU 也可正常使用（改用 CPU）。
+
+### ✅ 是否需要创建虚拟环境？
+强烈建议。可避免污染系统环境、版本冲突。
+
+- 方式A：Python venv（推荐所有用户）
+```powershell
+# 在项目根目录创建并激活虚拟环境
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1  # 若提示权限问题，见下方“激活脚本权限”
+
+# 升级 pip 并安装依赖（基础即可跑通）
+pip install -U pip
+pip install pandas numpy scikit-learn lightgbm xgboost catboost
+pip install akshare yfinance
+pip install pyqlib
+```
+
+- 方式B：Conda
+```powershell
+conda create -n qilin python=3.10 -y
+conda activate qilin
+```
+
+- 激活脚本权限（仅 Windows 如有提示时执行，一次即可）
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+### 📥 首次数据准备（Qlib）
+```powershell
+# 验证并（可选）下载 Qlib 日线数据（约12~20GB，首次可能较久）
+python scripts/validate_qlib_data.py --download
+```
+数据默认放在用户目录：~/.qlib/qlib_data/cn_data，可在脚本参数 --path 指定自定义位置。
+
+> 小贴士：下载速度与磁盘占用受网络与版本影响存在波动，以上为保守估算；如空间紧张，可仅使用示例里的“模拟数据”先跑通。
+
+---
+
 ## 🎯 这个系统是做什么的？
 
 > ✅ 本项目已适配 Windows：不需要 Linux，也不需要安装原版 RD‑Agent 就能完整跑通“一进二”流程；如需官方 TradingAgents，也已提供一键启用开关（见下文）。
