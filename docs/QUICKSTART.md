@@ -15,8 +15,17 @@
 git clone <repository-url>
 cd qilin_stack_with_ta
 
-# 安装Python依赖
-pip install -r requirements.txt
+# 安装Python依赖（方式一：最小运行集）
+pip install -r requirements-runtime.txt
+
+# 可选：开发/测试工具
+# pip install -r requirements-dev.txt
+
+# 可选：Dashboard/观测
+# pip install -r requirements-extras-obs.txt
+
+# 可选：实时监控Web（Flask）
+# pip install -r requirements-extras-monitor.txt
 ```
 
 ### 2. 配置环境变量

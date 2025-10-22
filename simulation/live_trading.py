@@ -2,6 +2,7 @@
 实盘模拟交易系统
 """
 import asyncio
+import logging
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -10,6 +11,8 @@ from decision_engine.core import get_decision_engine, SignalType
 from monitoring.metrics import get_monitor
 from persistence.database import get_db, DecisionRecord
 from persistence.returns_store import get_returns_store
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -40,10 +43,10 @@ class LiveTradingSimulator:
     
     async def start(self, symbols: List[str]):
         """启动实盘模拟"""
-        print(f"🚀 启动实盘模拟")
-        print(f"初始资金: {self.capital:,.2f}")
-        print(f"股票池: {symbols}")
-        print(f"检查间隔: {self.config.check_interval}秒\n")
+        logger.info("🚀 启动实盘模拟")
+        logger.info(f"初始资金: {self.capital:,.2f}")
+        logger.info(f"股票池: {symbols}")
+        logger.info(f"检查间隔: {self.config.check_interval}秒")
         
         self.is_running = True
         
@@ -53,29 +56,29 @@ class LiveTradingSimulator:
                 if self._is_trading_time():
                     await self._trading_cycle(symbols)
                 else:
-                    print(f"⏸️ 非交易时间，休眠...")
+                    logger.info("⏸️ 非交易时间，休眠...")
                 
                 # 等待下一个周期
                 await asyncio.sleep(self.config.check_interval)
         
         except KeyboardInterrupt:
-            print("\n⏹️ 用户停止")
+            logger.info("⏹️ 用户停止")
         finally:
             self.stop()
     
     def stop(self):
         """停止交易"""
         self.is_running = False
-        print(f"\n📊 交易总结")
-        print(f"最终资金: {self.capital:,.2f}")
-        print(f"总收益: {self.capital - self.config.initial_capital:,.2f}")
-        print(f"收益率: {(self.capital/self.config.initial_capital-1)*100:.2f}%")
-        print(f"总交易: {len(self.trades)}")
-        print(f"当前持仓: {len(self.positions)}")
+        logger.info("📊 交易总结")
+        logger.info(f"最终资金: {self.capital:,.2f}")
+        logger.info(f"总收益: {self.capital - self.config.initial_capital:,.2f}")
+        logger.info(f"收益率: {(self.capital/self.config.initial_capital-1)*100:.2f}%")
+        logger.info(f"总交易: {len(self.trades)}")
+        logger.info(f"当前持仓: {len(self.positions)}")
     
     async def _trading_cycle(self, symbols: List[str]):
         """交易周期"""
-        print(f"\n⏰ {datetime.now().strftime('%H:%M:%S')} - 交易周期")
+        logger.info(f"⏰ {datetime.now().strftime('%H:%M:%S')} - 交易周期")
         
         # 1. 更新持仓
         await self._update_positions()
@@ -112,10 +115,10 @@ class LiveTradingSimulator:
                 
                 # 止损止盈检查
                 if position.pnl_pct <= self.config.stop_loss:
-                    print(f"⚠️ 止损: {symbol}, {position.pnl_pct:.2%}")
+                    logger.warning(f"止损: {symbol}, {position.pnl_pct:.2%}")
                     await self._close_position(symbol, current_price, "stop_loss")
                 elif position.pnl_pct >= self.config.take_profit:
-                    print(f"✅ 止盈: {symbol}, {position.pnl_pct:.2%}")
+                    logger.info(f"止盈: {symbol}, {position.pnl_pct:.2%}")
                     await self._close_position(symbol, current_price, "take_profit")
     
     async def _execute_decision(self, decision):
@@ -160,7 +163,7 @@ class LiveTradingSimulator:
                 )
                 self.positions[symbol] = position
                 
-                print(f"📈 买入: {symbol}, 价格: {price:.2f}, 数量: {quantity}")
+                logger.info(f"📈 买入: {symbol}, 价格: {price:.2f}, 数量: {quantity}")
     
     async def _close_position(self, symbol: str, price: float, reason: str):
         """平仓"""
@@ -181,7 +184,7 @@ class LiveTradingSimulator:
         except Exception:
             pass
         
-        print(f"📉 卖出: {symbol}, 价格: {price:.2f}, 盈亏: {pnl:,.2f} ({position.pnl_pct:.2%})")
+        logger.info(f"📉 卖出: {symbol}, 价格: {price:.2f}, 盈亏: {pnl:,.2f} ({position.pnl_pct:.2%})")
         
         del self.positions[symbol]
     

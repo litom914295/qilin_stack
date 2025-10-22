@@ -5,11 +5,14 @@
 
 import time
 import json
+import logging
 from datetime import datetime
 from typing import Dict, List, Any
 from threading import Thread
 import pandas as pd
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Flask Web服务
 try:
@@ -18,7 +21,7 @@ try:
     FLASK_AVAILABLE = True
 except ImportError:
     FLASK_AVAILABLE = False
-    print("⚠️ Flask未安装，监控系统将在控制台模式运行")
+    logger.warning("Flask 未安装，监控系统将在控制台模式运行")
 
 
 class RealtimeMonitor:
@@ -110,8 +113,8 @@ class RealtimeMonitor:
         self.running = True
         
         if self.enable_web:
-            print(f"\n🌐 Web监控服务启动: http://localhost:{self.port}")
-            print(f"刷新间隔: {self.refresh_interval}秒")
+            logger.info(f"🌐 Web监控服务启动: http://localhost:{self.port}")
+            logger.info(f"刷新间隔: {self.refresh_interval}秒")
             
             # 在独立线程中启动模拟数据生成
             Thread(target=self._simulate_metrics, daemon=True).start()
@@ -119,7 +122,7 @@ class RealtimeMonitor:
             # 启动Web服务
             self.socketio.run(self.app, port=self.port, debug=False)
         else:
-            print("\n📊 控制台监控模式启动...")
+            logger.info("📊 控制台监控模式启动...")
             self._console_monitor()
     
     def _simulate_metrics(self):
@@ -141,17 +144,19 @@ class RealtimeMonitor:
     def _console_monitor(self):
         """控制台监控模式"""
         while self.running:
-            print(f"\n{'='*60}")
-            print(f"📊 涨停板预测实时监控 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"{'='*60}")
-            print(f"预测次数: {self.metrics['prediction_count']}")
-            print(f"准确率: {self.metrics['accuracy']:.2%}")
-            print(f"精确率: {self.metrics['precision']:.2%}")
-            print(f"召回率: {self.metrics['recall']:.2%}")
-            print(f"F1分数: {self.metrics['f1_score']:.2%}")
-            print(f"检测涨停: {self.metrics['limit_up_detected']}")
-            print(f"{'='*60}\n")
-            
+            lines = [
+                "="*60,
+                f"📊 涨停板预测实时监控 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                "="*60,
+                f"预测次数: {self.metrics['prediction_count']}",
+                f"准确率: {self.metrics['accuracy']:.2%}",
+                f"精确率: {self.metrics['precision']:.2%}",
+                f"召回率: {self.metrics['recall']:.2%}",
+                f"F1分数: {self.metrics['f1_score']:.2%}",
+                f"检测涨停: {self.metrics['limit_up_detected']}",
+                "="*60,
+            ]
+            logger.info("\n".join(lines))
             time.sleep(self.refresh_interval)
     
     def stop(self):

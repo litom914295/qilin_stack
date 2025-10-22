@@ -1,0 +1,3 @@
+# Optional: realtime monitor
+flask>=3.0
+flask-socketio>=5.3

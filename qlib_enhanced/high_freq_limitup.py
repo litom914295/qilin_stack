@@ -13,8 +13,10 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 import warnings
+import logging
 
 warnings.filterwarnings('ignore')
+logger = logging.getLogger(__name__)
 
 
 class HighFreqLimitUpAnalyzer:
@@ -334,7 +336,7 @@ class HighFreqLimitUpAnalyzer:
                 features['symbol'] = symbol
                 results.append(features)
             except Exception as e:
-                print(f"⚠️  分析 {symbol} 失败: {e}")
+                logger.warning(f"分析失败 {symbol}: {e}")
         
         return pd.DataFrame(results)
 
@@ -426,33 +428,33 @@ def create_sample_high_freq_data(symbol: str = '000001.SZ') -> pd.DataFrame:
 
 def main():
     """示例：分析涨停板高频数据"""
-    print("=" * 80)
-    print("高频数据涨停板分析 - 测试")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("高频数据涨停板分析 - 测试")
+    logger.info("=" * 80)
     
     # 1. 创建模拟数据
-    print("\n📊 生成模拟高频数据...")
+    logger.info("📊 生成模拟高频数据...")
     data = create_sample_high_freq_data('000001.SZ')
-    print(f"   数据点数: {len(data)}")
-    print(f"   时间范围: {data['time'].iloc[0]} 至 {data['time'].iloc[-1]}")
+    logger.info(f"数据点数: {len(data)}")
+    logger.info(f"时间范围: {data['time'].iloc[0]} 至 {data['time'].iloc[-1]}")
     
     # 2. 初始化分析器
-    print("\n🔬 初始化高频分析器...")
+    logger.info("🔬 初始化高频分析器...")
     analyzer = HighFreqLimitUpAnalyzer(freq='1min')
     
     # 3. 分析涨停板特征
-    print("\n📈 分析涨停板分时特征...")
+    logger.info("📈 分析涨停板分时特征...")
     features = analyzer.analyze_intraday_pattern(
         data=data,
         limitup_time='10:30:00'
     )
     
     # 4. 显示结果
-    print("\n" + "=" * 80)
-    print("📊 分析结果")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("📊 分析结果")
+    logger.info("=" * 80)
     
-    print("\n高频特征:")
+    logger.info("高频特征:")
     for key, value in features.items():
         desc = {
             'volume_burst_before_limit': '涨停前量能爆发',
@@ -464,14 +466,14 @@ def main():
         }
         
         if isinstance(value, float):
-            print(f"  {desc.get(key, key)}: {value:.4f}")
+            logger.info(f"  {desc.get(key, key)}: {value:.4f}")
         else:
-            print(f"  {desc.get(key, key)}: {value}")
+            logger.info(f"  {desc.get(key, key)}: {value}")
     
     # 5. 综合评分
-    print("\n" + "=" * 80)
-    print("🎯 综合评分")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("🎯 综合评分")
+    logger.info("=" * 80)
     
     # 计算综合得分
     weights = {
@@ -487,19 +489,19 @@ def main():
         if key in features and isinstance(features[key], (int, float)):
             score += features[key] * weight
     
-    print(f"\n综合得分: {score:.2%}")
+    logger.info(f"综合得分: {score:.2%}")
     
     if score >= 0.80:
-        print("✅ 评级: 强势涨停，次日继续涨停概率高")
+        logger.info("✅ 评级: 强势涨停，次日继续涨停概率高")
     elif score >= 0.60:
-        print("⚠️  评级: 一般涨停，次日走势不确定")
+        logger.info("⚠️  评级: 一般涨停，次日走势不确定")
     else:
-        print("❌ 评级: 弱势涨停，次日继续涨停概率低")
+        logger.info("❌ 评级: 弱势涨停，次日继续涨停概率低")
     
     # 6. 批量分析示例
-    print("\n" + "=" * 80)
-    print("📊 批量分析示例")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("📊 批量分析示例")
+    logger.info("=" * 80)
     
     stocks_data = {
         '000001.SZ': (create_sample_high_freq_data('000001.SZ'), '10:30:00'),
@@ -509,12 +511,12 @@ def main():
     
     batch_results = analyzer.batch_analyze(stocks_data)
     
-    print("\n批量分析结果:")
-    print(batch_results.to_string(index=False))
+    logger.info("批量分析结果:")
+    logger.info("\n" + batch_results.to_string(index=False))
     
-    print("\n" + "=" * 80)
-    print("✅ 测试完成！")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("✅ 测试完成！")
+    logger.info("=" * 80)
 
 
 if __name__ == '__main__':

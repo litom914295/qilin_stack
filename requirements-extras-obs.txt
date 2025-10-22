@@ -1,0 +1,6 @@
+# Optional: dashboard/observability
+streamlit>=1.36
+plotly>=5.22
+prometheus-client>=0.20
+redis>=5.0
+aiohttp>=3.9

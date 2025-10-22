@@ -1,0 +1,11 @@
+# Development and test tools
+pytest>=7.4
+pytest-asyncio>=0.23
+pytest-cov>=4.1
+pytest-mock>=3.11
+pytest-xdist>=3.5
+black>=24.3
+flake8>=7.0
+mypy>=1.10
+isort>=5.13
+coverage>=7.6
