@@ -351,4 +351,6 @@ async def run_simple_backtest():
 
 if __name__ == '__main__':
     import asyncio
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     asyncio.run(run_simple_backtest())

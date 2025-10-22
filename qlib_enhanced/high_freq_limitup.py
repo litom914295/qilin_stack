@@ -520,4 +520,6 @@ def main():
 
 
 if __name__ == '__main__':
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     main()

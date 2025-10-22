@@ -448,4 +448,6 @@ async def test_full_integration():
 
 
 if __name__ == "__main__":
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     asyncio.run(test_full_integration())

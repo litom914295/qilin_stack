@@ -34,7 +34,7 @@ jobs:
 
       - name: Run minimal tests
         run: |
-          pytest -q tests/unit/test_decision_engine_v2.py
+          pytest -q tests/unit/test_decision_engine_v2.py tests/unit/test_backtest_smoke.py
 
   lint:
     runs-on: ubuntu-latest
