@@ -3,11 +3,14 @@
 """
 import pandas as pd
 import numpy as np
+import logging
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decision_engine.core import get_decision_engine, SignalType
 from persistence.returns_store import get_returns_store
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -67,9 +70,9 @@ class BacktestEngine:
         data_source: pd.DataFrame
     ) -> Dict:
         """运行回测"""
-        print(f"开始回测: {start_date} 至 {end_date}")
-        print(f"股票池: {symbols}")
-        print(f"初始资金: {self.capital:,.2f}\n")
+        logger.info(f"开始回测: {start_date} 至 {end_date}")
+        logger.info(f"股票池: {symbols}")
+        logger.info(f"初始资金: {self.capital:,.2f}")
         
         # 生成交易日列表
         dates = pd.date_range(start_date, end_date, freq='B')  # B = 工作日
@@ -92,9 +95,11 @@ class BacktestEngine:
             total_equity = self._calculate_total_equity(data_source, date)
             self.equity_curve.append(total_equity)
             
-            # 打印进度
+            # 进度
             if len(self.dates) % 20 == 0:
-                print(f"进度: {date_str}, 权益: {total_equity:,.2f}, 收益率: {(total_equity/self.capital-1)*100:.2f}%")
+                logger.info(
+                    f"进度: {date_str}, 权益: {total_equity:,.2f}, 收益率: {(total_equity/self.capital-1)*100:.2f}%"
+                )
         
         # 计算回测结果
         results = self._calculate_metrics()
@@ -112,10 +117,10 @@ class BacktestEngine:
                 
                 # 止损止盈检查
                 if position.pnl_pct <= self.config.stop_loss:
-                    print(f"⚠️ 止损: {symbol}, 亏损: {position.pnl_pct:.2%}")
+                    logger.warning(f"止损: {symbol}, 亏损: {position.pnl_pct:.2%}")
                     self._close_position(symbol, current_price, date, "stop_loss")
                 elif position.pnl_pct >= self.config.take_profit:
-                    print(f"✅ 止盈: {symbol}, 盈利: {position.pnl_pct:.2%}")
+                    logger.info(f"止盈: {symbol}, 盈利: {position.pnl_pct:.2%}")
                     self._close_position(symbol, current_price, date, "take_profit")
             except:
                 pass  # 数据缺失，跳过
@@ -175,7 +180,7 @@ class BacktestEngine:
             )
             self.trades.append(trade)
             
-            print(f"📈 买入: {symbol}, 价格: {price:.2f}, 数量: {quantity}, 成本: {total_cost:,.2f}")
+            logger.info(f"📈 买入: {symbol}, 价格: {price:.2f}, 数量: {quantity}, 成本: {total_cost:,.2f}")
     
     def _close_position(self, symbol: str, price: float, date: datetime, reason: str):
         """平仓"""
@@ -210,7 +215,7 @@ class BacktestEngine:
         except Exception:
             pass
         
-        print(f"📉 卖出: {symbol}, 价格: {price:.2f}, 盈亏: {pnl:,.2f} ({position.pnl_pct:.2%}), 原因: {reason}")
+        logger.info(f"📉 卖出: {symbol}, 价格: {price:.2f}, 盈亏: {pnl:,.2f} ({position.pnl_pct:.2%}), 原因: {reason}")
         
         del self.positions[symbol]
     
@@ -278,24 +283,26 @@ class BacktestEngine:
     
     def print_summary(self, metrics: Dict):
         """打印回测摘要"""
-        print(f"\n{'='*60}")
-        print("回测结果摘要")
-        print(f"{'='*60}\n")
-        
-        print(f"初始资金: {metrics['initial_capital']:,.2f}")
-        print(f"最终权益: {metrics['final_equity']:,.2f}")
-        print(f"总收益率: {metrics['total_return']:.2%}")
-        print(f"年化收益率: {metrics['annual_return']:.2%}")
-        print(f"\n风险指标:")
-        print(f"波动率: {metrics['volatility']:.2%}")
-        print(f"夏普比率: {metrics['sharpe_ratio']:.2f}")
-        print(f"最大回撤: {metrics['max_drawdown']:.2%}")
-        print(f"\n交易统计:")
-        print(f"总交易次数: {metrics['total_trades']}")
-        print(f"胜率: {metrics['win_rate']:.2%}")
-        print(f"盈利交易: {metrics['winning_trades']}")
-        print(f"亏损交易: {metrics['losing_trades']}")
-        print(f"\n{'='*60}\n")
+        lines = [
+            "="*60,
+            "回测结果摘要",
+            "="*60,
+            f"初始资金: {metrics['initial_capital']:,.2f}",
+            f"最终权益: {metrics['final_equity']:,.2f}",
+            f"总收益率: {metrics['total_return']:.2%}",
+            f"年化收益率: {metrics['annual_return']:.2%}",
+            "风险指标:",
+            f"波动率: {metrics['volatility']:.2%}",
+            f"夏普比率: {metrics['sharpe_ratio']:.2f}",
+            f"最大回撤: {metrics['max_drawdown']:.2%}",
+            "交易统计:",
+            f"总交易次数: {metrics['total_trades']}",
+            f"胜率: {metrics['win_rate']:.2%}",
+            f"盈利交易: {metrics['winning_trades']}",
+            f"亏损交易: {metrics['losing_trades']}",
+            "="*60,
+        ]
+        logger.info("\n".join(lines))
 
 
 async def run_simple_backtest():
