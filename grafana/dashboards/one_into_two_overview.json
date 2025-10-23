@@ -1,0 +1,57 @@
+{
+  "annotations": [],
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "type": "row",
+      "title": "决策与权重",
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "权重轨迹",
+      "targets": [
+        { "expr": "system_weight{source=\"qlib\"}" },
+        { "expr": "system_weight{source=\"trading_agents\"}" },
+        { "expr": "system_weight{source=\"rd_agent\"}" }
+      ],
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 }
+    },
+    {
+      "type": "bargauge",
+      "title": "Gates 拒绝原因 TopN",
+      "targets": [ { "expr": "sum by (reason) (rate(gate_reject_total[5m]))" } ],
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Qlib 预测时延",
+      "targets": [ { "expr": "histogram_quantile(0.95, sum by (le) (rate(qlib_pred_latency_seconds_bucket[5m])))" } ],
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 }
+    },
+    {
+      "type": "stat",
+      "title": "Qlib 缓存命中",
+      "targets": [ { "expr": "increase(qlib_cache_hit_total[5m])" } ],
+      "gridPos": { "x": 12, "y": 12, "w": 6, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "决策耗时 P95",
+      "targets": [ { "expr": "histogram_quantile(0.95, sum by (le) (rate(decision_latency_seconds_bucket[5m])))" } ],
+      "gridPos": { "x": 18, "y": 12, "w": 6, "h": 8 }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": ["qilin","one-into-two"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "",
+  "title": "One-Into-Two Overview"
+}

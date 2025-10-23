@@ -27,3 +27,10 @@ def get_lhb(the_date: str) -> pd.DataFrame:
 
 def get_news_titles(symbol: str, days: int = 3) -> list:
     return []
+
+# 占位：返回0，用户可自行扩展为 Tushare 概念与龙虎榜接口
+def get_concept_heat_for_symbol(symbol: str, the_date: str) -> float:
+    return 0.0
+
+def get_lhb_netbuy(symbol: str, the_date: str) -> float:
+    return 0.0

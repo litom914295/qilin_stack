@@ -17,7 +17,7 @@ from typing import List, Optional
 sys.path.append(str(Path(__file__).parent))
 
 from app.core.trading_context import ContextManager
-from app.agents.trading_agents_impl import IntegratedDecisionAgent
+from app.agents.trading_agents_impl import IntegratedDecisionAgent, MarketRegimeMarshal # v2.1 升级：引入市场风格元帅
 from app.run_workflow_enhanced import TradingWorkflow, setup_logging
 
 # 配置日志
@@ -37,6 +37,7 @@ class QilinTradingSystem:
         self.config = self.load_config(config_file)
         self.workflow = None
         self.is_running = False
+        self.regime_marshal = MarketRegimeMarshal(self.config) # v2.1 升级：初始化元帅
         
     def load_config(self, config_file: str) -> dict:
         """加载配置文件"""
@@ -130,6 +131,12 @@ class QilinTradingSystem:
         # 3. 启动监控（如果启用）
         if self.config['monitoring']['enabled']:
             await self._start_monitoring()
+
+        # 4. v2.1 升级：开盘前由元帅决定当日作战指令
+        operational_command = await self.regime_marshal.get_operational_command()
+        logger.info(f"市场风格元帅指令: {operational_command}")
+        # 将指令注入到工作流中，工作流将使用这些动态参数
+        self.workflow.set_operational_command(operational_command)
         
         logger.info("系统初始化完成")
     

@@ -27,32 +27,45 @@ class LeaderAgent(BaseAgent):
     name = 'leader'
     
     def run(self, symbol: str, ctx: dict) -> AgentResult:
-        """分析股票是否具有龙头特征"""
+        """分析股票是否具有龙头特征，融合题材热度与龙虎榜净买入（如有）。"""
         try:
             d = ctx.get('ohlc', pd.DataFrame())
             if d.empty or len(d) < 20:
                 return AgentResult(0.5, {'error': 'insufficient_data'})
             
-            # 计算相对强度
+            # 相对强度
             returns = d['close'].pct_change()
             relative_strength = returns.iloc[-20:].mean() / returns.std() if returns.std() > 0 else 0
+            rs_term = min(1.0, max(0.0, relative_strength + 0.5))
             
-            # 计算成交量比率
+            # 成交量比率
             volume_ma5 = d['volume'].rolling(5).mean()
             volume_ma20 = d['volume'].rolling(20).mean()
             volume_ratio = (volume_ma5.iloc[-1] / volume_ma20.iloc[-1]) if volume_ma20.iloc[-1] > 0 else 1
+            vol_term = min(1.0, volume_ratio / 2)
             
-            # 计算价格位置（相对于20日高低点）
+            # 价格位置
             high_20d = d['high'].iloc[-20:].max()
             low_20d = d['low'].iloc[-20:].min()
             current_price = d['close'].iloc[-1]
             price_position = (current_price - low_20d) / (high_20d - low_20d) if high_20d > low_20d else 0.5
             
-            # 综合评分
+            # 题材热度（可选）
+            concept_heat = float(ctx.get('concept_heat', 0.0) or 0.0)
+            concept_term = float(np.clip(concept_heat / 10.0, 0.0, 1.0))
+            
+            # 龙虎榜净买入（可选）
+            lhb_netbuy = float(ctx.get('lhb_netbuy', 0.0) or 0.0)
+            lhb_term = float(np.clip(0.5 + np.tanh(lhb_netbuy / 1e7) * 0.25, 0.0, 1.0))
+            
+            # 综合评分（新增题材与龙虎榜两个维度）
             score = (
-                0.4 * min(1.0, max(0, relative_strength + 0.5)) +  # 相对强度权重40%
-                0.3 * min(1.0, volume_ratio / 2) +  # 成交量比率权重30%
-                0.3 * price_position  # 价格位置权重30%
+                0.35 * rs_term +
+                0.25 * vol_term +
+                0.20 * price_position +
+                0.10 * concept_term +
+                0.10 * lhb_term
+            )
             
             return AgentResult(
                 score=float(np.clip(score, 0, 1)),
@@ -60,7 +73,9 @@ class LeaderAgent(BaseAgent):
                     'is_leader': score > 0.7,
                     'relative_strength': float(relative_strength),
                     'volume_ratio': float(volume_ratio),
-                    'price_position': float(price_position)
+                    'price_position': float(price_position),
+                    'concept_heat': float(concept_heat),
+                    'lhb_netbuy': float(lhb_netbuy)
                 }
         except Exception as e:
             return AgentResult(0.5, {'error': str(e)})

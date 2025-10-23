@@ -70,21 +70,27 @@ def parallel_task(func):
 
 
 async def parallel_decision_generation(symbols: List[str], date: str):
-    """并行生成多个股票的决策"""
+    """并行生成多个股票的决策（演示）。"""
     from decision_engine.core import get_decision_engine
-    
+
     engine = get_decision_engine()
     optimizer = get_optimizer()
-    
-    # 并行调用三个信号生成器
+
+    # 并行调用三个信号生成器（批量）
     tasks = [
-        engine.qlib_generator.generate_signal(symbols[0], date),
-        engine.ta_generator.generate_signal(symbols[0], date),
-        engine.rd_generator.generate_signal(symbols[0], date)
+        engine.qlib_generator.generate_signals(symbols, date),
+        engine.ta_generator.generate_signals(symbols, date),
+        engine.rd_generator.generate_signals(symbols, date),
     ]
-    
-    signals = await optimizer.gather_parallel(*tasks)
-    return signals
+    results = await optimizer.gather_parallel(*tasks)
+
+    # 扁平化并过滤异常
+    flat: list = []
+    for res in results:
+        if isinstance(res, Exception):
+            continue
+        flat.extend(res)
+    return flat
 
 
 # 使用示例

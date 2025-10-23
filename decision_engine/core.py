@@ -13,6 +13,21 @@ import logging
 from abc import ABC, abstractmethod
 import asyncio
 from pathlib import Path
+from typing import Optional as _Optional
+
+# 监控
+try:
+    from monitoring.metrics import get_monitor as _get_monitor
+except Exception:  # noqa: BLE001
+    _get_monitor = lambda: None  # type: ignore
+
+# 配置
+try:
+    import yaml as _yaml  # type: ignore
+except Exception:  # noqa: BLE001
+    _yaml = None  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 # 导入性能优化模块
 try:
@@ -23,7 +38,23 @@ except ImportError:
     PERFORMANCE_ENABLED = False
     logger.warning("⚠️ 性能优化模块未找到，使用标准模式")
 
-logger = logging.getLogger(__name__)
+# Qlib 一次性初始化
+_QLIB_READY = False
+
+def _ensure_qlib() -> bool:
+    """确保 Qlib 已初始化（幂等）。返回是否可用。"""
+    global _QLIB_READY
+    if _QLIB_READY:
+        return True
+    try:
+        import qlib  # type: ignore
+        from qlib.config import REG_CN  # type: ignore
+        qlib.init(provider_uri="~/.qlib/qlib_data/cn_data", region=REG_CN)
+        _QLIB_READY = True
+        return True
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"Qlib init失败: {e}")
+        return False
 
 
 # ============================================================================
@@ -144,6 +175,8 @@ class QlibSignalGenerator(SignalGenerator):
         super().__init__(SignalSource.QLIB)
         self.model = None
         self._artifacts_dir = Path("layer2_qlib/artifacts")
+        # 轻量缓存（symbol,date -> 预测dict）
+        self._pred_cache: Dict[Tuple[str, str], Dict[str, float]] = {}
     
     async def generate_signals(self, symbols: List[str], date: str) -> List[Signal]:
         """
@@ -155,6 +188,7 @@ class QlibSignalGenerator(SignalGenerator):
         - 回测表现
         """
         signals = []
+        monitor = _get_monitor() if callable(_get_monitor) else None
         
         for symbol in symbols:
             try:
@@ -164,6 +198,8 @@ class QlibSignalGenerator(SignalGenerator):
                 # 转换为信号
                 signal = self._prediction_to_signal(symbol, prediction)
                 signals.append(signal)
+                if monitor:
+                    monitor.record_signal(self.source.value, signal.signal_type.value, signal.confidence)
                 
             except Exception as e:
                 logger.error(f"Qlib信号生成失败 {symbol}: {e}")
@@ -171,7 +207,14 @@ class QlibSignalGenerator(SignalGenerator):
         return signals
     
     async def _get_qlib_prediction(self, symbol: str, date: str) -> Dict[str, float]:
-        """获取Qlib预测（优先使用离线产物；否则用Qlib简化特征估计）"""
+        """获取Qlib预测（带简单缓存与监控）。"""
+        cache_key = (symbol, date)
+        if cache_key in self._pred_cache:
+            monitor = _get_monitor() if callable(_get_monitor) else None
+            if monitor:
+                monitor.collector.increment_counter("qlib_cache_hit_total")
+            return self._pred_cache[cache_key]
+
         # 1) 离线预测产物（layer2_qlib/scripts/predict_online_qlib.py）
         try:
             day = date.replace("-", "")
@@ -186,34 +229,40 @@ class QlibSignalGenerator(SignalGenerator):
                         match_row = r
                         break
                 if match_row is not None:
-                    return {"return": float(match_row.get("score", 0.0)), "confidence": 0.8, "sharpe": 1.5}
+                    pred = {"return": float(match_row.get("score", 0.0)), "confidence": 0.8, "sharpe": 1.5}
+                    self._pred_cache[cache_key] = pred
+                    return pred
         except Exception as e:
             logger.debug(f"Qlib artifacts读取失败: {e}")
 
         # 2) Qlib简化估计（基于动量）
         try:
-            import qlib
-            from qlib.config import REG_CN
-            from qlib.data import D
-            try:
-                qlib.init(provider_uri="~/.qlib/qlib_data/cn_data", region=REG_CN)
-            except Exception:
-                pass
-            start = (pd.Timestamp(date) - pd.Timedelta(days=40)).strftime("%Y-%m-%d")
-            end = date
-            data = D.features([symbol], ['$close', '$volume'], start_time=start, end_time=end, freq='day')
-            if not data.empty:
-                closes = data['$close'].droplevel(0) if isinstance(data.index, pd.MultiIndex) else data['$close']
-                ret5 = closes.pct_change(5).iloc[-1]
-                ret1 = closes.pct_change(1).iloc[-1]
-                pred = float(0.7 * ret5 + 0.3 * ret1)
-                conf = float(min(0.95, 0.6 + abs(pred) * 5))
-                return {"return": pred, "confidence": conf, "sharpe": 1.2}
-        except Exception as e:
+            if _ensure_qlib():
+                from qlib.data import D  # type: ignore
+                import time as _time
+                t0 = _time.time()
+                start = (pd.Timestamp(date) - pd.Timedelta(days=40)).strftime("%Y-%m-%d")
+                data = D.features([symbol], ['$close', '$volume'], start_time=start, end_time=date, freq='day')
+                latency = _time.time() - t0
+                monitor = _get_monitor() if callable(_get_monitor) else None
+                if monitor:
+                    monitor.collector.observe_histogram("qlib_pred_latency_seconds", latency, labels={"symbol": symbol})
+                if not data.empty:
+                    closes = data['$close'].droplevel(0) if isinstance(data.index, pd.MultiIndex) else data['$close']
+                    ret5 = closes.pct_change(5).iloc[-1]
+                    ret1 = closes.pct_change(1).iloc[-1]
+                    predv = float(0.7 * ret5 + 0.3 * ret1)
+                    conf = float(min(0.95, 0.6 + abs(predv) * 5))
+                    pred = {"return": predv, "confidence": conf, "sharpe": 1.2}
+                    self._pred_cache[cache_key] = pred
+                    return pred
+        except Exception as e:  # noqa: BLE001
             logger.debug(f"Qlib简化估计失败: {e}")
 
         # 3) 兜底
-        return {"return": 0.0, "confidence": 0.5, "sharpe": 1.0}
+        pred = {"return": 0.0, "confidence": 0.5, "sharpe": 1.0}
+        self._pred_cache[cache_key] = pred
+        return pred
     
     def _prediction_to_signal(self, symbol: str, prediction: Dict[str, float]) -> Signal:
         """预测转信号"""
@@ -320,6 +369,32 @@ class TradingAgentsSignalGenerator(SignalGenerator):
                     'macd_signal': macd_signal,
                 }
             }
+            # 注入一进二上下文（题材热度/龙虎榜净买入，如可获取）
+            injected = False
+            try:
+                from rd_agent.limit_up_data import LimitUpDataInterface  # type: ignore
+                data_if = LimitUpDataInterface(data_source='qlib')
+                feats = data_if.get_limit_up_features([symbol], date)
+                if feats is not None and not feats.empty:
+                    row = feats.iloc[0]
+                    ch = row.get('concept_heat'); lhb = row.get('lhb_netbuy')
+                    if ch is not None:
+                        market_data['concept_heat'] = float(ch)
+                    if lhb is not None:
+                        market_data['lhb_netbuy'] = float(lhb)
+                    injected = True
+            except Exception as _e:
+                logger.debug(f"注入题材/龙虎榜失败: {_e}")
+            # 适配层：如未能从 RD-Agent 得到，则用 adapters 拉取
+            if not injected:
+                try:
+                    from layer3_online.adapters.selector import get_concept_heat as _gch, get_lhb_netbuy as _glhb
+                    ch = _gch(symbol, date)
+                    lhb = _glhb(symbol, date)
+                    if ch: market_data['concept_heat'] = float(ch)
+                    if lhb: market_data['lhb_netbuy'] = float(lhb)
+                except Exception as _e2:
+                    logger.debug(f"适配层注入失败: {_e2}")
         except Exception as e:
             logger.debug(f"TradingAgents 市场数据构造失败: {e}")
             market_data = {'technical_indicators': {}}
@@ -414,22 +489,40 @@ class RDAgentSignalGenerator(SignalGenerator):
             # “一进二”前置条件：前一交易日应为涨停（近似判断）
             feats = self.data_interface.get_limit_up_features([symbol], date)
             if not feats.empty:
+                # 字段别名兼容（不同来源口径）
                 row = feats.iloc[0]
+                rowd = {k: (float(v) if isinstance(v, (int, float)) else v) for k, v in row.to_dict().items()}
+                # seal_strength(0~1) → seal_quality(1~10)
+                if 'seal_quality' not in rowd and 'seal_strength' in rowd:
+                    try:
+                        val = float(rowd['seal_strength'])
+                        rowd['seal_quality'] = max(1.0, min(10.0, val * 10.0))
+                    except Exception:
+                        rowd['seal_quality'] = 5.0
+                # board_height → continuous_board（粗略映射）
+                if 'continuous_board' not in rowd and 'board_height' in rowd:
+                    try:
+                        rowd['continuous_board'] = float(rowd['board_height'])
+                    except Exception:
+                        rowd['continuous_board'] = 1.0
+
                 def norm(v, lo, hi):
                     try:
                         return float(max(0.0, min(1.0, (float(v) - lo) / (hi - lo))))
                     except Exception:
                         return 0.5
                 comp = (
-                    0.40 * norm(row.get('limit_up_strength', 0), 60, 100) +
-                    0.20 * norm(row.get('seal_quality', 0), 1.0, 10.0) +
-                    0.25 * norm(row.get('volume_surge', 1.0), 1.5, 8.0) +
-                    0.10 * norm(row.get('concept_heat', 1), 1, 20) -
-                    0.15 * norm(row.get('continuous_board', 1), 2, 6)  # 一进二偏好低连板数
+                    0.40 * norm(rowd.get('limit_up_strength', rowd.get('seal_quality', 0)), 60, 100) +
+                    0.20 * norm(rowd.get('seal_quality', 0), 1.0, 10.0) +
+                    0.25 * norm(rowd.get('volume_surge', 1.0), 1.5, 8.0) +
+                    0.10 * norm(rowd.get('concept_heat', 1), 1, 20) -
+                    0.15 * norm(rowd.get('continuous_board', 1), 2, 6)  # 一进二偏好低连板数
                 )
                 comp = max(-1.0, min(1.0, (comp - 0.5) * 2.0))
-                # 若上一日并非涨停（强度<95），视为不满足“一进二”，压低分数与置信度
-                if float(row.get('limit_up_strength', 0.0)) < 95.0:
+                # 若上一日并非强势涨停（强度<95 或 seal_quality<6），降低评分
+                lu_strength = float(rowd.get('limit_up_strength', 0.0) or 0.0)
+                seal_q = float(rowd.get('seal_quality', 0.0) or 0.0)
+                if lu_strength < 95.0 and seal_q < 6.0:
                     return {'momentum': 0.0, 'value': 0.0, 'quality': 0.0, 'composite_score': 0.0, 'confidence': 0.5}
                 confidence = min(0.95, 0.65 + 0.30 * max(0.0, comp))
                 return {
@@ -439,7 +532,7 @@ class RDAgentSignalGenerator(SignalGenerator):
                     'composite_score': comp,
                     'confidence': confidence,
                 }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug(f"RD-Agent 因子评分失败: {e}")
         return {
             'momentum': 0.0,
@@ -635,6 +728,9 @@ class DecisionEngine:
         # 历史记录
         self.signal_history: List[Signal] = []
         self.fused_history: List[FusedSignal] = []
+
+        # Gates 配置（可选）
+        self.gate_cfg = self._load_gate_config()
         
         logger.info("✅ 智能决策引擎初始化完成")
     
@@ -669,8 +765,8 @@ class DecisionEngine:
             fused = self.fuser.fuse_signals(all_signals, symbol)
             fused_signals.append(fused)
         
-        # 3. 风险过滤
-        filtered_signals = self._apply_risk_filters(fused_signals)
+        # 3. 风险过滤 + Gates
+        filtered_signals = self._apply_risk_filters(fused_signals, date)
         
         # 保存到历史
         self.fused_history.extend(filtered_signals)
@@ -736,21 +832,48 @@ class DecisionEngine:
         
         return all_signals
     
-    def _apply_risk_filters(self, signals: List[FusedSignal]) -> List[FusedSignal]:
-        """应用风险过滤"""
-        filtered = []
-        
-        for signal in signals:
+    def _apply_risk_filters(self, signals: List[FusedSignal], date: str) -> List[FusedSignal]:
+        """应用风险过滤与 Gates 规则。"""
+        filtered: List[FusedSignal] = []
+        monitor = _get_monitor() if callable(_get_monitor) else None
+
+        # 预取候选的一进二特征（可选）
+        feats_map: Dict[str, Dict[str, Any]] = {}
+        try:
+            from rd_agent.limit_up_data import LimitUpDataInterface  # type: ignore
+            data_if = LimitUpDataInterface(data_source='qlib')
+            syms = [s.symbol for s in signals]
+            feats_df = data_if.get_limit_up_features(list(set(syms)), date)
+            if feats_df is not None and not feats_df.empty:
+                for idx, row in feats_df.iterrows():
+                    feats_map[str(idx)] = {k: row[k] for k in row.index if k}
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"Gates 特征获取失败（跳过）：{e}")
+
+        for fused in signals:
             # 置信度过滤
-            if signal.confidence < 0.5:
-                logger.debug(f"过滤低置信度信号: {signal.symbol} ({signal.confidence:.2f})")
+            if fused.confidence < 0.5:
+                logger.debug(f"过滤低置信度信号: {fused.symbol} ({fused.confidence:.2f})")
+                if monitor:
+                    monitor.collector.increment_counter("gate_reject_total", labels={"reason": "low_confidence"})
                 continue
             
-            # 强度过滤（太弱的信号视为HOLD）
-            if abs(signal.strength) < 0.1:
-                signal.final_signal = SignalType.HOLD
+            # 强度过弱 → HOLD
+            if abs(fused.strength) < 0.1:
+                fused.final_signal = SignalType.HOLD
+
+            # Gates 应用：仅对买入方向进行硬门槛
+            if self.gate_cfg and fused.final_signal in (SignalType.BUY, SignalType.STRONG_BUY):
+                reasons = self._check_gates(fused.symbol, feats_map.get(fused.symbol, {}))
+                if reasons:
+                    # 命中任何拒绝原因：降为 HOLD 并记录
+                    fused.reasoning = (fused.reasoning + f" | gates: reject={','.join(reasons)}").strip()
+                    fused.final_signal = SignalType.HOLD
+                    if monitor:
+                        for r in reasons:
+                            monitor.collector.increment_counter("gate_reject_total", labels={"reason": r})
             
-            filtered.append(signal)
+            filtered.append(fused)
         
         return filtered
     
@@ -765,11 +888,91 @@ class DecisionEngine:
     
     def _get_signal_distribution(self) -> Dict[str, int]:
         """获取信号分布"""
-        distribution = {}
+        distribution: Dict[str, int] = {}
         for signal in self.fused_history[-100:]:  # 最近100个
             sig_type = signal.final_signal.value
             distribution[sig_type] = distribution.get(sig_type, 0) + 1
         return distribution
+
+    # ---------------- Gates 支持 ----------------
+    def _load_gate_config(self) -> Dict[str, Any]:
+        """从 config/tradingagents.yaml 读取 gates 配置（可选）。"""
+        cfg_path = Path("config/tradingagents.yaml")
+        defaults = {
+            "gates": {
+                "first_touch_minutes_max": 30,
+                "open_count_max": 2,
+                "volume_surge_min": 2.0,
+                "seal_quality_min": 6.5,
+                "price_min": 3.0,
+                "price_max": 40.0,
+                "mcap_min_e8_cny": 200,
+                "mcap_max_e8_cny": 8000,
+                "turnover_min": 0.02,
+                "turnover_max": 0.35,
+                "concept_heat_min": 3,
+            }
+        }
+        try:
+            if _yaml and cfg_path.exists():
+                with cfg_path.open("r", encoding="utf-8") as f:
+                    data = _yaml.safe_load(f) or {}
+                    # 允许嵌套 tradingagents.gates 或顶层 gates
+                    ta = data.get("tradingagents", {})
+                    gates = (ta.get("gates") or data.get("gates") or {})
+                    defaults["gates"].update({k: v for k, v in gates.items() if v is not None})
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"加载 Gates 配置失败，使用默认：{e}")
+        return defaults
+
+    def _check_gates(self, symbol: str, feats: Dict[str, Any]) -> List[str]:
+        """返回不满足 Gates 的原因列表。"""
+        reasons: List[str] = []
+        g = self.gate_cfg.get("gates", {}) if isinstance(self.gate_cfg, dict) else {}
+        if not g:
+            return reasons
+
+        def val(name: str, alt: str = "") -> _Optional[float]:
+            v = feats.get(name)
+            if v is None and alt:
+                v = feats.get(alt)
+            try:
+                return float(v)
+            except Exception:
+                return None
+
+        # 逐项检查（缺项则跳过该规则）
+        v = val("first_touch_minutes")
+        if v is not None and v > g.get("first_touch_minutes_max", 1e9):
+            reasons.append("first_touch")
+        v = val("open_count", alt="intraday_open_count")
+        if v is not None and v > g.get("open_count_max", 1e9):
+            reasons.append("open_count")
+        v = val("volume_surge")
+        if v is not None and v < g.get("volume_surge_min", -1e9):
+            reasons.append("volume_surge")
+        v = val("seal_quality", alt="seal_strength")
+        if v is not None:
+            q = v if "seal_quality" in feats else (v * 10.0)
+            if q < g.get("seal_quality_min", -1e9):
+                reasons.append("seal_quality")
+        price = val("price", alt="close")
+        if price is not None:
+            if price < g.get("price_min", -1e9) or price > g.get("price_max", 1e9):
+                reasons.append("price")
+        v = val("mcap_e8_cny", alt="market_cap")
+        if v is not None:
+            if v < g.get("mcap_min_e8_cny", -1e9) or v > g.get("mcap_max_e8_cny", 1e9):
+                reasons.append("mcap")
+        v = val("turnover")
+        if v is not None:
+            if v < g.get("turnover_min", -1e9) or v > g.get("turnover_max", 1e9):
+                reasons.append("turnover")
+        v = val("concept_heat")
+        if v is not None and v < g.get("concept_heat_min", -1e9):
+            reasons.append("concept_heat")
+
+        return reasons
 
 
 # ============================================================================

@@ -151,6 +151,20 @@ python scripts/get_data.py --source qlib
 
 ---
 
+## 📡 监控与回测执行
+
+- 执行口径与撮合模型说明：见 `docs/EXECUTION_MODE.md`
+- 监控指标总览（Prometheus/Grafana）：见 `docs/MONITORING_METRICS.md`
+- 启动可观测性栈（Prometheus+Grafana）：
+  ```bash
+  cd docker
+  docker compose --profile observability up -d
+  ```
+- 区间回测一键运行（示例数据）：
+  ```powershell
+  ./scripts/run_range_backtest.ps1 -Start '2024-01-01' -End '2024-06-30' -Symbols '000001.SZ','600519.SH'
+  ```
+
 ## ❓ 常见问题（FAQ）
 
 - **Q1: 股票代码怎么写？**

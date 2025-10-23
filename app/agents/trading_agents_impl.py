@@ -124,6 +124,7 @@ class ZTQualityAgent:
             
         return {
             "score": score,
+            "confidence": 0.9, # 硬数据，置信度高
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -217,6 +218,7 @@ class LeaderAgent:
             
         return {
             "score": score,
+            "confidence": 0.8, # 龙头判断有一定主观性，置信度中等偏上
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -308,6 +310,7 @@ class AuctionAgent:
             
         return {
             "score": score,
+            "confidence": 0.85, # 竞价数据相对客观，但有博弈成分
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -399,6 +402,7 @@ class MoneyFlowAgent:
             
         return {
             "score": score,
+            "confidence": 0.8, # 资金流数据质量中等
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -496,6 +500,7 @@ class EmotionAgent:
             
         return {
             "score": score,
+            "confidence": 0.65, # 情绪数据主观性最强，置信度偏低
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -590,6 +595,7 @@ class TechnicalAgent:
             
         return {
             "score": score,
+            "confidence": 0.9, # 技术指标是客观计算的
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -687,6 +693,7 @@ class PositionAgent:
             
         return {
             "score": score,
+            "confidence": 0.8, # 仓位建议带有预测成分
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -800,6 +807,7 @@ class RiskAgent:
             
         return {
             "score": max(score, 0),  # 确保不为负数
+            "confidence": 0.95, # 风险评估基于事实数据，置信度高
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -892,6 +900,7 @@ class NewsAgent:
             
         return {
             "score": max(score, 0),
+            "confidence": 0.7, # 新闻解读有歧义，置信度中等
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -983,6 +992,7 @@ class SectorAgent:
             
         return {
             "score": score,
+            "confidence": 0.75, # 板块分析介于宏观和微观之间
             "details": details,
             "timestamp": datetime.now().isoformat()
         }
@@ -1034,26 +1044,37 @@ class IntegratedDecisionAgent:
                 self.logger.error(f"{name} 分析失败: {e}")
                 results[name] = {"score": 0, "details": {"error": str(e)}}
         
-        # 计算综合得分
+        # 计算综合得分和综合置信度
         total_score = 0
+        total_confidence = 0
+        total_weight = 0
         weighted_score = 0
         details = {}
         
         for name, result in results.items():
             agent = self.agents[name]
             score = result.get('score', 0)
+            confidence = result.get('confidence', 0.5) # 默认置信度0.5
             weight = agent.weight
+            
             weighted_score += score * weight
+            total_confidence += confidence * weight # 用权重加权计算综合置信度
+            total_weight += weight
+            
             total_score += score
             details[name] = {
                 'score': score,
+                'confidence': confidence,
                 'weight': weight,
                 'weighted': score * weight,
                 'details': result.get('details', {})
             }
         
+        if total_weight > 0:
+            total_confidence /= total_weight
+        
         # 生成交易建议
-        decision = self._make_decision(weighted_score, results)
+        decision = self._make_decision(weighted_score, total_confidence, results)
         
         elapsed = (datetime.now() - start_time).total_seconds()
         self.logger.info(f"{symbol} 分析完成，耗时: {elapsed:.2f}秒，综合得分: {weighted_score:.2f}")
@@ -1063,58 +1084,75 @@ class IntegratedDecisionAgent:
             'timestamp': datetime.now().isoformat(),
             'total_score': total_score,
             'weighted_score': weighted_score,
+            'total_confidence': total_confidence, # v2.1 新增：综合置信度
             'decision': decision,
             'details': details,
             'analysis_time': elapsed
         }
     
-    def _make_decision(self, score: float, results: Dict) -> Dict[str, Any]:
-        """生成交易决策"""
+    def _make_decision(self, score: float, confidence: float, results: Dict) -> Dict[str, Any]:
+        """ v2.1 升级：基于“分数+置信度”双重门槛生成交易决策 """
         
-        # 风险检查
-        risk_score = results.get('risk', {}).get('score', 0)
-        risk_level = results.get('risk', {}).get('details', {}).get('risk_level', 'high')
+        # 在你的 config.yaml 中加载这些新阈值
+        # thresholds = self.config['agents']['thresholds']
+        # strong_buy_score = thresholds['strong_buy']['score']
+        # strong_buy_confidence = thresholds['strong_buy']['confidence']
         
-        # 仓位建议
-        position_suggestion = results.get('position', {}).get('details', {}).get('suggested_position', '0%')
-        
-        if score >= 80 and risk_level != 'high':
+        if score >= 85 and confidence >= 0.75 and risk_level != 'high': # 硬编码示例
             action = 'strong_buy'
-            confidence = 0.9
             position = position_suggestion
-            reason = "多项指标强势，风险可控"
-        elif score >= 60 and risk_level in ['low', 'medium']:
+            reason = "多项指标强势，且确定性高，风险可控"
+        elif score >= 70 and confidence >= 0.65 and risk_level in ['low', 'medium']:
             action = 'buy'
-            confidence = 0.7
             position = position_suggestion
-            reason = "指标良好，可适度参与"
+            reason = "指标良好，确定性较高，可适度参与"
         elif score >= 40:
             action = 'watch'
-            confidence = 0.5
             position = '0%'
-            reason = "观望为主，等待更好时机"
+            reason = "指标中性或确定性不足，建议观望"
         else:
             action = 'avoid'
-            confidence = 0.3
             position = '0%'
-            reason = "指标偏弱，建议回避"
-        
-        # 如果风险过高，降级决策
-        if risk_level == 'high' and action in ['strong_buy', 'buy']:
-            action = 'watch'
-            position = '0%'
-            reason += "，但风险较高，建议观望"
-        
+            reason = "指标偏弱或不确定性高，建议回避"
+
         return {
             'action': action,
-            'confidence': confidence,
+            'confidence': confidence, # 返回的是综合置信度
             'position': position,
             'reason': reason,
             'risk_level': risk_level,
+            # v2.1 升级：增加决策归因追溯
+            'decision_trace': self._generate_decision_trace(results),
             'entry_price': None,  # 需要根据具体策略设定
             'stop_loss': None,    # 需要根据具体策略设定
             'take_profit': None   # 需要根据具体策略设定
         }
+
+    def _generate_decision_trace(self, results: Dict) -> Dict:
+        """ v2.1 新增：生成决策归因路径 """
+        trace = {
+            "contributions": [],
+            "warnings": []
+        }
+        # 排序，找到贡献最大的因子
+        sorted_agents = sorted(results.items(), key=lambda item: item[1].get('score', 0) * self.agents[item[0]].weight, reverse=True)
+
+        for name, result in sorted_agents:
+            agent = self.agents[name]
+            trace["contributions"].append({
+                "agent": name,
+                "score": result.get('score', 0),
+                "confidence": result.get('confidence', 0.5),
+                "weight": agent.weight,
+                "contribution": result.get('score', 0) * agent.weight
+            })
+        
+        # 记录风险项
+        risk_details = results.get('risk', {}).get('details', {})
+        if risk_details.get('risk_list'):
+            trace["warnings"] = risk_details['risk_list']
+
+        return trace
 
 
 # 导出便捷函数

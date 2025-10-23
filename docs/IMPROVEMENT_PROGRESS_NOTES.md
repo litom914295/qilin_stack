@@ -1,0 +1,4 @@
+- 2025-10-23：新增 Gates 配置（config/tradingagents.yaml），接入决策引擎并上报 gate_reject_total 指标（基础版）。
+- 后续计划：
+  - 竞价/回封成交概率建模（撮合细化）
+  - 题材热度/龙头识别升级为多源数据

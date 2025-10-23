@@ -5,28 +5,36 @@
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Union
 from datetime import datetime, timedelta
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 
-from .core import SignalSource, Signal, FusedSignal
+from .core import SignalSource, Signal
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class PerformanceMetrics:
-    """性能指标"""
-    source: SignalSource
-    accuracy: float  # 准确率
-    precision: float  # 精确率
-    recall: float  # 召回率
-    f1_score: float  # F1分数
-    sharpe_ratio: float  # 夏普比率
-    win_rate: float  # 胜率
-    avg_return: float  # 平均收益
-    timestamp: datetime
+    """纯指标（与测试用例兼容的结构）。"""
+    accuracy: float
+    precision: float
+    recall: float
+    f1_score: float
+    sharpe_ratio: float
+    win_rate: float
+    avg_return: float = 0.0
+    timestamp: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class SystemPerformance:
+    """某一系统在一次评估下的表现快照。"""
+    system_name: str
+    metrics: PerformanceMetrics
+    sample_size: int = 0
+    timestamp: datetime = field(default_factory=datetime.now)
 
 
 class WeightOptimizer:
@@ -37,234 +45,185 @@ class WeightOptimizer:
                  update_frequency: str = 'daily',
                  min_weight: float = 0.1,
                  max_weight: float = 0.6):
-        """
-        初始化权重优化器
-        
-        Args:
-            lookback_days: 回溯天数
-            update_frequency: 更新频率（daily/weekly/monthly）
-            min_weight: 最小权重
-            max_weight: 最大权重
-        """
+        """初始化权重优化器"""
         self.lookback_days = lookback_days
         self.update_frequency = update_frequency
         self.min_weight = min_weight
         self.max_weight = max_weight
-        
-        # 历史性能记录
-        self.performance_history: List[PerformanceMetrics] = []
-        
-        # 当前权重
-        self.current_weights = {
-            SignalSource.QLIB: 0.4,
-            SignalSource.TRADING_AGENTS: 0.35,
-            SignalSource.RD_AGENT: 0.25
+
+        # 历史性能记录（按系统聚合的快照）
+        self.performance_history: List[SystemPerformance] = []
+
+        # 系统清单/默认权重（与测试保持一致）
+        self.systems: List[str] = ['qlib', 'trading_agents', 'rd_agent']
+        self.default_weights: Dict[str, float] = {
+            'qlib': 0.4,
+            'trading_agents': 0.35,
+            'rd_agent': 0.25,
         }
-        
+
+        # 当前权重（字符串键，便于指标上报/序列化）
+        self.current_weights: Dict[str, float] = dict(self.default_weights)
+
         logger.info("✅ 权重优化器初始化完成")
     
-    def evaluate_performance(self,
-                            signals: List[Signal],
-                            actual_returns: Dict[str, float]) -> Dict[SignalSource, PerformanceMetrics]:
+    def evaluate_performance(self, *args, **kwargs) -> Union[Dict[SignalSource, PerformanceMetrics], SystemPerformance]:
+        """评估性能（双接口兼容）。
+        - evaluate_performance(signals: List[Signal], actual_returns: Dict[str,float])
+        - evaluate_performance(system_name: str, predictions: np.ndarray, actuals: np.ndarray, returns: np.ndarray)
         """
-        评估各系统性能
-        
-        Args:
-            signals: 历史信号
-            actual_returns: 实际收益 {symbol: return}
-        
-        Returns:
-            各系统性能指标
-        """
-        metrics = {}
-        
-        for source in SignalSource:
-            source_signals = [s for s in signals if s.source == source]
-            
-            if not source_signals:
-                continue
-            
-            # 计算性能指标
-            perf = self._calculate_metrics(source_signals, actual_returns)
-            metrics[source] = perf
-            
-            # 保存到历史
-            self.performance_history.append(perf)
-        
-        logger.info(f"性能评估完成: {len(metrics)} 个系统")
-        return metrics
+        # 信号级评估
+        if args and isinstance(args[0], list):
+            signals: List[Signal] = args[0]
+            actual_returns: Dict[str, float] = args[1] if len(args) > 1 else {}
+            metrics_map: Dict[SignalSource, PerformanceMetrics] = {}
+            for source in SignalSource:
+                source_signals = [s for s in signals if s.source == source]
+                if not source_signals:
+                    continue
+                # 以“方向是否判断正确”构造 predictions/actuals
+                preds: List[int] = []
+                acts: List[int] = []
+                rets: List[float] = []
+                for s in source_signals:
+                    if s.symbol not in actual_returns:
+                        continue
+                    actual_r = float(actual_returns[s.symbol])
+                    preds.append(1 if s.strength > 0 else 0)
+                    acts.append(1 if actual_r > 0 else 0)
+                    rets.append(actual_r if (preds[-1] == acts[-1]) else -abs(actual_r))
+                if not preds:
+                    continue
+                pm = self._calculate_metrics(np.array(preds), np.array(acts), np.array(rets))
+                metrics_map[source] = pm
+                self.performance_history.append(SystemPerformance(system_name=source.value, metrics=pm, sample_size=len(preds)))
+            logger.info(f"性能评估完成: {len(metrics_map)} 个系统")
+            return metrics_map
+
+        # 简单数组接口（兼容单测）
+        system_name: str = kwargs.get('system_name') or (args[0] if args else 'unknown')
+        predictions = kwargs.get('predictions') or (args[1] if len(args) > 1 else None)
+        actuals = kwargs.get('actuals') or (args[2] if len(args) > 2 else None)
+        returns = kwargs.get('returns') or (args[3] if len(args) > 3 else None)
+        pm = self._calculate_metrics(np.asarray(predictions), np.asarray(actuals), np.asarray(returns) if returns is not None else None)
+        sp = SystemPerformance(system_name=system_name, metrics=pm, sample_size=len(predictions) if predictions is not None else 0)
+        self.performance_history.append(sp)
+        return sp
     
     def _calculate_metrics(self,
-                          signals: List[Signal],
-                          actual_returns: Dict[str, float]) -> PerformanceMetrics:
-        """计算性能指标"""
-        source = signals[0].source
-        
-        # 预测和实际
-        predictions = []
-        actuals = []
-        returns = []
-        
-        for signal in signals:
-            symbol = signal.symbol
-            if symbol not in actual_returns:
-                continue
-            
-            actual_return = actual_returns[symbol]
-            
-            # 预测方向（1=up, 0=down）
-            pred = 1 if signal.strength > 0 else 0
-            actual = 1 if actual_return > 0 else 0
-            
-            predictions.append(pred)
-            actuals.append(actual)
-            returns.append(actual_return if pred == actual else -abs(actual_return))
-        
-        if not predictions:
-            return self._empty_metrics(source)
-        
-        # 计算指标
-        predictions = np.array(predictions)
-        actuals = np.array(actuals)
-        returns = np.array(returns)
-        
-        accuracy = (predictions == actuals).mean()
-        
-        # 精确率和召回率
-        true_positive = ((predictions == 1) & (actuals == 1)).sum()
-        false_positive = ((predictions == 1) & (actuals == 0)).sum()
-        false_negative = ((predictions == 0) & (actuals == 1)).sum()
-        
-        precision = true_positive / (true_positive + false_positive + 1e-8)
-        recall = true_positive / (true_positive + false_negative + 1e-8)
-        f1 = 2 * precision * recall / (precision + recall + 1e-8)
-        
-        # 夏普比率
-        sharpe = returns.mean() / (returns.std() + 1e-8) * np.sqrt(252)
-        
-        # 胜率
-        win_rate = (returns > 0).mean()
-        
-        # 平均收益
-        avg_return = returns.mean()
-        
-        return PerformanceMetrics(
-            source=source,
-            accuracy=accuracy,
-            precision=precision,
-            recall=recall,
-            f1_score=f1,
-            sharpe_ratio=sharpe,
-            win_rate=win_rate,
-            avg_return=avg_return,
-            timestamp=datetime.now()
-        )
+                          predictions: np.ndarray,
+                          actuals: np.ndarray,
+                          returns: Optional[np.ndarray] = None) -> PerformanceMetrics:
+        """计算性能指标（与单测兼容的签名）。"""
+        predictions = np.asarray(predictions)
+        actuals = np.asarray(actuals)
+        if returns is None:
+            # 若未提供收益，按命中给 +1，错给 -1 的虚拟收益
+            returns = np.where(predictions == actuals, 1.0, -1.0)
+        returns = np.asarray(returns)
+
+        if predictions.size == 0:
+            return PerformanceMetrics(accuracy=0.5, precision=0.5, recall=0.5, f1_score=0.5, sharpe_ratio=0.0, win_rate=0.5, avg_return=0.0)
+
+        accuracy = float((predictions == actuals).mean())
+        tp = int(((predictions == 1) & (actuals == 1)).sum())
+        fp = int(((predictions == 1) & (actuals == 0)).sum())
+        fn = int(((predictions == 0) & (actuals == 1)).sum())
+        precision = float(tp / (tp + fp + 1e-8))
+        recall = float(tp / (tp + fn + 1e-8))
+        f1 = float(2 * precision * recall / (precision + recall + 1e-8))
+        sharpe = float(self._calculate_sharpe_ratio(returns))
+        win_rate = float((returns > 0).mean())
+        avg_return = float(returns.mean())
+        return PerformanceMetrics(accuracy, precision, recall, f1, sharpe, win_rate, avg_return)
     
-    def _empty_metrics(self, source: SignalSource) -> PerformanceMetrics:
-        """空指标"""
-        return PerformanceMetrics(
-            source=source,
-            accuracy=0.5,
-            precision=0.5,
-            recall=0.5,
-            f1_score=0.5,
-            sharpe_ratio=0.0,
-            win_rate=0.5,
-            avg_return=0.0,
-            timestamp=datetime.now()
-        )
+    def _calculate_sharpe_ratio(self, returns: np.ndarray) -> float:
+        """计算夏普比率（与单测兼容）。"""
+        returns = np.asarray(returns)
+        if returns.size == 0:
+            return 0.0
+        mu = float(returns.mean())
+        sigma = float(returns.std())
+        if sigma == 0:
+            return 0.0
+        return mu / sigma * np.sqrt(252)
     
-    def optimize_weights(self, performance: Dict[SignalSource, PerformanceMetrics]) -> Dict[SignalSource, float]:
+    def optimize_weights(self, performance: Optional[Union[Dict[SignalSource, PerformanceMetrics], Dict[str, PerformanceMetrics]]] = None) -> Dict[str, float]:
+        """优化权重；若不给 performance，就用最近一次/窗口聚合。返回 {'qlib': w1, ...}。
+        评分: 0.3*Acc + 0.3*F1 + 0.2*Sharpe(截断/归一) + 0.2*WinRate
         """
-        优化权重
-        
-        策略：
-        1. 基于综合评分排序
-        2. 表现好的增加权重
-        3. 表现差的降低权重
-        4. 保证权重在合理范围
-        """
+        # 聚合待评分
+        agg: Dict[str, PerformanceMetrics] = {}
+        if performance:
+            for k, v in performance.items():
+                key = k.value if isinstance(k, SignalSource) else str(k)
+                agg[key] = v
+        else:
+            # 使用历史窗口的最后一次各系统表现
+            for sys in self.systems:
+                for snap in reversed(self.performance_history):
+                    if snap.system_name == sys:
+                        agg[sys] = snap.metrics
+                        break
+            if not agg:
+                return dict(self.current_weights)
+
         # 计算综合评分
-        scores = {}
-        for source, metrics in performance.items():
-            # 综合评分 = 0.3*准确率 + 0.3*F1 + 0.2*夏普 + 0.2*胜率
-            score = (
-                0.3 * metrics.accuracy +
-                0.3 * metrics.f1_score +
-                0.2 * (metrics.sharpe_ratio / 3.0 if metrics.sharpe_ratio > 0 else 0) +
-                0.2 * metrics.win_rate
-            )
-            scores[source] = max(0.1, min(1.0, score))  # 限制在0.1-1.0
-        
-        # 归一化为权重
-        total_score = sum(scores.values())
-        new_weights = {source: score / total_score for source, score in scores.items()}
-        
-        # 应用约束
-        new_weights = self._apply_constraints(new_weights)
-        
-        # 记录权重变化
-        self._log_weight_changes(new_weights)
-        
-        self.current_weights = new_weights
-        return new_weights
+        scores: Dict[str, float] = {}
+        for sys, m in agg.items():
+            s = 0.3 * m.accuracy + 0.3 * m.f1_score + 0.2 * (m.sharpe_ratio / 3.0 if m.sharpe_ratio > 0 else 0) + 0.2 * m.win_rate
+            scores[sys] = max(0.1, min(1.0, float(s)))
+        total = sum(scores.values()) or 1.0
+        raw = {sys: sc / total for sys, sc in scores.items()}
+
+        # 约束与归一
+        constrained = self._apply_constraints_str(raw)
+        self._log_weight_changes_str(constrained)
+        self.current_weights = constrained
+        return dict(constrained)
     
-    def _apply_constraints(self, weights: Dict[SignalSource, float]) -> Dict[SignalSource, float]:
-        """应用权重约束"""
-        constrained = {}
-        
-        for source, weight in weights.items():
-            # 限制在min_weight和max_weight之间
-            constrained[source] = max(self.min_weight, min(self.max_weight, weight))
-        
-        # 重新归一化
-        total = sum(constrained.values())
-        constrained = {k: v / total for k, v in constrained.items()}
-        
-        return constrained
+    def _apply_constraints_str(self, weights: Dict[str, float]) -> Dict[str, float]:
+        """应用权重上下限并归一化（字符串键）。"""
+        bounded = {k: max(self.min_weight, min(self.max_weight, float(v))) for k, v in weights.items()}
+        total = sum(bounded.values()) or 1.0
+        return {k: v / total for k, v in bounded.items()}
     
-    def _log_weight_changes(self, new_weights: Dict[SignalSource, float]):
-        """记录权重变化"""
+    def _log_weight_changes_str(self, new_weights: Dict[str, float]):
+        """记录权重变化（字符串键）。"""
         logger.info("权重优化结果:")
-        for source in SignalSource:
-            old_w = self.current_weights.get(source, 0.0)
-            new_w = new_weights.get(source, 0.0)
+        for sys in self.systems:
+            old_w = float(self.current_weights.get(sys, 0.0))
+            new_w = float(new_weights.get(sys, old_w))
             change = new_w - old_w
-            logger.info(f"  {source.value}: {old_w:.3f} → {new_w:.3f} ({change:+.3f})")
+            logger.info(f"  {sys}: {old_w:.3f} → {new_w:.3f} ({change:+.3f})")
     
-    def get_performance_summary(self, lookback: int = 10) -> pd.DataFrame:
-        """获取性能摘要"""
-        recent = self.performance_history[-lookback:]
-        
-        if not recent:
-            return pd.DataFrame()
-        
-        data = []
-        for perf in recent:
-            data.append({
-                'source': perf.source.value,
-                'accuracy': perf.accuracy,
-                'f1_score': perf.f1_score,
-                'sharpe': perf.sharpe_ratio,
-                'win_rate': perf.win_rate,
-                'avg_return': perf.avg_return,
-                'timestamp': perf.timestamp
-            })
-        
-        return pd.DataFrame(data)
+    def get_performance_summary(self) -> Dict[str, Dict[str, float]]:
+        """返回最近一次各系统的摘要（与单测的断言形态一致）。"""
+        summary: Dict[str, Dict[str, float]] = {}
+        for sys in self.systems:
+            for snap in reversed(self.performance_history):
+                if snap.system_name == sys:
+                    m = snap.metrics
+                    summary[sys] = {
+                        'accuracy': float(m.accuracy),
+                        'f1_score': float(m.f1_score),
+                        'sharpe': float(m.sharpe_ratio),
+                        'win_rate': float(m.win_rate),
+                        'avg_return': float(m.avg_return),
+                    }
+                    break
+        return summary
     
     def should_update(self, last_update: datetime) -> bool:
-        """判断是否应该更新权重"""
+        """判断是否应该更新权重。"""
         now = datetime.now()
         delta = now - last_update
-        
         if self.update_frequency == 'daily':
             return delta.days >= 1
-        elif self.update_frequency == 'weekly':
+        if self.update_frequency == 'weekly':
             return delta.days >= 7
-        elif self.update_frequency == 'monthly':
+        if self.update_frequency == 'monthly':
             return delta.days >= 30
-        
         return False
 
 
@@ -274,26 +233,20 @@ class WeightOptimizer:
 
 class AdaptiveWeightStrategy:
     """自适应权重策略"""
-    
+
     def __init__(self):
         self.optimizer = WeightOptimizer()
         self.last_update = datetime.now()
-    
+
     async def update_if_needed(self,
                               signals: List[Signal],
-                              actual_returns: Dict[str, float]) -> Optional[Dict[SignalSource, float]]:
-        """如果需要则更新权重"""
+                              actual_returns: Dict[str, float]) -> Optional[Dict[str, float]]:
+        """如果需要则更新权重。"""
         if not self.optimizer.should_update(self.last_update):
             return None
-        
-        # 评估性能
-        performance = self.optimizer.evaluate_performance(signals, actual_returns)
-        
-        # 优化权重
-        new_weights = self.optimizer.optimize_weights(performance)
-        
+        perf = self.optimizer.evaluate_performance(signals, actual_returns)
+        new_weights = self.optimizer.optimize_weights(perf)
         self.last_update = datetime.now()
-        
         return new_weights
     
     def get_current_weights(self) -> Dict[SignalSource, float]:

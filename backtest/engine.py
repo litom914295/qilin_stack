@@ -22,6 +22,7 @@ class BacktestConfig:
     max_position_size: float = 0.2  # 最大单次仓位
     stop_loss: float = -0.05  # 止损
     take_profit: float = 0.10  # 止盈
+    fill_model: str = "deterministic"  # 成交模型：deterministic（基于前日特征的确定性比例）
 
 
 @dataclass
@@ -62,36 +63,70 @@ class BacktestEngine:
         self.equity_curve: List[float] = [self.capital]
         self.dates: List[datetime] = []
         
+        # 统计（撮合/成交）
+        self.stats = {
+            'orders_attempted': 0,
+            'orders_unfilled': 0,
+            'shares_planned': 0,
+            'shares_filled': 0,
+        }
+        
+        
     async def run_backtest(
         self,
         symbols: List[str],
         start_date: str,
         end_date: str,
-        data_source: pd.DataFrame
+        data_source: pd.DataFrame,
+        *,
+        trade_at: str = 'next_open',  # 'next_open' | 'same_day_close'
+        avoid_limit_up_unfillable: bool = True,
     ) -> Dict:
-        """运行回测"""
+        """运行回测。
+        trade_at:
+          - same_day_close: 维持原有（理想化）口径
+          - next_open: 更贴近实务的T+1在开盘成交口径；若开盘即涨停且无法成交，则跳过下单
+        """
         logger.info(f"开始回测: {start_date} 至 {end_date}")
         logger.info(f"股票池: {symbols}")
         logger.info(f"初始资金: {self.capital:,.2f}")
         
         # 生成交易日列表
         dates = pd.date_range(start_date, end_date, freq='B')  # B = 工作日
+        n_dates = len(dates)
         
-        for date in dates:
+        for i, date in enumerate(dates):
             date_str = date.strftime('%Y-%m-%d')
             self.dates.append(date)
             
-            # 更新持仓价格
+            # 更新持仓价格（以当日收盘估值）
             self._update_positions(data_source, date)
             
-            # 生成决策
+            # 生成当日决策
             decisions = await self.decision_engine.make_decisions(symbols, date_str)
             
-            # 执行交易
-            for decision in decisions:
-                await self._execute_decision(decision, data_source, date)
+            # 确定执行日与价格字段
+            exec_date = date
+            price_field = 'close'
+            if trade_at == 'next_open':
+                if i + 1 >= n_dates:
+                    # 无下一交易日，跳过执行
+                    exec_date = None
+                else:
+                    exec_date = dates[i + 1]
+                    price_field = 'open'
             
-            # 记录权益
+            # 执行交易
+            if exec_date is not None:
+                for decision in decisions:
+                    await self._execute_decision(
+                        decision, data_source, exec_date,
+                        price_field=price_field,
+                        avoid_limit_up_unfillable=avoid_limit_up_unfillable,
+                        prev_date=(date if trade_at == 'next_open' else None),
+                    )
+            
+            # 记录权益（以当日收盘口径）
             total_equity = self._calculate_total_equity(data_source, date)
             self.equity_curve.append(total_equity)
             
@@ -125,30 +160,78 @@ class BacktestEngine:
             except:
                 pass  # 数据缺失，跳过
     
-    async def _execute_decision(self, decision, data: pd.DataFrame, date: datetime):
-        """执行决策"""
+    async def _execute_decision(self, decision, data: pd.DataFrame, date: datetime,
+                               *, price_field: str = 'close',
+                               avoid_limit_up_unfillable: bool = True,
+                               prev_date: Optional[datetime] = None):
+        """执行决策。price_field: 'close' or 'open'。"""
         symbol = decision.symbol
         signal = decision.final_signal
         
+        # T+1 在开盘成交：如果开盘一字/涨停，视为无法成交（统计不返回）
+        unfillable_open = False
+        if price_field == 'open' and avoid_limit_up_unfillable:
+            try:
+                if prev_date is not None and self._approx_is_limit_up_open(data, symbol, date, prev_date):
+                    unfillable_open = True
+            except Exception:
+                pass
+        
         try:
-            current_price = self._get_price(data, symbol, date)
-        except:
+            current_price = self._get_price(data, symbol, date, field=price_field)
+        except Exception:
             return  # 无数据，跳过
         
         # 买入信号
         if signal in [SignalType.BUY, SignalType.STRONG_BUY]:
             if symbol not in self.positions:
-                # 计算可买数量
+                # 计划买入数量（上限）
                 position_value = self.capital * self.config.max_position_size
-                quantity = int(position_value / current_price / 100) * 100  # 整百股
+                plan_qty = int(position_value / current_price / 100) * 100  # 整百股
+                # 统计尝试/计划股数
+                self.stats['orders_attempted'] += 1
+                self.stats['shares_planned'] += plan_qty
+                # 开盘一字不可成交
+                if unfillable_open:
+                    self.stats['orders_unfilled'] += 1
+                    logger.info(f"未成交(开盘涨停): {symbol} @ {date.strftime('%Y-%m-%d')}")
+                    return
+
+                # 成交比例（T+1 开盘时基于前日特征/概率）
+                fill_ratio = 1.0
+                if price_field == 'open':
+                    if self.config.fill_model == 'deterministic':
+                        fill_ratio = self._compute_fill_ratio(symbol, date, prev_date)
+                    elif self.config.fill_model == 'prob':
+                        fill_ratio = self._compute_fill_ratio_prob(symbol, date, prev_date)
+
+                quantity = int((plan_qty * fill_ratio) / 100) * 100
+                # 若有成交概率但整百后为0，则尝试最小100股
+                if quantity == 0 and fill_ratio > 0 and plan_qty >= 100 and self.capital >= 100 * current_price:
+                    quantity = 100
                 
                 if quantity > 0 and self.capital >= quantity * current_price:
-                    self._open_position(symbol, current_price, quantity, date)
+                    # 应用滑点（买入价上移）
+                    eff_price = current_price * (1.0 + abs(self.config.slippage))
+                    self._open_position(symbol, eff_price, quantity, date)
+                    self.stats['shares_filled'] += quantity
+                    mon = _get_monitor() if callable(_get_monitor) else None
+                    if mon:
+                        mon.collector.increment_counter("orders_attempted_total")
+                        mon.collector.increment_counter("orders_filled_total")
+                else:
+                    self.stats['orders_unfilled'] += 1
+                    mon = _get_monitor() if callable(_get_monitor) else None
+                    if mon:
+                        mon.collector.increment_counter("orders_attempted_total")
+                        mon.collector.increment_counter("orders_unfilled_total")
         
         # 卖出信号
         elif signal in [SignalType.SELL, SignalType.STRONG_SELL]:
             if symbol in self.positions:
-                self._close_position(symbol, current_price, date, "signal")
+                # 应用滑点（卖出价下移）
+                eff_price = current_price * (1.0 - abs(self.config.slippage))
+                self._close_position(symbol, eff_price, date, "signal")
     
     def _open_position(self, symbol: str, price: float, quantity: int, date: datetime):
         """开仓"""
@@ -219,17 +302,76 @@ class BacktestEngine:
         
         del self.positions[symbol]
     
-    def _get_price(self, data: pd.DataFrame, symbol: str, date: datetime) -> float:
-        """获取价格"""
-        # 简化实现：从数据中获取收盘价
+    def _get_price(self, data: pd.DataFrame, symbol: str, date: datetime, *, field: str = 'close') -> float:
+        """获取价格，field 支持 'close' 或 'open'。"""
         try:
             price_data = data[(data['symbol'] == symbol) & (data['date'] == date)]
             if len(price_data) > 0:
-                return float(price_data.iloc[0]['close'])
-        except:
+                fld = field if field in price_data.columns else 'close'
+                return float(price_data.iloc[0][fld])
+        except Exception:
             pass
         raise ValueError(f"无价格数据: {symbol} @ {date}")
     
+    def _approx_is_limit_up_open(self, data: pd.DataFrame, symbol: str, date: datetime, prev_date: datetime) -> bool:
+        """近似判断是否开盘涨停（一字/无法成交）。
+        简化规则：若开盘/前收 >= 1.098 视为涨停（未区分20%或ST 5%）。
+        """
+        try:
+            prev = data[(data['symbol'] == symbol) & (data['date'] == prev_date)]
+            today = data[(data['symbol'] == symbol) & (data['date'] == date)]
+            if len(prev) > 0 and len(today) > 0:
+                prev_close = float(prev.iloc[0]['close'])
+                open_price = float(today.iloc[0]['open'])
+                if prev_close > 0 and (open_price / prev_close) >= 1.098:
+                    return True
+        except Exception:
+            return False
+        return False
+
+    def _compute_fill_ratio(self, symbol: str, exec_date: datetime, prev_date: Optional[datetime]) -> float:
+        """确定性成交比例（0~1）。基于前一交易日的“一进二”相关特征。
+        规则：高位连板（>2）降低；封板质量/量能/题材热度提高；范围压缩在[0.3, 1.0]。
+        取值完全确定，不引入随机数，保证回测稳定。
+        """
+        try:
+            if prev_date is None:
+                return 1.0
+            # 拉取前一日特征
+            from rd_agent.limit_up_data import LimitUpDataInterface  # type: ignore
+            data_if = LimitUpDataInterface(data_source='qlib')
+            feats = data_if.get_limit_up_features([symbol], prev_date.strftime('%Y-%m-%d'))
+            if feats is None or feats.empty:
+                return 1.0
+            row = feats.iloc[0]
+            def get(name, default=0.0):
+                try:
+                    return float(row.get(name, default))
+                except Exception:
+                    return float(default)
+
+            seal_quality = get('seal_quality', get('seal_strength', 0.6) * 10.0)
+            volume_surge = get('volume_surge', 2.0)
+            concept_heat = get('concept_heat', 3.0)
+            cont_board = get('continuous_board', get('board_height', 1.0))
+
+            def clamp(x, lo=0.0, hi=1.0):
+                return max(lo, min(hi, float(x)))
+
+            ratio = 1.0
+            # 连板越高越难在次日开盘吃到合理成交量
+            ratio *= clamp(1.2 - 0.15 * max(0.0, cont_board - 1.0), 0.3, 1.0)
+            # 封板质量提升成交把握
+            ratio *= clamp(0.5 + 0.05 * seal_quality, 0.4, 1.0)
+            # 量能突增有利于流动性
+            ratio *= clamp(0.6 + 0.05 * (volume_surge - 2.0), 0.4, 1.0)
+            # 题材热度适度提升
+            ratio *= clamp(0.7 + 0.02 * concept_heat, 0.5, 1.0)
+
+            return clamp(ratio, 0.0, 1.0)
+        except Exception:
+            return 1.0
+
     def _calculate_total_equity(self, data: pd.DataFrame, date: datetime) -> float:
         """计算总权益"""
         total = self.capital
@@ -276,7 +418,18 @@ class BacktestEngine:
             'total_trades': len(self.trades),
             'win_rate': win_rate,
             'winning_trades': len(winning_trades),
-            'losing_trades': len(losing_trades)
+            'losing_trades': len(losing_trades),
+            # 执行/撮合统计
+            'orders_attempted': self.stats.get('orders_attempted', 0),
+            'orders_unfilled': self.stats.get('orders_unfilled', 0),
+            'unfilled_rate': (
+                self.stats['orders_unfilled'] / self.stats['orders_attempted']
+                if self.stats.get('orders_attempted', 0) > 0 else 0.0
+            ),
+            'fill_ratio_realized': (
+                self.stats['shares_filled'] / self.stats['shares_planned']
+                if self.stats.get('shares_planned', 0) > 0 else 0.0
+            ),
         }
         
         return metrics

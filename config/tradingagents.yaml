@@ -1,0 +1,14 @@
+tradingagents:
+  gates:
+    # 一进二硬门槛（可按需调整）。缺字段将被跳过，不会误杀。
+    first_touch_minutes_max: 30
+    open_count_max: 2
+    volume_surge_min: 2.0
+    seal_quality_min: 6.5
+    price_min: 3.0
+    price_max: 40.0
+    mcap_min_e8_cny: 200
+    mcap_max_e8_cny: 8000
+    turnover_min: 0.02     # 2%
+    turnover_max: 0.35     # 35%
+    concept_heat_min: 3
