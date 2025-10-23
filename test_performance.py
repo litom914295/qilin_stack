@@ -4,16 +4,19 @@
 import asyncio
 import sys
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, os.path.dirname(__file__))
 
 
 async def test_basic():
     """基础功能测试"""
-    print("🧪 测试1: 基础功能验证\n")
+    logger.info("🧪 测试1: 基础功能验证")
     
     # 测试并发优化
-    print("📊 测试并发优化模块...")
+    logger.info("📊 测试并发优化模块...")
     try:
         from performance.concurrency import get_optimizer
         optimizer = get_optimizer()
@@ -25,14 +28,14 @@ async def test_basic():
         tasks = [task(i) for i in range(5)]
         results = await optimizer.gather_parallel(*tasks)
         
-        print(f"  ✅ 并发优化正常: {results}")
+        logger.info(f"  ✅ 并发优化正常: {results}")
         optimizer.cleanup()
     except Exception as e:
-        print(f"  ❌ 并发优化失败: {e}")
+        logger.exception(f"  ❌ 并发优化失败: {e}")
         return False
     
     # 测试缓存
-    print("\n📊 测试缓存模块...")
+    logger.info("📊 测试缓存模块...")
     try:
         from performance.cache import get_cache, cached
         cache = get_cache()
@@ -41,11 +44,11 @@ async def test_basic():
         value = cache.get('test_key')
         
         if value == 'test_value':
-            print(f"  ✅ 缓存正常: {value}")
+            logger.info(f"  ✅ 缓存正常: {value}")
         else:
-            print(f"  ⚠️ 缓存值不匹配: {value}")
+            logger.warning(f"  ⚠️ 缓存值不匹配: {value}")
     except Exception as e:
-        print(f"  ❌ 缓存失败: {e}")
+        logger.exception(f"  ❌ 缓存失败: {e}")
         return False
     
     return True
@@ -53,13 +56,13 @@ async def test_basic():
 
 async def test_decision_engine():
     """测试决策引擎集成"""
-    print("\n🧪 测试2: 决策引擎集成\n")
+    logger.info("🧪 测试2: 决策引擎集成")
     
     try:
         from decision_engine.core import DecisionEngine
         
         # 测试串行模式
-        print("📊 测试串行模式...")
+        logger.info("📊 测试串行模式...")
         engine_seq = DecisionEngine(enable_performance=False)
         symbols = ['000001.SZ', '000002.SZ']
         
@@ -68,67 +71,66 @@ async def test_decision_engine():
         decisions = await engine_seq.make_decisions(symbols, '2024-06-30')
         time_seq = time.time() - start
         
-        print(f"  ✅ 串行模式: {len(decisions)}个决策, 耗时{time_seq:.3f}秒")
+        logger.info(f"  ✅ 串行模式: {len(decisions)}个决策, 耗时{time_seq:.3f}秒")
         
         # 测试并行模式
-        print("\n📊 测试并行模式...")
+        logger.info("📊 测试并行模式...")
         engine_par = DecisionEngine(enable_performance=True)
         
         start = time.time()
         decisions = await engine_par.make_decisions(symbols, '2024-06-30')
         time_par = time.time() - start
         
-        print(f"  ✅ 并行模式: {len(decisions)}个决策, 耗时{time_par:.3f}秒")
+        logger.info(f"  ✅ 并行模式: {len(decisions)}个决策, 耗时{time_par:.3f}秒")
         
         # 对比
         if time_seq > 0:
             speedup = time_seq / time_par
-            print(f"\n⚡ 加速比: {speedup:.2f}x")
+            logger.info(f"⚡ 加速比: {speedup:.2f}x")
             
             if speedup >= 1.5:
-                print("  🏆 性能优化效果显著！")
+                logger.info("  🏆 性能优化效果显著！")
             elif speedup >= 1.2:
-                print("  ✅ 性能有所提升")
+                logger.info("  ✅ 性能有所提升")
             else:
-                print("  ⚠️ 性能提升有限（可能因为任务太少）")
+                logger.warning("  ⚠️ 性能提升有限（可能因为任务太少）")
         
         return True
         
     except Exception as e:
-        print(f"  ❌ 决策引擎测试失败: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception(f"  ❌ 决策引擎测试失败: {e}")
         return False
 
 
 async def main():
     """主测试函数"""
-    print("=" * 70)
-    print("🚀 Qilin Stack 性能优化集成测试")
-    print("=" * 70)
-    print()
+    logger.info("=" * 70)
+    logger.info("🚀 Qilin Stack 性能优化集成测试")
+    logger.info("=" * 70)
     
     # 测试基础功能
     basic_ok = await test_basic()
     
     if not basic_ok:
-        print("\n❌ 基础功能测试失败，请检查模块安装")
+        logger.error("❌ 基础功能测试失败，请检查模块安装")
         return
     
     # 测试决策引擎集成
     engine_ok = await test_decision_engine()
     
-    print("\n" + "=" * 70)
+    logger.info("=" * 70)
     if basic_ok and engine_ok:
-        print("✅ 所有测试通过！性能优化已成功集成")
-        print("\n下一步:")
-        print("  1. 运行完整基准测试: python performance/benchmark.py quick")
-        print("  2. 查看演示: python performance/demo.py")
-        print("  3. 运行压力测试: python performance/benchmark.py stress")
+        logger.info("✅ 所有测试通过！性能优化已成功集成")
+        logger.info("下一步:")
+        logger.info("  1. 运行完整基准测试: python performance/benchmark.py quick")
+        logger.info("  2. 查看演示: python performance/demo.py")
+        logger.info("  3. 运行压力测试: python performance/benchmark.py stress")
     else:
-        print("⚠️ 部分测试失败，请检查错误信息")
-    print("=" * 70)
+        logger.warning("⚠️ 部分测试失败，请检查错误信息")
+    logger.info("=" * 70)
 
 
 if __name__ == '__main__':
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     asyncio.run(main())

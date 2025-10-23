@@ -414,21 +414,24 @@ def get_unified_bridge() -> UnifiedDataBridge:
 # 测试
 # ============================================================================
 
+import logging
+logger = logging.getLogger(__name__)
+
 def test_data_bridge():
     """测试数据桥接"""
-    print("=== 三系统数据桥接测试 ===\n")
+    logger.info("三系统数据桥接测试")
     
     bridge = get_unified_bridge()
     
     # 测试所有桥接器
-    print("1️⃣ 测试桥接器连通性:")
+    logger.info("1️⃣ 测试桥接器连通性:")
     results = bridge.test_all_bridges()
     for name, status in results.items():
         status_icon = "✅" if status else "❌"
-        print(f"  {status_icon} {name}: {'正常' if status else '失败'}")
+        logger.info(f"  {status_icon} {name}: {'正常' if status else '失败'}")
     
     # 详细测试Qlib桥接
-    print("\n2️⃣ 测试Qlib桥接:")
+    logger.info("2️⃣ 测试Qlib桥接:")
     qlib_bridge = bridge.get_qlib_bridge()
     qlib_data = qlib_bridge.get_features_for_model(
         instruments=['000001.SZ'],
@@ -437,23 +440,23 @@ def test_data_bridge():
     )
     
     if not qlib_data.empty:
-        print(f"  获取到 {len(qlib_data)} 条数据")
-        print(f"  特征数量: {len(qlib_data.columns)}")
-        print(f"  特征列表: {list(qlib_data.columns[:5])}")
+        logger.info(f"  获取到 {len(qlib_data)} 条数据")
+        logger.info(f"  特征数量: {len(qlib_data.columns)}")
+        logger.info(f"  特征列表: {list(qlib_data.columns[:5])}")
     else:
-        print("  ❌ 未获取到数据")
+        logger.info("  ❌ 未获取到数据")
     
     # 详细测试TradingAgents桥接
-    print("\n3️⃣ 测试TradingAgents桥接:")
+    logger.info("3️⃣ 测试TradingAgents桥接:")
     ta_bridge = bridge.get_tradingagents_bridge()
     market_state = ta_bridge.get_market_state(['000001.SZ'], '2024-01-10')
     
-    print(f"  市场状态包含: {list(market_state.keys())}")
+    logger.info(f"  市场状态包含: {list(market_state.keys())}")
     if 'prices' in market_state and market_state['prices']:
-        print(f"  价格数据: {list(market_state['prices'].keys())}")
+        logger.info(f"  价格数据: {list(market_state['prices'].keys())}")
     
     # 详细测试RD-Agent桥接
-    print("\n4️⃣ 测试RD-Agent桥接:")
+    logger.info("4️⃣ 测试RD-Agent桥接:")
     rd_bridge = bridge.get_rdagent_bridge()
     factors = rd_bridge.get_factor_data(
         symbols=['000001.SZ'],
@@ -462,14 +465,16 @@ def test_data_bridge():
     )
     
     if not factors.empty:
-        print(f"  获取到 {len(factors)} 条因子数据")
-        print(f"  因子数量: {len(factors.columns)}")
-        print(f"  因子列表: {list(factors.columns)}")
+        logger.info(f"  获取到 {len(factors)} 条因子数据")
+        logger.info(f"  因子数量: {len(factors.columns)}")
+        logger.info(f"  因子列表: {list(factors.columns)}")
     else:
-        print("  ❌ 未获取到数据")
+        logger.info("  ❌ 未获取到数据")
     
-    print("\n✅ 测试完成")
+    logger.info("✅ 测试完成")
 
 
 if __name__ == "__main__":
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     test_data_bridge()

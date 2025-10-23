@@ -364,16 +364,18 @@ async def example_message_handler(message: Dict[str, Any]) -> Dict[str, Any]:
 
 async def main():
     """示例用法"""
-    logging.basicConfig(level=logging.INFO)
-    
+    from app.core.logging_setup import setup_logging
+    setup_logging()
+
     # 创建幂等性管理器
     idempotency_mgr = IdempotencyManager(
         redis_url="redis://localhost:6379/0",
         ttl_seconds=3600  # 1小时
-    
+    )
+
     # 创建Kafka消费者
     consumer = KafkaIdempotentConsumer(idempotency_mgr)
-    
+
     # 模拟消息
     test_message = {
         'message_id': 'msg_001',
@@ -383,14 +385,14 @@ async def main():
             'action': 'buy'
         }
     }
-    
-    print("\n=== First consumption (should process) ===")
+
+    logger.info("First consumption (should process)")
     await consumer.consume_message(test_message, example_message_handler)
-    
-    print("\n=== Second consumption (should skip) ===")
+
+    logger.info("Second consumption (should skip)")
     await consumer.consume_message(test_message, example_message_handler)
-    
-    print("\n=== Different message (should process) ===")
+
+    logger.info("Different message (should process)")
     test_message2 = {
         'message_id': 'msg_002',
         'type': 'recommendation',
@@ -400,7 +402,7 @@ async def main():
         }
     }
     await consumer.consume_message(test_message2, example_message_handler)
-    
+
     await idempotency_mgr.disconnect()
 
 

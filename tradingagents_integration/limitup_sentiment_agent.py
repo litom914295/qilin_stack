@@ -18,6 +18,8 @@ from pathlib import Path
 import warnings
 
 warnings.filterwarnings('ignore')
+import logging
+logger = logging.getLogger(__name__)
 
 # 添加TradingAgents路径
 TRADINGAGENTS_PATH = os.getenv("TRADINGAGENTS_PATH", "D:/test/Qlib/TradingAgents")
@@ -26,8 +28,8 @@ if os.path.exists(TRADINGAGENTS_PATH):
     TRADINGAGENTS_AVAILABLE = True
 else:
     TRADINGAGENTS_AVAILABLE = False
-    print(f"⚠️  TradingAgents未找到，路径: {TRADINGAGENTS_PATH}")
-    print(f"   使用简化版本（不依赖官方代码）")
+    logger.warning(f"TradingAgents未找到，路径: {TRADINGAGENTS_PATH}")
+    logger.info("使用简化版本（不依赖官方代码）")
 
 
 class NewsAPITool:
@@ -43,7 +45,7 @@ class NewsAPITool:
             try:
                 return await self._fetch_real_news(symbol, date)
             except Exception as e:
-                print(f"⚠️  真实新闻获取失败: {e}，使用模拟数据")
+                logger.warning(f"真实新闻获取失败: {e}，使用模拟数据")
         
         # 模拟数据（降级方案）
         return [
@@ -94,10 +96,10 @@ class NewsAPITool:
             return news_list if news_list else await self.fetch(symbol, date)  # 无数据时降级
             
         except ImportError:
-            print("⚠️  AKShare未安装，请运行: pip install akshare")
+            logger.warning("AKShare未安装，请运行: pip install akshare")
             raise
         except Exception as e:
-            print(f"⚠️  AKShare数据获取失败: {e}")
+            logger.warning(f"AKShare数据获取失败: {e}")
             raise
 
 
@@ -210,11 +212,11 @@ class LimitUpSentimentAgent:
                 }
             )
             
-            print("✅ TradingAgents官方组件初始化成功")
+            logger.info("✅ TradingAgents官方组件初始化成功")
             
         except ImportError as e:
-            print(f"⚠️  TradingAgents导入失败: {e}")
-            print(f"   使用简化版本（基于规则的分析）")
+            logger.warning(f"TradingAgents导入失败: {e}")
+            logger.info("使用简化版本（基于规则的分析）")
             self.agent = None
     
     async def analyze_limitup_sentiment(
@@ -244,10 +246,10 @@ class LimitUpSentimentAgent:
             - continue_prob: 一进二概率
             - reasoning: 详细推理过程
         """
-        print(f"\n🔍 开始分析 {symbol} 在 {date} 的涨停舆情...")
+        logger.info(f"开始分析 {symbol} 在 {date} 的涨停舆情...")
         
         # 1. 并发获取多源数据
-        print("   📊 获取数据...")
+        logger.info("获取数据...")
         news_data, weibo_data, forum_data = await asyncio.gather(
             self.news_tool.fetch(symbol, date),
             self.weibo_tool.fetch(symbol, date),
@@ -256,17 +258,17 @@ class LimitUpSentimentAgent:
         
         # 2. 如果有TradingAgents，使用LLM深度分析
         if self.agent and self.llm:
-            print("   🤖 使用LLM深度分析...")
+            logger.info("使用LLM深度分析...")
             result = await self._analyze_with_llm(
                 symbol, date, news_data, weibo_data, forum_data, price_data
             )
         else:
-            print("   📝 使用规则引擎分析...")
+            logger.info("使用规则引擎分析...")
             result = self._analyze_with_rules(
                 symbol, date, news_data, weibo_data, forum_data, price_data
             )
         
-        print(f"   ✅ 分析完成，综合得分: {result['sentiment_score']:.1f}")
+        logger.info(f"分析完成，综合得分: {result['sentiment_score']:.1f}")
         
         return result
     
@@ -298,7 +300,7 @@ class LimitUpSentimentAgent:
             return response
             
         except Exception as e:
-            print(f"   ⚠️  LLM分析失败: {e}，使用规则引擎")
+            logger.warning(f"LLM分析失败: {e}，使用规则引擎")
             return self._analyze_with_rules(
                 symbol, date, news_data, weibo_data, forum_data, price_data
             )

@@ -468,7 +468,8 @@ class BusinessMetricsCollector:
 
 def main():
     """示例用法"""
-    logging.basicConfig(level=logging.INFO)
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     
     collector = BusinessMetricsCollector()
     
@@ -479,6 +480,7 @@ def main():
         action=RecommendationAction.BUY,
         confidence=0.85,
         target_price=15.0
+    )
     
     rec2 = collector.record_recommendation(
         recommendation_id="rec_002",
@@ -486,6 +488,7 @@ def main():
         action=RecommendationAction.SELL,
         confidence=0.72,
         target_price=10.0
+    )
     
     # 模拟T+1验证
     collector.validate_recommendation("rec_001", actual_return=0.05)  # +5%
@@ -495,18 +498,18 @@ def main():
     hit_rate = collector.calculate_hit_rate(days=1)
     avg_return = collector.calculate_avg_return(days=1)
     
-    print(f"Hit Rate: {hit_rate:.1%}")
-    print(f"Avg Return: {avg_return:.2%}")
+    logger.info(f"Hit Rate: {hit_rate:.1%}")
+    logger.info(f"Avg Return: {avg_return:.2%}")
     
     # 获取汇总
     summary = collector.get_daily_summary()
-    print(f"\nDaily Summary:")
-    print(f"  Total Recommendations: {summary.total_recommendations}")
-    print(f"  Hit Rate: {summary.hit_rate:.1%}")
-    print(f"  Avg Return: {summary.avg_return:.2%}")
+    logger.info("Daily Summary:")
+    logger.info(f"  Total Recommendations: {summary.total_recommendations}")
+    logger.info(f"  Hit Rate: {summary.hit_rate:.1%}")
+    logger.info(f"  Avg Return: {summary.avg_return:.2%}")
     
     # 导出Prometheus指标
-    print("\n" + collector.export_metrics())
+    logger.info("\n" + collector.export_metrics())
 
 
 if __name__ == "__main__":

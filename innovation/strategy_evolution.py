@@ -506,10 +506,10 @@ class PortfolioStrategyOptimizer:
 
 def example_strategy_evolution():
     """策略进化示例"""
-    print("=== AI策略进化系统示例 ===\n")
+    logger.info("AI策略进化系统示例")
     
     # 1. 遗传算法优化
-    print("1. 遗传算法策略优化")
+    logger.info("1. 遗传算法策略优化")
     
     param_space = {
         'window': (5, 50),
@@ -535,11 +535,11 @@ def example_strategy_evolution():
     )
     
     best_individual = ga_optimizer.evolve()
-    print(f"  最佳参数: {best_individual.params}")
-    print(f"  最佳适应度: {best_individual.fitness:.4f}")
+    logger.info(f"  最佳参数: {best_individual.params}")
+    logger.info(f"  最佳适应度: {best_individual.fitness:.4f}")
     
     # 2. 策略组合优化
-    print("\n2. 策略组合优化")
+    logger.info("2. 策略组合优化")
     
     # 模拟策略收益率
     dates = pd.date_range('2023-01-01', periods=252, freq='D')
@@ -554,17 +554,19 @@ def example_strategy_evolution():
     )
     
     optimal_weights = portfolio_optimizer.optimize_weights(returns_df, method="sharpe")
-    print(f"  最优权重:")
+    logger.info("  最优权重:")
     for strategy, weight in optimal_weights.items():
-        print(f"    {strategy}: {weight:.2%}")
+        logger.info(f"    {strategy}: {weight:.2%}")
     
     # 计算组合表现
     portfolio_returns = (returns_df * pd.Series(optimal_weights)).sum(axis=1)
     sharpe = portfolio_returns.mean() / portfolio_returns.std() * np.sqrt(252)
-    print(f"  组合Sharpe: {sharpe:.2f}")
+    logger.info(f"  组合Sharpe: {sharpe:.2f}")
     
-    print("\n策略进化系统演示完成!")
+    logger.info("策略进化系统演示完成!")
 
 
 if __name__ == "__main__":
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     example_strategy_evolution()

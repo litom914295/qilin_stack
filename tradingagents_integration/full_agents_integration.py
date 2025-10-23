@@ -411,7 +411,9 @@ def create_full_integration(config_file: Optional[str] = None) -> FullAgentsInte
 
 async def test_full_integration():
     """测试完整集成"""
-    print("=== TradingAgents完整集成测试（10个智能体）===\n")
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("TradingAgents完整集成测试（10个智能体）")
     
     try:
         # 创建集成
@@ -419,11 +421,11 @@ async def test_full_integration():
         
         # 检查状态
         status = integration.get_status()
-        print("系统状态:")
-        print(f"  模式: {status['mode']}")
-        print(f"  智能体数量: {status['agents_count']}")
-        print(f"  智能体列表: {status['agents_list']}")
-        print(f"  权重验证: {status['weights_valid']}")
+        logger.info("系统状态:")
+        logger.info(f"  模式: {status['mode']}")
+        logger.info(f"  智能体数量: {status['agents_count']}")
+        logger.info(f"  智能体列表: {status['agents_list']}")
+        logger.info(f"  权重验证: {status['weights_valid']}")
         
         # 模拟市场数据
         market_data = {
@@ -446,36 +448,37 @@ async def test_full_integration():
         }
         
         # 测试全面分析
-        print("\n🔬 测试全面分析...")
+        logger.info("测试全面分析...")
         result = await integration.analyze_comprehensive("000001.SZ", market_data)
         
-        print(f"\n✅ 分析完成:")
-        print(f"  最终信号: {result.final_signal.signal_type.value}")
-        print(f"  置信度: {result.confidence:.2%}")
-        print(f"  理由: {result.reasoning}")
+        logger.info("分析完成:")
+        logger.info(f"  最终信号: {result.final_signal.signal_type.value}")
+        logger.info(f"  置信度: {result.confidence:.2%}")
+        logger.info(f"  理由: {result.reasoning}")
         
         if result.position_advice:
-            print(f"\n📊 仓位建议:")
-            print(f"  推荐仓位: {result.position_advice.get('recommended_position', 0):.2%}")
+            logger.info("仓位建议:")
+            logger.info(f"  推荐仓位: {result.position_advice.get('recommended_position', 0):.2%}")
         
         if result.risk_assessment:
-            print(f"\n🛡️ 风险评估:")
-            print(f"  风险等级: {result.risk_assessment.get('risk_level', 'N/A')}")
+            logger.info("风险评估:")
+            logger.info(f"  风险等级: {result.risk_assessment.get('risk_level', 'N/A')}")
         
         # 测试分组分析
-        print("\n📊 测试分组分析...")
+        logger.info("测试分组分析...")
         group_manager = AgentGroupManager(integration)
         core_result = await group_manager.analyze_by_group("core", "000001.SZ", market_data)
-        print(f"  核心分组分析: {core_result['count']}个智能体")
+        logger.info(f"  核心分组分析: {core_result['count']}个智能体")
         
     except ImportError as e:
-        print(f"❌ 导入失败: {e}")
-        print("\n请确保TradingAgents已正确安装和配置")
+        logger.error(f"导入失败: {e}")
+        logger.info("请确保TradingAgents已正确安装和配置")
     except Exception as e:
-        print(f"❌ 测试失败: {e}")
         import traceback
-        traceback.print_exc()
+        logger.exception(f"测试失败: {e}")
 
 
 if __name__ == "__main__":
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     asyncio.run(test_full_integration())

@@ -11,11 +11,17 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Ensure project root on sys.path
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+from app.core.logging_setup import setup_logging
+setup_logging()
 
 SEED = 42
 TOPK = 10
@@ -62,19 +68,19 @@ for p in results["limit_up_prob"].values:
 
 results["label"], results["advice"] = labels, advices
 
-print("\n" + "=" * 60)
-print("📊 Next-day Limit-Up Prediction (Demo)")
-print("=" * 60)
+logger.info("=" * 60)
+logger.info("📊 Next-day Limit-Up Prediction (Demo)")
+logger.info("=" * 60)
 for i, row in results.iterrows():
     stock = row["stock"]
     prob = row["limit_up_prob"]
     label = row["label"]
     advice = row["advice"]
-    print(f"\n{i+1:02d}. {stock}")
-    print(f"Prediction: {label}")
-    print(f"Probability: {prob:.1%}")
-    print(f"Advice: {advice}")
+    logger.info(f"{i+1:02d}. {stock}")
+    logger.info(f"Prediction: {label}")
+    logger.info(f"Probability: {prob:.1%}")
+    logger.info(f"Advice: {advice}")
 
-print("\n" + "=" * 60)
-print("✅ Demo complete.")
-print("=" * 60)
+logger.info("=" * 60)
+logger.info("✅ Demo complete.")
+logger.info("=" * 60)
