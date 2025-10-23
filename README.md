@@ -146,7 +146,7 @@ print("\n🔮 开始预测涨停板股票...\n")
 ensemble = LimitUpEnsembleModel()
 
 # 假设已经训练好模型（实际使用时需要先训练）
-# ensemble.load('models/best_model.pkl')
+# ensemble = LimitUpEnsembleModel.load('models/best_model.pkl')
 
 # 3. 模拟预测（真实场景会用真实数据）
 predictions = np.random.choice([0, 1], size=10, p=[0.7, 0.3])
@@ -469,14 +469,15 @@ print(factors_df.head())
 
 **怎么用？**
 ```python
+import asyncio
 from tradingagents_integration.limitup_sentiment_agent import LimitUpSentimentAgent
 
-agent = LimitUpSentimentAgent(use_real_data=True)  # 使用真实数据
-result = agent.analyze_sentiment('000001.SZ', days=7)  # 分析最近7天
+agent = LimitUpSentimentAgent()
+result = asyncio.run(agent.analyze_limitup_sentiment('000001.SZ', '2024-06-30'))
 
-print(f"情感分数：{result['sentiment_score']}/10")  # 0-10分
-print(f"涨停概率：{result['limit_up_prob']:.1%}")  # 涨停概率
-print(f"新闻数量：{result['news_count']}条")
+print(f"情感分数：{result['sentiment_score']:.1f}/100")
+print(f"一进二概率：{result['continue_prob']:.1%}")
+print(f"新闻数量：{result['data_sources']['news_count']}条")
 ```
 
 **情感分数含义**：
@@ -539,7 +540,7 @@ from models.limitup_ensemble import LimitUpEnsembleModel
 ensemble = LimitUpEnsembleModel()
 
 # 训练模型
-ensemble.train(X_train, y_train, X_val, y_val)
+ensemble.fit(X_train, y_train, X_val, y_val)
 
 # 预测
 predictions = ensemble.predict(X_test)
@@ -548,7 +549,11 @@ probabilities = ensemble.predict_proba(X_test)
 # 评估
 metrics = ensemble.evaluate(X_test, y_test)
 print(f"准确率：{metrics['accuracy']:.1%}")
-print(f"F1分数：{metrics['f1_score']:.2f}")
+print(f"F1分数：{metrics['f1']:.2f}")
+
+# 保存/加载
+ensemble.save('models/best_model.pkl')
+loaded = LimitUpEnsembleModel.load('models/best_model.pkl')
 ```
 
 **模型说明**：
@@ -568,17 +573,18 @@ print(f"F1分数：{metrics['f1_score']:.2f}")
 
 **怎么用？**
 ```python
-from qlib_enhanced.high_freq_limitup import HighFreqLimitUpAnalyzer
+from qlib_enhanced.high_freq_limitup import HighFreqLimitUpAnalyzer, create_sample_high_freq_data
 
 analyzer = HighFreqLimitUpAnalyzer()
 
-# 提取单只股票的高频特征
-features = analyzer.extract_features('000001.SZ', '2024-01-15')
-print(f"高频特征数：{features.shape[1]}个")
+# 构造示例数据并提取单只股票的高频特征
+data = create_sample_high_freq_data('000001.SZ')
+features = analyzer.analyze_intraday_pattern(data, limitup_time='10:30:00')
+print(f"高频特征数：{len(features)}个")
 
-# 批量处理多只股票
-stock_list = ['000001.SZ', '000002.SZ', '600519.SH']
-batch_features = analyzer.batch_extract(stock_list, '2024-01-15')
+# 批量处理（symbol -> (data, limitup_time)）
+stocks_data = {'000001.SZ': (data, '10:30:00')}
+batch_df = analyzer.batch_analyze(stocks_data)
 ```
 
 **15个高频特征**：
@@ -778,8 +784,7 @@ for stock in stock_list:
 
 # Step 3: 模型预测
 X_predict = pd.concat(all_features)
-ensemble = LimitUpEnsembleModel()
-ensemble.load('models/best_model.pkl')  # 加载训练好的模型
+ensemble = LimitUpEnsembleModel.load('models/best_model.pkl')  # 加载训练好的模型
 
 predictions = ensemble.predict(X_predict)
 probabilities = ensemble.predict_proba(X_predict)[:, 1]

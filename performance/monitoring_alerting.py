@@ -569,24 +569,27 @@ class MonitoringManager:
 # 使用示例
 # ============================================================================
 
+import logging
+logger = logging.getLogger(__name__)
+
 def example_monitoring():
     """监控系统示例"""
-    print("=== 实时监控和预警系统示例 ===\n")
+    logger.info("实时监控和预警系统示例")
     
     # 1. 初始化监控
-    print("1. 初始化监控管理器")
+    logger.info("1. 初始化监控管理器")
     manager = MonitoringManager(prometheus_port=8000)
-    print(f"  Prometheus: http://localhost:8000/metrics")
+    logger.info("  Prometheus: http://localhost:8000/metrics")
     
     # 2. 添加告警处理器
     def alert_handler(alert: Alert):
         """告警处理函数"""
-        print(f"  [{alert.level.value.upper()}] {alert.message}")
+        logger.warning(f"  [{alert.level.value.upper()}] {alert.message}")
     
     manager.add_alert_handler(alert_handler)
     
     # 3. 价格监控
-    print("\n2. 价格监控和告警")
+    logger.info("2. 价格监控和告警")
     symbols = ['600519.SH', '000001.SZ']
     manager.init_price_monitor(symbols)
     
@@ -598,35 +601,37 @@ def example_monitoring():
     for _ in range(5):
         price = np.random.uniform(160, 210)
         manager.price_monitor.update_price('600519.SH', price)
-        print(f"  更新价格: 600519.SH = {price:.2f}")
+        logger.info(f"  更新价格: 600519.SH = {price:.2f}")
     
     # 4. 异常检测
-    print("\n3. 异常检测")
+    logger.info("3. 异常检测")
     prices = [100, 101, 102, 103, 102, 101, 150]  # 最后一个是异常值
     for i, price in enumerate(prices):
         anomaly = manager.anomaly_detector.detect_price_anomaly('000001.SZ', price)
         if anomaly:
-            print(f"  检测到异常: {anomaly.message}")
+            logger.warning(f"  检测到异常: {anomaly.message}")
     
     # 5. 性能监控
-    print("\n4. 性能监控")
+    logger.info("4. 性能监控")
     manager.performance_monitor.start_timer('test_task')
     time.sleep(0.1)
     duration = manager.performance_monitor.end_timer('test_task')
-    print(f"  任务执行时间: {duration:.4f}秒")
+    logger.info(f"  任务执行时间: {duration:.4f}秒")
     
     # 系统指标
     metrics = manager.performance_monitor.get_system_metrics()
-    print(f"  CPU: {metrics.get('cpu_percent', 0):.1f}%")
-    print(f"  内存: {metrics.get('memory_percent', 0):.1f}%")
+    logger.info(f"  CPU: {metrics.get('cpu_percent', 0):.1f}%")
+    logger.info(f"  内存: {metrics.get('memory_percent', 0):.1f}%")
     
     # 6. Prometheus指标
-    print("\n5. Prometheus指标更新")
+    logger.info("5. Prometheus指标更新")
     manager.prometheus.record_trade('600519.SH', 'buy')
     manager.prometheus.update_portfolio_value(1050000.0)
     manager.prometheus.update_strategy_metrics('momentum', return_=0.15, sharpe=1.8, drawdown=-0.08)
-    print("  指标已更新，可访问 http://localhost:8000/metrics 查看")
+    logger.info("  指标已更新，可访问 http://localhost:8000/metrics 查看")
 
 
 if __name__ == "__main__":
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     example_monitoring()

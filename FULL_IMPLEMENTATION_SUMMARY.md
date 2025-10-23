@@ -26,7 +26,7 @@
 
 **使用示例：**
 ```python
-from limitup_advanced_factors import LimitUpAdvancedFactors
+from factors.limitup_advanced_factors import LimitUpAdvancedFactors
 
 factor_lib = LimitUpAdvancedFactors()
 factors_df = factor_lib.calculate_all_factors(stock_data)
@@ -46,12 +46,13 @@ print(factor_lib.get_factor_statistics())
 
 **使用示例：**
 ```python
-from limitup_sentiment_agent import LimitUpSentimentAgent
+import asyncio
+from tradingagents_integration.limitup_sentiment_agent import LimitUpSentimentAgent
 
-agent = LimitUpSentimentAgent(use_real_data=True)
-result = agent.analyze_sentiment('000001.SZ', days=7)
+agent = LimitUpSentimentAgent()
+result = asyncio.run(agent.analyze_limitup_sentiment('000001.SZ', '2024-06-30'))
 print(f"情感分数: {result['sentiment_score']}")
-print(f"涨停概率: {result['limit_up_prob']:.2%}")
+print(f"一进二概率: {result['continue_prob']:.2%}")
 ```
 
 ---
@@ -75,7 +76,7 @@ miner.generate_report()
 
 ---
 
-#### 4. **Stacking集成模型** (`limitup_stacking_ensemble.py`)
+#### 4. **Stacking集成模型** (`models/limitup_ensemble.py`)
 **状态：** ✅ 完整实现
 
 **核心功能：**
@@ -85,17 +86,17 @@ miner.generate_report()
 
 **使用示例：**
 ```python
-from limitup_stacking_ensemble import LimitUpStackingEnsemble
+from models.limitup_ensemble import LimitUpEnsembleModel
 
-ensemble = LimitUpStackingEnsemble()
-ensemble.train(X_train, y_train, X_val, y_val)
+ensemble = LimitUpEnsembleModel()
+ensemble.fit(X_train, y_train, X_val, y_val)
 predictions = ensemble.predict(X_test)
 metrics = ensemble.evaluate(X_test, y_test)
 ```
 
 ---
 
-#### 5. **高频数据模块** (`limitup_highfreq_analyzer.py`)
+#### 5. **高频数据模块** (`qlib_enhanced/high_freq_limitup.py`)
 **状态：** ✅ 完整实现 + 测试通过
 
 **核心功能：**
@@ -105,11 +106,13 @@ metrics = ensemble.evaluate(X_test, y_test)
 
 **使用示例：**
 ```python
-from limitup_highfreq_analyzer import LimitUpHighFreqAnalyzer
+from qlib_enhanced.high_freq_limitup import HighFreqLimitUpAnalyzer, create_sample_high_freq_data
 
-analyzer = LimitUpHighFreqAnalyzer()
-features = analyzer.extract_features(stock_code, date)
-print(f"高频特征数: {features.shape[1]}")
+analyzer = HighFreqLimitUpAnalyzer()
+# 构造示例数据并分析
+sample = create_sample_high_freq_data('000001.SZ')
+features = analyzer.analyze_intraday_pattern(sample, limitup_time='10:30:00')
+print(f"高频特征数: {len(features)}")
 ```
 
 ---

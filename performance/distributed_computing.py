@@ -476,10 +476,12 @@ class DistributedFactorCalculator:
 
 def example_distributed_computing():
     """分布式计算示例"""
-    print("=== 分布式计算系统示例 ===\n")
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("分布式计算系统示例")
     
     # 1. 初始化集群
-    print("1. 初始化Dask集群")
+    logger.info("1. 初始化Dask集群")
     config = ClusterConfig(
         mode=DistributedMode.LOCAL,
         n_workers=4,
@@ -490,10 +492,10 @@ def example_distributed_computing():
     manager = DaskDistributedManager(config)
     dashboard = manager.get_dashboard_link()
     if dashboard:
-        print(f"  Dashboard: {dashboard}")
+        logger.info(f"  Dashboard: {dashboard}")
     
     # 2. 并行股票分析
-    print("\n2. 并行股票分析")
+    logger.info("2. 并行股票分析")
     symbols = [f"SH60{i:04d}" for i in range(10)]
     data_dict = {
         symbol: pd.DataFrame({
@@ -513,10 +515,10 @@ def example_distributed_computing():
     
     analyzer = DistributedStockAnalyzer(manager)
     results = analyzer.analyze_stocks_parallel(symbols, data_dict, analyze_single_stock)
-    print(f"  分析了 {len(results)} 只股票")
+    logger.info(f"  分析了 {len(results)} 只股票")
     
     # 3. 并行回测
-    print("\n3. 并行策略回测")
+    logger.info("3. 并行策略回测")
     strategies = [
         {'name': f'Strategy_{i}', 'param1': i*0.1, 'param2': i*2}
         for i in range(5)
@@ -533,10 +535,10 @@ def example_distributed_computing():
     
     df_test = pd.DataFrame({'close': np.random.randn(252).cumsum() + 100})
     backtest_results = analyzer.backtest_parallel(strategies, df_test, backtest_strategy)
-    print(f"  回测了 {len(backtest_results)} 个策略")
+    logger.info(f"  回测了 {len(backtest_results)} 个策略")
     
     # 4. 参数优化
-    print("\n4. 并行参数优化")
+    logger.info("4. 并行参数优化")
     param_grid = {
         'window': [5, 10, 20],
         'threshold': [0.01, 0.02, 0.03]
@@ -549,15 +551,17 @@ def example_distributed_computing():
         return {'params': params, 'score': score}
     
     opt_results = analyzer.optimize_parameters_parallel(param_grid, optimize_params)
-    print(f"  测试了 {len(opt_results)} 组参数")
+    logger.info(f"  测试了 {len(opt_results)} 组参数")
     best_result = max(opt_results, key=lambda x: x['score'])
-    print(f"  最佳参数: {best_result['params']}, 得分: {best_result['score']:.4f}")
+    logger.info(f"  最佳参数: {best_result['params']}, 得分: {best_result['score']:.4f}")
     
     # 5. 关闭集群
-    print("\n5. 关闭集群")
+    logger.info("5. 关闭集群")
     manager.shutdown()
-    print("  集群已关闭")
+    logger.info("  集群已关闭")
 
 
 if __name__ == "__main__":
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     example_distributed_computing()

@@ -356,13 +356,14 @@ def main():
         manager.provision_all_certs()
     elif args.check:
         info = manager.check_cert_expiry(args.check)
-        print(f"Subject: {info['subject']}")
-        print(f"Issuer: {info['issuer']}")
-        print(f"Valid from: {info['not_valid_before']}")
-        print(f"Valid until: {info['not_valid_after']}")
-        print(f"Days left: {info['days_left']}")
-        print(f"Needs renewal: {info['needs_renewal']}")
+        logger.info(f"Subject: {info['subject']}")
+        logger.info(f"Issuer: {info['issuer']}")
+        logger.info(f"Valid from: {info['not_valid_before']}")
+        logger.info(f"Valid until: {info['not_valid_after']}")
+        logger.info(f"Days left: {info['days_left']}")
+        logger.info(f"Needs renewal: {info['needs_renewal']}")
     elif args.metrics:
+        # metrics文本需要标准输出以便被采集
         print(manager.export_prometheus_metrics())
     else:
         parser.print_help()

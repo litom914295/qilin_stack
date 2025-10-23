@@ -15,6 +15,8 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
 import warnings
 import logging
+import os
+import pickle
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
@@ -227,6 +229,70 @@ class LimitUpEnsembleModel:
             'f1': f1
         }
 
+    def save(self, file_path: str) -> None:
+        """保存模型到文件。
+
+        优先使用 joblib（如可用），否则回退到 pickle。
+        仅保存必要状态：config、base_models、meta_model。
+        """
+        try:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True) if os.path.dirname(file_path) else None
+        except Exception:
+            pass
+
+        state = {
+            'version': 1,
+            'config': self.config,
+            'base_models': self.base_models,
+            'meta_model': self.meta_model,
+        }
+
+        # 尝试使用 joblib
+        try:
+            import joblib  # type: ignore
+            joblib.dump(state, file_path)
+            logger.info(f"模型已保存: {file_path} (joblib)")
+            return
+        except Exception as e:
+            logger.debug(f"joblib 保存失败，改用 pickle: {e}")
+
+        # 回退到 pickle
+        try:
+            with open(file_path, 'wb') as f:
+                pickle.dump(state, f)
+            logger.info(f"模型已保存: {file_path} (pickle)")
+        except Exception as e:
+            logger.exception(f"模型保存失败: {e}")
+            raise
+
+    @classmethod
+    def load(cls, file_path: str) -> "LimitUpEnsembleModel":
+        """从文件加载模型并返回实例。"""
+        state = None
+
+        # 尝试使用 joblib 加载
+        try:
+            import joblib  # type: ignore
+            state = joblib.load(file_path)
+            logger.info(f"模型已加载: {file_path} (joblib)")
+        except Exception as e:
+            logger.debug(f"joblib 加载失败，改用 pickle: {e}")
+            try:
+                with open(file_path, 'rb') as f:
+                    state = pickle.load(f)
+                logger.info(f"模型已加载: {file_path} (pickle)")
+            except Exception as e2:
+                logger.exception(f"模型加载失败: {e2}")
+                raise
+
+        # 还原实例
+        config = state.get('config', {}) if isinstance(state, dict) else {}
+        model = cls(config=config)
+        if isinstance(state, dict):
+            model.base_models = state.get('base_models', {})
+            model.meta_model = state.get('meta_model')
+        return model
+
 
 class SimpleClassifier:
     """简单规则分类器（当没有ML库时使用）"""
@@ -327,12 +393,12 @@ class SimpleMetaModel:
 
 def main():
     """示例：训练和测试集成模型"""
-    print("=" * 80)
-    print("涨停板集成学习模型 - 测试")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("涨停板集成学习模型 - 测试")
+    logger.info("=" * 80)
     
     # 1. 生成模拟数据
-    print("\n📊 生成模拟数据...")
+    logger.info("\n📊 生成模拟数据...")
     np.random.seed(42)
     n_samples = 1000
     n_features = 8
@@ -348,9 +414,9 @@ def main():
          (X['feature_1'] > 0) & 
          (X['feature_2'] > 0.5)).astype(int)
     
-    print(f"   样本数: {n_samples}")
-    print(f"   特征数: {n_features}")
-    print(f"   正样本率: {y.mean():.1%}")
+    logger.info(f"   样本数: {n_samples}")
+    logger.info(f"   特征数: {n_features}")
+    logger.info(f"   正样本率: {y.mean():.1%}")
     
     # 2. 划分训练集和测试集
     from sklearn.model_selection import train_test_split
@@ -358,59 +424,61 @@ def main():
         X, y, test_size=0.2, random_state=42
     )
     
-    print(f"   训练集: {len(X_train)} 样本")
-    print(f"   测试集: {len(X_test)} 样本")
+    logger.info(f"   训练集: {len(X_train)} 样本")
+    logger.info(f"   测试集: {len(X_test)} 样本")
     
     # 3. 训练集成模型
     model = LimitUpEnsembleModel()
     model.fit(X_train, y_train, X_test, y_test)
     
     # 4. 评估模型
-    print("\n" + "=" * 80)
-    print("📊 模型评估")
-    print("=" * 80)
+    logger.info("\n" + "=" * 80)
+    logger.info("📊 模型评估")
+    logger.info("=" * 80)
     
     train_metrics = model.evaluate(X_train, y_train)
     test_metrics = model.evaluate(X_test, y_test)
     
-    print("\n训练集:")
+    logger.info("\n训练集:")
     for metric, value in train_metrics.items():
-        print(f"  {metric}: {value:.4f}")
+        logger.info(f"  {metric}: {value:.4f}")
     
-    print("\n测试集:")
+    logger.info("\n测试集:")
     for metric, value in test_metrics.items():
-        print(f"  {metric}: {value:.4f}")
+        logger.info(f"  {metric}: {value:.4f}")
     
     # 5. 预测示例
-    print("\n" + "=" * 80)
-    print("🎯 预测示例（前10个样本）")
-    print("=" * 80)
+    logger.info("\n" + "=" * 80)
+    logger.info("🎯 预测示例（前10个样本）")
+    logger.info("=" * 80)
     
     sample_X = X_test.head(10)
     sample_y = y_test.head(10).values
     predictions = model.predict(sample_X)
     probabilities = model.predict_proba(sample_X)[:, 1]
     
-    print("\n样本  真实  预测  概率")
-    print("-" * 40)
+    logger.info("\n样本  真实  预测  概率")
+    logger.info("-" * 40)
     for i in range(len(sample_X)):
-        print(f"{i+1:4d}  {sample_y[i]:4d}  {predictions[i]:4d}  {probabilities[i]:.2%}")
+        logger.info(f"{i+1:4d}  {sample_y[i]:4d}  {predictions[i]:4d}  {probabilities[i]:.2%}")
     
-    print("\n" + "=" * 80)
-    print("✅ 测试完成！")
-    print("=" * 80)
+    logger.info("\n" + "=" * 80)
+    logger.info("✅ 测试完成！")
+    logger.info("=" * 80)
 
 
 if __name__ == '__main__':
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     # 检查sklearn是否可用
     try:
         from sklearn.model_selection import train_test_split
         main()
     except ImportError:
-        print("⚠️  sklearn未安装，无法运行完整测试")
-        print("   请安装: pip install scikit-learn")
+        logger.warning("⚠️  sklearn未安装，无法运行完整测试")
+        logger.info("   请安装: pip install scikit-learn")
         
         # 运行简化版本
-        print("\n运行简化测试...")
+        logger.info("\n运行简化测试...")
         model = LimitUpEnsembleModel()
-        print(f"\n可用模型: {list(model.base_models.keys())}")
+        logger.info(f"\n可用模型: {list(model.base_models.keys())}")

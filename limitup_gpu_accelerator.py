@@ -12,15 +12,17 @@ from datetime import datetime
 import time
 
 # 尝试导入GPU加速库
+import logging
+logger = logging.getLogger(__name__)
 try:
     import cudf
     import cuml
     from cuml.ensemble import RandomForestClassifier as cuRF
     GPU_AVAILABLE = True
-    print("✅ GPU加速库已加载 (cuDF + cuML)")
+    logger.info("✅ GPU加速库已加载 (cuDF + cuML)")
 except ImportError:
     GPU_AVAILABLE = False
-    print("⚠️ GPU库不可用，将使用CPU模式")
+    logger.warning("⚠️ GPU库不可用，将使用CPU模式")
 
 # CPU后备库
 from sklearn.ensemble import RandomForestClassifier
@@ -41,7 +43,7 @@ class GPUAcceleratedPreprocessor:
         self.use_gpu = use_gpu and GPU_AVAILABLE
         self.device = 'GPU' if self.use_gpu else 'CPU'
         
-        print(f"💻 数据处理设备: {self.device}")
+        logger.info(f"数据处理设备: {self.device}")
     
     def to_device(self, df: pd.DataFrame):
         """将DataFrame转换到目标设备"""
@@ -65,7 +67,7 @@ class GPUAcceleratedPreprocessor:
         Returns:
             特征数据
         """
-        print(f"\n📊 开始特征计算 (设备: {self.device})...")
+        logger.info(f"开始特征计算 (设备: {self.device})...")
         start_time = time.time()
         
         # 转换到目标设备
@@ -106,8 +108,8 @@ class GPUAcceleratedPreprocessor:
         result = self.to_cpu(gdf)
         
         elapsed = time.time() - start_time
-        print(f"✅ 特征计算完成，耗时: {elapsed:.2f}秒")
-        print(f"   生成特征数: {len(features)}")
+        logger.info(f"特征计算完成，耗时: {elapsed:.2f}秒")
+        logger.info(f"生成特征数: {len(features)}")
         
         return result
 
@@ -137,7 +139,7 @@ class GPUAcceleratedModel:
         self.model = None
         self.training_time = 0
         
-        print(f"🤖 模型: {model_type}, 设备: {self.device}")
+        logger.info(f"模型: {model_type}, 设备: {self.device}")
     
     def _create_model(self):
         """创建模型实例"""
@@ -304,7 +306,7 @@ class GPUAcceleratedPipeline:
         total_start = time.time()
         
         # 1. 数据预处理
-        print("1️⃣ 数据预处理...")
+        logger.info("数据预处理...")
         preprocess_start = time.time()
         X_train_processed = self.preprocessor.compute_features(X_train)
         if X_val is not None:
@@ -314,7 +316,7 @@ class GPUAcceleratedPipeline:
         self.stats['preprocess_time'] = time.time() - preprocess_start
         
         # 2. 模型训练
-        print("\n2️⃣ 模型训练...")
+        logger.info("模型训练...")
         self.model = GPUAcceleratedModel(
             model_type=self.model_type,
             use_gpu=self.use_gpu,
@@ -331,13 +333,13 @@ class GPUAcceleratedPipeline:
         
         # 3. 总结
         total_time = time.time() - total_start
-        print(f"\n{'='*60}")
-        print(f"✅ Pipeline训练完成!")
-        print(f"{'='*60}")
-        print(f"预处理耗时: {self.stats['preprocess_time']:.2f}秒")
-        print(f"训练耗时: {self.stats['training_time']:.2f}秒")
-        print(f"总耗时: {total_time:.2f}秒")
-        print(f"{'='*60}\n")
+        logger.info("="*60)
+        logger.info("Pipeline训练完成!")
+        logger.info("="*60)
+        logger.info(f"预处理耗时: {self.stats['preprocess_time']:.2f}秒")
+        logger.info(f"训练耗时: {self.stats['training_time']:.2f}秒")
+        logger.info(f"总耗时: {total_time:.2f}秒")
+        logger.info("="*60)
     
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """预测"""
@@ -368,9 +370,9 @@ class GPUAcceleratedPipeline:
         Returns:
             性能统计字典
         """
-        print(f"\n{'='*60}")
-        print(f"🏁 性能基准测试 (运行{n_runs}次)")
-        print(f"{'='*60}\n")
+        logger.info("="*60)
+        logger.info(f"性能基准测试 (运行{n_runs}次)")
+        logger.info("="*60)
         
         results = {'cpu': [], 'gpu': []}
         
@@ -382,12 +384,12 @@ class GPUAcceleratedPipeline:
         for device_type in ['cpu', 'gpu']:
             use_gpu = (device_type == 'gpu')
             
-            print(f"\n{'='*40}")
-            print(f"测试设备: {device_type.upper()}")
-            print(f"{'='*40}")
+            logger.info("-"*40)
+            logger.info(f"测试设备: {device_type.upper()}")
+            logger.info("-"*40)
             
             for run in range(n_runs):
-                print(f"\n运行 {run+1}/{n_runs}...")
+                logger.info(f"运行 {run+1}/{n_runs}...")
                 
                 # 创建Pipeline
                 pipeline = GPUAcceleratedPipeline(
@@ -402,20 +404,20 @@ class GPUAcceleratedPipeline:
                 elapsed = time.time() - start_time
                 
                 results[device_type].append(elapsed)
-                print(f"耗时: {elapsed:.2f}秒")
+                logger.info(f"耗时: {elapsed:.2f}秒")
         
         # 计算统计
         cpu_time = np.mean(results['cpu'])
         gpu_time = np.mean(results['gpu'])
         speedup = cpu_time / gpu_time if gpu_time > 0 else 1.0
         
-        print(f"\n{'='*60}")
-        print(f"📊 基准测试结果汇总")
-        print(f"{'='*60}")
-        print(f"CPU平均耗时: {cpu_time:.2f}秒")
-        print(f"GPU平均耗时: {gpu_time:.2f}秒")
-        print(f"加速比: {speedup:.2f}x")
-        print(f"{'='*60}\n")
+        logger.info("="*60)
+        logger.info("基准测试结果汇总")
+        logger.info("="*60)
+        logger.info(f"CPU平均耗时: {cpu_time:.2f}秒")
+        logger.info(f"GPU平均耗时: {gpu_time:.2f}秒")
+        logger.info(f"加速比: {speedup:.2f}x")
+        logger.info("="*60)
         
         self.stats['speedup_ratio'] = speedup
         
@@ -451,13 +453,15 @@ class GPUAcceleratedPipeline:
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
         
-        print(f"💾 模型已保存: {filepath}")
+        logger.info(f"模型已保存: {filepath}")
 
 
 if __name__ == '__main__':
-    print("="*60)
-    print("涨停板预测系统 - GPU加速训练模块")
-    print("="*60)
+    from app.core.logging_setup import setup_logging
+    setup_logging()
+    logger.info("="*60)
+    logger.info("涨停板预测系统 - GPU加速训练模块")
+    logger.info("="*60)
     
     # 生成模拟数据
     np.random.seed(42)
@@ -473,13 +477,13 @@ if __name__ == '__main__':
     
     y_train = pd.Series(np.random.choice([0, 1], size=n_samples, p=[0.7, 0.3]))
     
-    print(f"\n数据集大小: {X_train.shape}")
-    print(f"涨停板样本占比: {y_train.mean():.2%}")
+    logger.info(f"数据集大小: {X_train.shape}")
+    logger.info(f"涨停板样本占比: {y_train.mean():.2%}")
     
     # 测试GPU Pipeline
-    print("\n" + "="*60)
-    print("🚀 GPU加速Pipeline测试")
-    print("="*60)
+    logger.info("="*60)
+    logger.info("GPU加速Pipeline测试")
+    logger.info("="*60)
     
     pipeline = GPUAcceleratedPipeline(
         model_type='xgboost',
@@ -495,13 +499,13 @@ if __name__ == '__main__':
     # 预测测试
     X_test = X_train.head(100)
     predictions = pipeline.predict(X_test)
-    print(f"\n预测结果示例: {predictions[:10]}")
+    logger.info(f"预测结果示例: {predictions[:10]}")
     
     # 如果GPU可用，运行基准测试
     if GPU_AVAILABLE:
-        print("\n" + "="*60)
-        print("🏁 性能基准测试")
-        print("="*60)
+        logger.info("="*60)
+        logger.info("性能基准测试")
+        logger.info("="*60)
         
         benchmark_results = pipeline.benchmark(
             X_train.head(1000),
@@ -509,4 +513,4 @@ if __name__ == '__main__':
             n_runs=2
         )
     
-    print("\n✅ 所有测试完成!")
+    logger.info("✅ 所有测试完成!")

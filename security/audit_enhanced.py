@@ -401,7 +401,8 @@ class AuditLogger:
 
 async def main():
     """示例用法"""
-    logging.basicConfig(level=logging.INFO)
+    from app.core.logging_setup import setup_logging
+    setup_logging()
     
     audit_logger = AuditLogger(enable_console=True)
     
@@ -434,10 +435,11 @@ async def main():
             "bank_card": "6222021234567890123"
         }
     
-    print("\n=== Querying Events ===")
+    logger = logging.getLogger(__name__)
+    logger.info("=== Querying Events ===")
     events = audit_logger.query_events(user_id="user123")
     for event in events:
-        print(json.dumps(event, indent=2, ensure_ascii=False))
+        logger.info(json.dumps(event, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":

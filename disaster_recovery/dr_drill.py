@@ -549,24 +549,22 @@ class DisasterRecoveryDrill:
 
 async def main():
     """示例用法"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    
+    from app.core.logging_setup import setup_logging
+    setup_logging()
+
     # 创建演练实例
     drill = DisasterRecoveryDrill(
         primary_az="az-a",
         secondary_az="az-b"
-    
+    )
+
     # 运行单个场景
     result = await drill.run_scenario(DrillScenario.NETWORK_PARTITION)
-    print(f"Scenario result: {result.success}")
-    
-    # 运行所有场景
+    logger.info(f"Scenario result: {result.success}")
+
+    # 可选：运行所有场景并保存报告
     # report = await drill.run_all_scenarios()
-    # print(json.dumps(report, indent=2, default=str))
-    
-    # 保存报告
+    # logger.info(json.dumps(report, indent=2, default=str))
     # drill.save_report()
 
 
