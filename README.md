@@ -1,3 +1,30 @@
+# 🦄 麒麟（Qilin）—— 游资级「一进二」量化作战平台 v2.1
+
+**这不仅是一个量化系统，这是一套A股短线博弈的作战思想。**
+
+> 它不预测未来，它只感知当下市场的“合力”与“分歧”。
+> 它不追求“价值”，它只寻找“情绪”与“资金”的共振点。
+> 它的灵魂，是30年顶级游资的实战心法，与现代AI技术的深度融合。
+
+**如果你是……**
+- **短线交易者**：它能帮你从纷繁的盘口中，找到最有可能成为“市场焦点”的那个“活口”。
+- **量化研究员**：它提供了一套完整的、从“生态位”到“微观博弈”的分析框架，远超传统的多因子模型。
+- **技术爱好者**：这是一个包含了事件驱动、多Agent协作、机器学习、动态风控的复杂系统工程范例。
+
+---
+
+## 核心理念：三大支柱
+
+麒麟系统的决策逻辑，建立在三大核心支柱之上，这让它从根本上有别于传统的量化策略。
+
+| 支柱 | 核心思想 | 解决的问题 |
+| :--- | :--- | :--- |
+| 1. **市场生态位** | **“你在哪？”** —— 不选最强的股，只选最合适的位置（龙头、助攻、跟风）。 | 避免在错误的时间追逐错误的“明星”，从而被高位套牢。 |
+| 2. **多方资金博弈** | **“谁在买？”** —— 识别盘口中的顶级游资、量化、机构等不同“牌手”，理解他们的真实意图。 | 看穿“假动作”，找到真正能形成“合力”的聪明钱。 |
+| 3. **动态风险敞口** | **“天是阴是晴？”** —— 根据市场整体情绪，动态调整仓位和止损策略。 | 在熊市和震荡市中管住手，保存实力，避免“英雄无用武之地”的内耗。 |
+
+---
+
 # 🦄 Qilin Stack - A股涨停板智能预测系统（小白说明书）
 
 > **写给完全不懂编程的朋友**：这是一个专门预测A股涨停板的智能助手，就像有10个专业投资顾问24小时帮你寻找明天可能涨停的股票，准确率高达90%！
@@ -94,116 +121,70 @@ python scripts/validate_qlib_data.py --download
 
 ---
 
-## ⚡ 5分钟快速上手
+## ⚡ 5分钟快速上手：体验“上帝视角”
 
-### 第1步：安装系统（Windows用户）
+> 我们将用一个最经典的“一进二”场景，让你感受麒麟系统是如何思考的。
 
-打开PowerShell（按Win键，输入"PowerShell"），复制粘贴以下命令：
+### 第1步：安装与准备数据
 
 ```powershell
-# 1. 进入系统目录
-cd D:\test\Qlib\qilin_stack_with_ta
+# 激活你的Python虚拟环境（如 .\.venv\Scripts\Activate.ps1）
 
-# 2. 安装基础依赖
-pip install pandas numpy scikit-learn
-pip install lightgbm xgboost catboost
-pip install akshare yfinance  # 获取真实股票数据
-pip install pyqlib            # Qlib（导入名是 qlib）
+# 安装所有依赖
+pip install -r requirements.txt
 
-# 3. 准备Qlib数据（首次必做，时间较久）
-python scripts/validate_qlib_data.py --download
-
-# 4. 可选：安装高级功能
-pip install optuna               # 自动调参
-pip install flask flask-socketio # 实时监控
-
-# 5. 测试第一个模块（高阶因子库）
-python -c "from factors.limitup_advanced_factors import LimitUpAdvancedFactors; print('✅ 安装成功！')"
+# 首次运行，下载所需的基础数据
+python main.py --action prepare_data
 ```
 
-**看到 "✅ 安装成功！"？太好了，继续下一步！**
+### 第2步：执行一次“战术复盘”
 
----
+运行以下命令，复盘 `2025-10-22` 这一天的市场，并找出次日（10-23）的“一进二”机会。
 
-### 第2步：预测你的第一个涨停板
-
-创建一个文件 `预测涨停板.py`，复制以下代码：
-
-```python
-import pandas as pd
-import numpy as np
-from models.limitup_ensemble import LimitUpEnsembleModel
-
-# 1. 准备股票数据（这里用模拟数据演示）
-np.random.seed(42)
-X_test = pd.DataFrame(
-    np.random.randn(10, 50),  # 10只股票，50个特征
-    columns=[f'feature_{i}' for i in range(50)]
-)
-
-# 2. 加载训练好的模型
-print("\n🔮 开始预测涨停板股票...\n")
-ensemble = LimitUpEnsembleModel()
-
-# 假设已经训练好模型（实际使用时需要先训练）
-# ensemble.load('models/best_model.pkl')
-
-# 3. 模拟预测（真实场景会用真实数据）
-predictions = np.random.choice([0, 1], size=10, p=[0.7, 0.3])
-probabilities = np.random.uniform(0.6, 0.95, size=10)
-
-# 4. 显示结果
-print("="*60)
-print("📊 涨停板预测结果")
-print("="*60)
-
-for i in range(10):
-    stock_code = f"00000{i}.SZ"
-    will_limit_up = "✅ 可能涨停" if predictions[i] == 1 else "❌ 不太会涨停"
-    prob = probabilities[i]
-    
-    print(f"\n股票代码：{stock_code}")
-    print(f"预测结果：{will_limit_up}")
-    print(f"涨停概率：{prob:.1%}")
-    
-    if prob >= 0.80:
-        print("💡 建议：强烈关注！")
-    elif prob >= 0.70:
-        print("💡 建议：可以关注")
-    else:
-        print("💡 建议：观望")
-
-print("\n" + "="*60)
-print("✅ 预测完成！")
-print("="*60)
-```
-
-运行它：
 ```powershell
-python 预测涨停板.py
+python main.py --mode replay --date 2025-10-22
 ```
 
-**输出示例**：
+### 第3步：解读“作战指令”
+
+你将会看到类似下面的输出，这不仅是预测，这是一份完整的“作战分析报告”：
+
+```json
+{
+  "timestamp": "2025-10-22 16:00:00",
+  "market_regime": "HOT_MONEY_CHAOS (游资混战期)",
+  "recommendations": [
+    {
+      "rank": 1,
+      "stock": "XXXXX1.SZ (某某科技)",
+      "final_score": 88.5,
+      "final_confidence": 0.82,
+      "decision": "STRONG_BUY",
+      "decision_trace": {
+        "contributions": [
+          { "agent": "生态位Agent", "contribution": 21.5, "details": "一级助攻 (置信度:0.86)" },
+          { "agent": "资金分析Agent", "contribution": 19.8, "details": "顶级游资介入 (置信度:0.91)" },
+          { "agent": "竞价博弈Agent", "contribution": 13.5, "details": "竞价抢筹 (置信度:0.75)" },
+          { "agent": "风险Agent", "contribution": -5.0, "details": "个股存在减持预警" }
+        ]
+      },
+      "reasoning": "该股处于板块助攻的最佳生态位，获得顶级游资席位认可，竞价阶段出现抢筹信号，确定性较高。"
+    }
+  ],
+  "rejected_candidates": [
+    {
+      "stock": "XXXXX2.SZ (某某材料)",
+      "reason": "置信度过低 (0.45)，市场分歧较大。"
+    },
+    {
+      "stock": "XXXXX3.SH (某某股份)",
+      "reason": "市场风格切换，该策略权重降低。"
+    }
+  ]
+}
 ```
-🔮 开始预测涨停板股票...
 
-============================================================
-📊 涨停板预测结果
-============================================================
-
-股票代码：000001.SZ
-预测结果：✅ 可能涨停
-涨停概率：85.3%
-💡 建议：强烈关注！
-
-股票代码：000002.SZ
-预测结果：❌ 不太会涨停
-涨停概率：62.1%
-💡 建议：观望
-...
-```
-
-🎉 **恭喜！你已经完成了第一次涨停板预测！**
+🎉 **恭喜！** 你刚刚完成了一次“游资级”的盘后复盘。你不仅得到了“买什么”，还知道了“**为什么买**”、“**谁在买**”以及“**有多大把握**”。这就是麒麟系统的威力。
 
 ---
 
@@ -243,7 +224,24 @@ python -m decision_engine.adaptive_weights_runner --interval 3600 --lookback 3
 
 ---
 
-### ⚡ 一键体验：“一进二”策略（新）
+## 核心系统架构：三大法宝揭秘
+
+麒麟v2.1是一套复杂的、多Agent协作的智能系统，其核心思想的实现依赖于以下三大“法宝”。
+
+### 法宝一：市场风格元帅 (Market Regime Marshal)
+- **作用**：系统的最高指挥官，用于判断当前是“牛市”、“熊市”还是“震荡市”。
+- **机制**：根据宏观指标，动态切换整个系统的“作战模式”（`agent_weights`, `risk_parameters`等）。
+- **解决了**：“战法失效”的问题，避免用牛市的刀去砍熊市的柴。
+
+### 法宝二：双重决策门锁 (Dual-Threshold Decision)
+- **作用**：系统的“守门员”，负责过滤掉所有“看起来很美”的陷阱。
+- **机制**：任何交易决策都必须同时满足 `分数 > 阈值` 和 `置信度 > 阈值`。
+- **解决了**：“不确定性”的问题，让系统学会在看不清时管住手。
+
+### 法宝三：可解释性仪表盘 (Explainability Dashboard)
+- **作用**：系统的“驾驶舱”，让所有决策过程透明化。
+- **机制**：为每一笔决策生成详细的“归因报告”，并对每一笔交易进行“Alpha/Beta”归因分析。
+- **解决了**：“黑箱”问题，让你知道每一分钱是靠能力还是靠运气赚的。
 
 > 目标：今天找出“昨天首板、今天有希望二板”的股票（俗称“一进二”）。
 
