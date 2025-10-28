@@ -1,0 +1,11 @@
+{
+  "users": {
+    "admin": {
+      "user_id": "admin",
+      "points": 200,
+      "level": "VIP",
+      "created_at": "2025-10-28T22:22:24.254494"
+    }
+  },
+  "logs": []
+}
