@@ -145,6 +145,167 @@ class DataStreamSource:
         )
 
 
+class RealStreamSource(DataStreamSource):
+    """真实数据流源"""
+    
+    def __init__(self, source_type: DataSourceType, config: Dict[str, Any]):
+        super().__init__(source_type)
+        self.config = config
+        self.api_url = config.get('api_url', 'ws://localhost:8080/stream')
+        self.api_key = config.get('api_key', '')
+        self._running = False
+        self._thread = None
+        self._subscribed_symbols = []
+        self._ws = None  # WebSocket连接
+    
+    def connect(self) -> bool:
+        """连接数据源"""
+        try:
+            import websocket
+            
+            # 创建WebSocket连接
+            self._ws = websocket.WebSocketApp(
+                self.api_url,
+                on_message=self._on_message,
+                on_error=self._on_error,
+                on_close=self._on_close,
+                on_open=self._on_open
+            )
+            
+            # 在新线程中运行
+            self._running = True
+            self._thread = threading.Thread(target=self._ws.run_forever)
+            self._thread.daemon = True
+            self._thread.start()
+            
+            # 等待连接成功
+            time.sleep(1)
+            
+            if self.status == StreamStatus.CONNECTED:
+                print(f"[{self.source_type.value}] 连接成功")
+                return True
+            else:
+                print(f"[{self.source_type.value}] 连接失败")
+                return False
+                
+        except ImportError:
+            print("请安装websocket-client: pip install websocket-client")
+            return False
+        except Exception as e:
+            print(f"[{self.source_type.value}] 连接错误: {e}")
+            self._error_count += 1
+            return False
+    
+    def disconnect(self):
+        """断开连接"""
+        self._running = False
+        if self._ws:
+            self._ws.close()
+        if self._thread:
+            self._thread.join(timeout=5)
+        self.status = StreamStatus.DISCONNECTED
+        print(f"[{self.source_type.value}] 已断开")
+    
+    def subscribe(self, symbols: List[str]):
+        """订阅股票"""
+        if not self._ws:
+            print(f"[{self.source_type.value}] 未连接，无法订阅")
+            return
+        
+        try:
+            self._subscribed_symbols.extend(symbols)
+            # 发送订阅请求
+            subscribe_msg = {
+                "action": "subscribe",
+                "source": self.source_type.value,
+                "symbols": symbols,
+                "api_key": self.api_key
+            }
+            
+            import json
+            self._ws.send(json.dumps(subscribe_msg))
+            print(f"[{self.source_type.value}] 订阅: {symbols}")
+            
+        except Exception as e:
+            print(f"[{self.source_type.value}] 订阅失败: {e}")
+            self._error_count += 1
+    
+    def unsubscribe(self, symbols: List[str]):
+        """取消订阅"""
+        if not self._ws:
+            return
+        
+        try:
+            for symbol in symbols:
+                if symbol in self._subscribed_symbols:
+                    self._subscribed_symbols.remove(symbol)
+            
+            # 发送取消订阅请求
+            unsubscribe_msg = {
+                "action": "unsubscribe",
+                "source": self.source_type.value,
+                "symbols": symbols,
+                "api_key": self.api_key
+            }
+            
+            import json
+            self._ws.send(json.dumps(unsubscribe_msg))
+            print(f"[{self.source_type.value}] 取消订阅: {symbols}")
+            
+        except Exception as e:
+            print(f"[{self.source_type.value}] 取消订阅失败: {e}")
+            self._error_count += 1
+    
+    def _on_open(self, ws):
+        """连接已建立"""
+        self.status = StreamStatus.CONNECTED
+        print(f"[{self.source_type.value}] WebSocket已开启")
+    
+    def _on_message(self, ws, message):
+        """收到消息"""
+        try:
+            import json
+            msg_data = json.loads(message)
+            
+            # 解析为StreamData
+            data = StreamData(
+                source_type=self.source_type,
+                symbol=msg_data.get('symbol', ''),
+                timestamp=datetime.fromisoformat(msg_data.get('timestamp', datetime.now().isoformat())),
+                data=msg_data.get('data', {}),
+                sequence=msg_data.get('sequence', 0)
+            )
+            
+            # 触发数据处理
+            self._on_data(data)
+            
+        except json.JSONDecodeError as e:
+            print(f"[{self.source_type.value}] JSON解析错误: {e}")
+            self._error_count += 1
+        except Exception as e:
+            print(f"[{self.source_type.value}] 消息处理错误: {e}")
+            self._error_count += 1
+    
+    def _on_error(self, ws, error):
+        """发生错误"""
+        self.status = StreamStatus.ERROR
+        self._error_count += 1
+        print(f"[{self.source_type.value}] 错误: {error}")
+    
+    def _on_close(self, ws, close_status_code, close_msg):
+        """连接关闭"""
+        self.status = StreamStatus.DISCONNECTED
+        print(f"[{self.source_type.value}] 连接关闭: {close_status_code} - {close_msg}")
+        
+        # 如果还在运行，尝试重连
+        if self._running:
+            self.status = StreamStatus.RECONNECTING
+            print(f"[{self.source_type.value}] 5秒后重连...")
+            time.sleep(5)
+            if self._running:
+                self.connect()
+
+
 class MockStreamSource(DataStreamSource):
     """模拟数据流源（用于测试）"""
     

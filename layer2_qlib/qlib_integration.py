@@ -733,9 +733,40 @@ class RealtimePredictionService:
         self.last_update = None
         
     async def load_model(self, model_path: str):
-        """加载模型"""
-        # TODO: 实现模型加载
-        pass
+        """
+        加载模型
+        
+        Args:
+            model_path: 模型文件路径
+        """
+        try:
+            import joblib
+            import pickle
+            
+            # 检查文件是否存在
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"模型文件不存在: {model_path}")
+            
+            # 根据文件扩展名选择加载方式
+            if model_path.endswith('.pkl'):
+                with open(model_path, 'rb') as f:
+                    self.model = pickle.load(f)
+            elif model_path.endswith('.joblib'):
+                self.model = joblib.load(model_path)
+            else:
+                # 尝试使用Qlib的模型加载器
+                from qlib.model.utils import CombinedModel
+                self.model = CombinedModel.load(model_path)
+            
+            self.last_update = datetime.now()
+            logger.info(f"模型已加载: {model_path}")
+            
+        except ImportError as e:
+            logger.error(f"缺少依赖库: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"加载模型失败: {e}")
+            raise
     
     async def predict(self, symbols: List[str]) -> pd.DataFrame:
         """
@@ -766,10 +797,60 @@ class RealtimePredictionService:
         
         return predictions
     
-    async def update_model(self):
-        """更新模型"""
-        # TODO: 实现模型在线更新
-        pass
+    async def update_model(self, retrain: bool = False):
+        """
+        更新模型
+        
+        Args:
+            retrain: 是否重新训练模型
+        """
+        try:
+            if retrain:
+                logger.info("开始重新训练模型...")
+                
+                # 准备最新数据
+                dataset = self.qlib.prepare_data(
+                    start_time="2020-01-01",
+                    end_time=datetime.now().strftime("%Y-%m-%d")
+                )
+                
+                # 训练新模型
+                new_model = self.qlib.train_model(dataset, model_type="LGBM")
+                
+                # 更新模型
+                self.model = new_model
+                self.last_update = datetime.now()
+                
+                # 保存模型
+                model_save_path = f"models/model_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
+                os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
+                
+                import joblib
+                joblib.dump(self.model, model_save_path)
+                logger.info(f"模型已更新并保存到: {model_save_path}")
+                
+            else:
+                # 增量更新（如果模型支持）
+                logger.info("执行模型增量更新...")
+                
+                # 检查模型是否支持在线更新
+                if hasattr(self.model, 'partial_fit'):
+                    # 获取最新数据
+                    latest_data = self.qlib.prepare_data(
+                        start_time=(datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d"),
+                        end_time=datetime.now().strftime("%Y-%m-%d")
+                    )
+                    
+                    # 增量训练
+                    self.model.partial_fit(latest_data)
+                    self.last_update = datetime.now()
+                    logger.info("模型增量更新完成")
+                else:
+                    logger.warning("当前模型不支持增量更新，请使用retrain=True")
+                    
+        except Exception as e:
+            logger.error(f"模型更新失败: {e}")
+            raise
 
 
 if __name__ == "__main__":

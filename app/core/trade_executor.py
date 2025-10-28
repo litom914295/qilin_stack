@@ -351,6 +351,256 @@ class SimulatedBroker(BrokerInterface):
         return self.account.copy()
 
 
+class RealBroker(BrokerInterface):
+    """真实券商接口实现"""
+    
+    def __init__(self, config: Dict):
+        super().__init__(config)
+        self.session = None
+        self.api_url = config.get('api_url', os.getenv('BROKER_API_URL', 'http://localhost:8000'))
+        self.api_key = config.get('api_key', os.getenv('BROKER_API_KEY'))
+        self.api_secret = config.get('api_secret', os.getenv('BROKER_API_SECRET'))
+        self.timeout = config.get('timeout', 30)
+        self.retry_times = config.get('retry_times', 3)
+        
+    async def connect(self):
+        """连接券商API"""
+        try:
+            import aiohttp
+            self.session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=self.timeout)
+            )
+            
+            # 认证
+            auth_response = await self._authenticate()
+            if auth_response.get('status') == 'success':
+                self.connected = True
+                logger.info(f"成功连接到券商: {self.config.get('broker_name', 'Unknown')}")
+            else:
+                raise ConnectionError(f"认证失败: {auth_response.get('message')}")
+                
+        except aiohttp.ClientError as e:
+            logger.error(f"券商连接失败: {e}")
+            raise ConnectionError(f"无法连接到券商API: {e}")
+        except Exception as e:
+            logger.error(f"连接过程错误: {e}")
+            raise
+    
+    async def _authenticate(self) -> Dict:
+        """认证请求"""
+        try:
+            auth_data = {
+                'api_key': self.api_key,
+                'timestamp': int(datetime.now().timestamp() * 1000)
+            }
+            
+            # 生成签名
+            import hmac
+            import hashlib
+            message = f"{auth_data['api_key']}{auth_data['timestamp']}"
+            signature = hmac.new(
+                self.api_secret.encode(),
+                message.encode(),
+                hashlib.sha256
+            ).hexdigest()
+            auth_data['signature'] = signature
+            
+            async with self.session.post(
+                f"{self.api_url}/auth",
+                json=auth_data
+            ) as response:
+                response.raise_for_status()
+                return await response.json()
+                
+        except Exception as e:
+            logger.error(f"认证请求失败: {e}")
+            return {'status': 'error', 'message': str(e)}
+    
+    async def disconnect(self):
+        """断开连接"""
+        try:
+            if self.session:
+                await self.session.close()
+            self.connected = False
+            logger.info("券商连接已断开")
+        except Exception as e:
+            logger.error(f"断开连接失败: {e}")
+    
+    async def submit_order(self, order: Order) -> str:
+        """提交真实订单"""
+        if not self.connected:
+            raise ConnectionError("未连接到券商")
+        
+        if not self.api_key:
+            raise ValueError("券商API Key未配置")
+        
+        for attempt in range(self.retry_times):
+            try:
+                order_data = {
+                    'symbol': order.symbol,
+                    'side': order.side.value,
+                    'type': order.order_type.value,
+                    'quantity': order.quantity,
+                    'price': order.price,
+                    'time_in_force': order.time_in_force.value,
+                    'client_order_id': order.client_order_id or f"CLIENT_{uuid.uuid4().hex[:8]}"
+                }
+                
+                async with self.session.post(
+                    f"{self.api_url}/orders",
+                    json=order_data,
+                    headers=self._get_auth_headers()
+                ) as response:
+                    response.raise_for_status()
+                    result = await response.json()
+                    
+                    order.order_id = result.get('order_id')
+                    order.status = OrderStatus.SUBMITTED
+                    order.submitted_at = datetime.now()
+                    
+                    logger.info(f"订单已提交: {order.order_id}")
+                    return order.order_id
+                    
+            except aiohttp.ClientError as e:
+                logger.warning(f"订单提交失败 (attempt {attempt+1}/{self.retry_times}): {e}")
+                if attempt == self.retry_times - 1:
+                    logger.error(f"订单提交最终失败: {e}")
+                    raise
+                await asyncio.sleep(1 * (attempt + 1))  # 指数退避
+            except Exception as e:
+                logger.error(f"订单提交错误: {e}")
+                raise
+    
+    async def cancel_order(self, order_id: str) -> bool:
+        """取消订单"""
+        if not self.connected:
+            raise ConnectionError("未连接到券商")
+        
+        try:
+            async with self.session.delete(
+                f"{self.api_url}/orders/{order_id}",
+                headers=self._get_auth_headers()
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+                return result.get('status') == 'cancelled'
+                
+        except aiohttp.ClientError as e:
+            logger.error(f"订单取消失败: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"取消订单错误: {e}")
+            raise
+    
+    async def get_order_status(self, order_id: str) -> Order:
+        """获取订单状态"""
+        if not self.connected:
+            raise ConnectionError("未连接到券商")
+        
+        try:
+            async with self.session.get(
+                f"{self.api_url}/orders/{order_id}",
+                headers=self._get_auth_headers()
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+                
+                # 转换为Order对象
+                return self._parse_order(data)
+                
+        except aiohttp.ClientError as e:
+            logger.error(f"获取订单状态失败: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"获取订单状态错误: {e}")
+            raise
+    
+    async def get_positions(self) -> List[Position]:
+        """获取持仓"""
+        if not self.connected:
+            raise ConnectionError("未连接到券商")
+        
+        try:
+            async with self.session.get(
+                f"{self.api_url}/positions",
+                headers=self._get_auth_headers()
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+                
+                positions = []
+                for pos_data in data.get('positions', []):
+                    positions.append(self._parse_position(pos_data))
+                
+                return positions
+                
+        except aiohttp.ClientError as e:
+            logger.error(f"获取持仓失败: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"获取持仓错误: {e}")
+            raise
+    
+    async def get_account_info(self) -> Dict:
+        """获取账户信息"""
+        if not self.connected:
+            raise ConnectionError("未连接到券商")
+        
+        try:
+            async with self.session.get(
+                f"{self.api_url}/account",
+                headers=self._get_auth_headers()
+            ) as response:
+                response.raise_for_status()
+                return await response.json()
+                
+        except aiohttp.ClientError as e:
+            logger.error(f"获取账户信息失败: {e}")
+            return {}
+        except Exception as e:
+            logger.error(f"获取账户信息错误: {e}")
+            raise
+    
+    def _get_auth_headers(self) -> Dict[str, str]:
+        """获取认证头"""
+        return {
+            'X-API-Key': self.api_key,
+            'Content-Type': 'application/json'
+        }
+    
+    def _parse_order(self, data: Dict) -> Order:
+        """解析订单数据"""
+        return Order(
+            symbol=data['symbol'],
+            side=OrderSide(data['side']),
+            order_type=OrderType(data['type']),
+            quantity=data['quantity'],
+            price=data.get('price'),
+            order_id=data['order_id'],
+            client_order_id=data.get('client_order_id'),
+            status=OrderStatus(data['status']),
+            filled_quantity=data.get('filled_quantity', 0),
+            avg_fill_price=data.get('avg_fill_price', 0),
+            commission=data.get('commission', 0),
+            created_at=datetime.fromisoformat(data['created_at']) if data.get('created_at') else None,
+            submitted_at=datetime.fromisoformat(data['submitted_at']) if data.get('submitted_at') else None,
+            filled_at=datetime.fromisoformat(data['filled_at']) if data.get('filled_at') else None
+        )
+    
+    def _parse_position(self, data: Dict) -> Position:
+        """解析持仓数据"""
+        return Position(
+            symbol=data['symbol'],
+            quantity=data['quantity'],
+            avg_cost=data['avg_cost'],
+            current_price=data['current_price'],
+            market_value=data['market_value'],
+            unrealized_pnl=data.get('unrealized_pnl', 0),
+            realized_pnl=data.get('realized_pnl', 0),
+            last_update=datetime.now()
+        )
+
+
 class OrderManager:
     """订单管理器"""
     
