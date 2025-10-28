@@ -20,13 +20,24 @@ from pathlib import Path
 import threading
 import queue
 import logging
+try:
+    import requests
+except Exception:
+    requests = None
+from urllib.parse import urljoin
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # 添加项目路径
 sys.path.append(str(Path(__file__).parent.parent))
-sys.path.append(str(Path("D:/test/Qlib/tradingagents")))
+# TradingAgents路径采用环境变量 TRADINGAGENTS_PATH（可选）
+import os
+_ENV_TA = os.getenv("TRADINGAGENTS_PATH")
+if _ENV_TA:
+    p = Path(_ENV_TA)
+    if p.exists():
+        sys.path.append(str(p))
 
 # 监控权重
 from monitoring.metrics import get_monitor
@@ -46,6 +57,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "qlib_enhanced"))
 from high_freq_limitup import HighFreqLimitUpAnalyzer, create_sample_high_freq_data
 from online_learning import OnlineLearningManager, DriftDetector, AdaptiveLearningRate
 from multi_source_data import MultiSourceDataProvider, DataSource
+from one_into_two_pipeline import (
+    build_sample_dataset,
+    OneIntoTwoTrainer,
+    rank_candidates,
+    extract_limitup_features,
+)
 # Phase 2 模块
 from rl_trading import TradingEnvironment, DQNAgent, RLTrainer, create_sample_data as create_rl_data
 from portfolio_optimizer import MeanVarianceOptimizer, BlackLittermanOptimizer, RiskParityOptimizer, create_sample_returns
@@ -156,6 +173,14 @@ class UnifiedDashboard:
             st.session_state.refresh_interval = 5
         if 'auto_trade' not in st.session_state:
             st.session_state.auto_trade = False
+        # 在线服务/MLflow默认配置（可由ENV注入）
+        import os as _os
+        st.session_state.setdefault('qlib_serving_url', _os.getenv('QLIB_SERVING_URL', 'http://localhost:9000'))
+        st.session_state.setdefault('qlib_serving_api_key', _os.getenv('QLIB_SERVING_API_KEY', ''))
+        st.session_state.setdefault('mlflow_uri', _os.getenv('MLFLOW_TRACKING_URI', 'http://localhost:5000'))
+        st.session_state.setdefault('mlflow_experiment', _os.getenv('MLFLOW_EXPERIMENT', 'qlib_limitup'))
+        st.session_state.setdefault('mlflow_model_name', _os.getenv('MLFLOW_MODEL_NAME', 'qlib_limitup_v1'))
+        st.session_state.setdefault('mlflow_connected', False)
             
     def setup_connections(self):
         """设置数据连接"""
@@ -308,7 +333,118 @@ class UnifiedDashboard:
             value=st.session_state.refresh_interval
         )
         st.session_state.refresh_interval = refresh_interval
+
+        # 文档与指南
+        st.subheader("📚 文档与指南")
+        docs = {
+            "配置指南 (CONFIGURATION.md)": "docs/CONFIGURATION.md",
+            "Windows 环境变量与启动": "docs/ENV_SETUP_WINDOWS.md",
+            "RD-Agent 集成指南": "docs/RD-Agent_Integration_Guide.md",
+            "TradingAgents 集成说明": "tradingagents_integration/README.md",
+            "Qlib 功能分析": "docs/QLIB_FEATURE_ANALYSIS.md",
+            "部署指南": "docs/DEPLOYMENT_GUIDE.md",
+            "监控指标": "docs/MONITORING_METRICS.md",
+            "SLO 配置": "docs/sla/slo.yaml",
+        }
+        choice = st.selectbox("选择文档", list(docs.keys()))
+        colv1, colv2 = st.columns([1,1])
+        with colv1:
+            if st.button("🔎 预览", use_container_width=True):
+                self._show_doc(docs[choice])
+        with colv2:
+            st.caption(str(Path(__file__).parent.parent / docs[choice]))
+
+        # 文档搜索
+        st.subheader("🔎 文档搜索")
+        query = st.text_input("关键词", value="", placeholder="输入要搜索的关键字…")
+        scopes = {
+            "docs/": Path(__file__).parent.parent / "docs",
+            "tradingagents_integration/": Path(__file__).parent.parent / "tradingagents_integration",
+            "web/tabs/rdagent/": Path(__file__).parent.parent / "web" / "tabs" / "rdagent",
+            "web/tabs/tradingagents/": Path(__file__).parent.parent / "web" / "tabs" / "tradingagents",
+        }
+        selected = st.multiselect("搜索范围", list(scopes.keys()), default=["docs/"])
+        file_exts = st.multiselect("文件类型", ['.md', '.markdown', '.yaml', '.yml', '.txt'], default=['.md', '.markdown', '.yaml', '.yml'])
+        max_hits = st.slider("最多结果条数", 10, 200, 50, 10)
+        if st.button("🔍 开始搜索", use_container_width=True):
+            if not query.strip():
+                st.warning("请输入关键词")
+            else:
+                roots = [scopes[k] for k in selected]
+                results = self._doc_search(query.strip(), roots, exts=set(file_exts), max_hits=max_hits)
+                if not results:
+                    st.info("未找到匹配项")
+                else:
+                    st.caption(f"共找到 {len(results)} 条（最多显示 {max_hits} 条）")
+                    for r in results:
+                        fp = r['path']
+                        st.markdown(f"**{fp}** · 第 {r['line']} 行")
+                        st.markdown(self._highlight(r['snippet'], query.strip()), unsafe_allow_html=True)
     
+    def _show_doc(self, rel_path: str):
+        """侧边栏预览Markdown/YAML文档"""
+        try:
+            p = Path(__file__).parent.parent / rel_path
+            if not p.exists():
+                st.warning(f"未找到文档: {rel_path}")
+                return
+            text = p.read_text(encoding='utf-8')
+            if p.suffix.lower() in ('.md', '.markdown'):
+                st.markdown(text)
+            else:
+                st.code(text, language=p.suffix.lstrip('.') or 'text')
+        except Exception as e:
+            st.error(f"读取文档失败: {e}")
+
+    def _doc_search(self, query: str, roots, exts=None, max_hits: int = 50):
+        """在给定目录中搜索关键词（大小写不敏感），返回匹配行及上下文"""
+        if exts is None:
+            exts = {'.md', '.markdown', '.yaml', '.yml', '.txt'}
+        results = []
+        q = query.lower()
+        try:
+            for root in roots:
+                if not root.exists():
+                    continue
+                for p in root.rglob('*'):
+                    if not p.is_file():
+                        continue
+                    if p.suffix.lower() not in exts:
+                        continue
+                    # 限制文件大小
+                    try:
+                        if p.stat().st_size > 1_000_000:
+                            continue
+                        text = p.read_text(encoding='utf-8', errors='ignore')
+                    except Exception:
+                        continue
+                    lines = text.splitlines()
+                    for idx, line in enumerate(lines, start=1):
+                        if q in line.lower():
+                            # 取上下文
+                            start = max(1, idx-2)
+                            end = min(len(lines), idx+2)
+                            snippet = "\n".join(lines[start-1:end])
+                            results.append({
+                                'path': str(p.relative_to(Path(__file__).parent.parent)),
+                                'line': idx,
+                                'snippet': snippet,
+                            })
+                            if len(results) >= max_hits:
+                                return results
+        except Exception:
+            pass
+        return results
+
+    def _highlight(self, text: str, query: str) -> str:
+        import re
+        def esc(s: str) -> str:
+            return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        html = esc(text)
+        pattern = re.compile(re.escape(query), re.IGNORECASE)
+        html = pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", html)
+        return f"<pre style='white-space:pre-wrap'>{html}</pre>"
+
     def render_main_content(self):
         """渲染主内容区"""
         # 创建主标签页 - Qilin监控 + Qlib + RD-Agent + TradingAgents
@@ -357,30 +493,249 @@ class UnifiedDashboard:
             self.render_history()
 
     def render_qlib_tabs(self):
-        """渲染Qlib相关功能tabs"""
-        qtab1, qtab2, qtab3, qtab4, qtab5, qtab6, qtab7 = st.tabs([
-            "🔥 涨停板分析",
-            "🧠 在线学习",
-            "🔌 多数据源",
-            "🤖 强化学习",
-            "💼 组合优化",
-            "⚠️ 风险监控",
-            "📊 归因分析"
+        """渲染Qlib量化平台（6大分区）"""
+        tab_model, tab_data, tab_portfolio, tab_risk, tab_service, tab_exp = st.tabs([
+            "📈 模型训练",
+            "🗄️ 数据管理",
+            "💼 投资组合",
+            "⚠️ 风险控制",
+            "🔄 在线服务",
+            "📊 实验管理",
         ])
-        with qtab1:
-            self.render_limitup_analysis()
-        with qtab2:
-            self.render_online_learning()
-        with qtab3:
-            self.render_multi_source_data()
-        with qtab4:
-            self.render_rl_trading()
-        with qtab5:
-            self.render_portfolio_optimization()
-        with qtab6:
-            self.render_risk_monitoring()
-        with qtab7:
-            self.render_performance_attribution()
+        with tab_model:
+            self.render_qlib_model_training_tab()
+        with tab_data:
+            self.render_qlib_data_management_tab()
+        with tab_portfolio:
+            self.render_qlib_portfolio_tab()
+        with tab_risk:
+            self.render_qlib_risk_control_tab()
+        with tab_service:
+            self.render_qlib_online_service_tab()
+        with tab_exp:
+            self.render_qlib_experiment_management_tab()
+
+    def _safe(self, title: str, func, *args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            st.error(f"模块[{title}]运行异常")
+            st.exception(e)
+            return None
+
+    def render_qlib_model_training_tab(self):
+        """Qlib/模型训练：在线学习、强化学习、模型库"""
+        sub1, sub2, sub3 = st.tabs(["🧠 在线学习", "🤖 强化学习", "🚀 一进二策略"])
+        with sub1:
+            self._safe("在线学习", self.render_online_learning)
+        with sub2:
+            self._safe("强化学习", self.render_rl_trading)
+        with sub3:
+            self._safe("一进二策略", self.render_one_into_two_strategy)
+
+    def render_qlib_data_management_tab(self):
+        """Qlib/数据管理：多数据源、涨停板分析、特征/因子"""
+        sub1, sub2, sub3 = st.tabs(["🔌 多数据源", "🔥 涨停板分析", "🧮 因子/特征"])
+        with sub1:
+            self._safe("多数据源", self.render_multi_source_data)
+        with sub2:
+            self._safe("涨停板分析", self.render_limitup_analysis)
+        with sub3:
+            try:
+                from tabs.rdagent import factor_mining
+                factor_mining.render()
+            except Exception:
+                st.info("可在 RD-Agent → 因子挖掘 中使用完整功能；此处仅做入口。")
+
+    def render_qlib_portfolio_tab(self):
+        """Qlib/投资组合：回测、优化、归因分析"""
+        sub1, sub2, sub3 = st.tabs(["⏪ 回测", "🧭 组合优化", "📊 归因分析"])
+        with sub1:
+            self._safe("回测", self.render_history)
+        with sub2:
+            self._safe("组合优化", self.render_portfolio_optimization)
+        with sub3:
+            self._safe("归因分析", self.render_performance_attribution)
+
+    def render_qlib_risk_control_tab(self):
+        """Qlib/风险控制：VaR与压力测试"""
+        sub1, sub2 = st.tabs(["⚠️ 风险监控", "🔥 压力测试"])
+        with sub1:
+            self._safe("风险监控", self.render_risk_monitoring)
+        with sub2:
+            self._safe("压力测试", self.render_stress_test)
+
+    def render_qlib_online_service_tab(self):
+        """Qlib/在线服务：模型serving与滚动训练-接入你的API"""
+        st.subheader("🔄 在线服务")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**模型 Serving**")
+            if requests is None:
+                st.error("未安装 requests，无法调用HTTP接口。请先安装 requests 包。")
+            base_url = st.text_input(
+                "服务地址",
+                value=st.session_state.get('qlib_serving_url', 'http://localhost:9000'),
+                key="qlib_serving_url_input",
+            )
+            api_key = st.text_input("API Key (可选)", value=st.session_state.get('qlib_serving_api_key', ''), type="password")
+            health_path = st.text_input("健康检查路径", value="/health")
+            predict_path = st.text_input("预测路径", value="/predict")
+            start_path = st.text_input("启动服务路径", value="/admin/start")
+            stop_path = st.text_input("停止服务路径", value="/admin/stop")
+            headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                if st.button("健康检查"):
+                    try:
+                        r = requests.get(urljoin(base_url, health_path), headers=headers, timeout=5)
+                        st.success(f"{r.status_code} {r.text[:120]}")
+                    except Exception as e:
+                        st.error(f"检查失败: {e}")
+            with c2:
+                if st.button("启动服务"):
+                    try:
+                        r = requests.post(urljoin(base_url, start_path), headers=headers, timeout=8)
+                        st.success(f"已启动: {r.status_code}")
+                    except Exception as e:
+                        st.error(f"启动失败: {e}")
+            with c3:
+                if st.button("停止服务"):
+                    try:
+                        r = requests.post(urljoin(base_url, stop_path), headers=headers, timeout=8)
+                        st.warning(f"已停止: {r.status_code}")
+                    except Exception as e:
+                        st.error(f"停止失败: {e}")
+            st.divider()
+            st.markdown("**测试预测**")
+            payload = st.text_area("请求JSON", value='{"symbol":"000001.SZ","features":[1,2,3,4]}', height=120)
+            if st.button("发送预测请求"):
+                try:
+                    r = requests.post(urljoin(base_url, predict_path), headers={**headers, "Content-Type":"application/json"}, data=payload.encode('utf-8'), timeout=10)
+                    st.success(f"响应 {r.status_code}:")
+                    st.code(r.text, language="json")
+                except Exception as e:
+                    st.error(f"调用失败: {e}")
+        with col2:
+            st.markdown("**滚动训练**")
+            enable_cron = st.toggle("每日滚动训练", value=True, key="qlib_rolling_train")
+            cron_path = st.text_input("触发路径", value="/admin/roll_train")
+            if st.button("手动触发一次"):
+                try:
+                    r = requests.post(urljoin(base_url, cron_path), headers=headers, timeout=15)
+                    st.info(f"已触发: {r.status_code}")
+                except Exception as e:
+                    st.error(f"触发失败: {e}")
+        st.caption("提示：以上路径可按你的服务实际调整；支持带Bearer Token。")
+
+    def render_qlib_experiment_management_tab(self):
+        """Qlib/实验管理：接入MLflow Tracking & Registry"""
+        st.subheader("📊 实验管理 (MLflow)")
+        st.markdown("- 记录训练运行、指标与参数\n- 注册最佳模型用于 Serving")
+        try:
+            import mlflow
+            from mlflow.tracking import MlflowClient
+        except Exception as e:
+            st.error("未安装 mlflow，请先安装后再用该页功能。")
+            return
+        col1, col2 = st.columns(2)
+        with col1:
+            tracking_uri = st.text_input("MLflow Tracking URI", value=st.session_state.get('mlflow_uri','http://localhost:5000'))
+            exp_name = st.text_input("实验名称", value=st.session_state.get('mlflow_experiment','qlib_limitup'))
+            if st.button("连接/创建实验"):
+                try:
+                    mlflow.set_tracking_uri(tracking_uri)
+                    client = MlflowClient(tracking_uri)
+                    exp = client.get_experiment_by_name(exp_name)
+                    if exp is None:
+                        exp_id = client.create_experiment(exp_name)
+                        st.success(f"已创建实验: {exp_name} ({exp_id})")
+                    else:
+                        st.success(f"已连接实验: {exp.name} ({exp.experiment_id})")
+                except Exception as e:
+                    st.error(f"连接失败: {e}")
+            st.divider()
+            st.markdown("**记录一次示例运行**")
+            run_name = st.text_input("运行名称", value="demo_run")
+            if st.button("记录示例指标"):
+                try:
+                    mlflow.set_tracking_uri(tracking_uri)
+                    mlflow.set_experiment(exp_name)
+                    with mlflow.start_run(run_name=run_name) as run:
+                        mlflow.log_params({"model":"limitup_classifier","version":"v1"})
+                        mlflow.log_metrics({"precision@20":0.52, "recall@20":0.31})
+                        st.success(f"已记录，run_id={run.info.run_id}")
+                except Exception as e:
+                    st.error(f"记录失败: {e}")
+        with col2:
+            reg_name = st.text_input("模型注册名", value=st.session_state.get('mlflow_model_name','qlib_limitup_v1'))
+            model_uri = st.text_input("模型URI (如 runs:/<run_id>/model)", value="")
+            if st.button("注册/更新模型"):
+                try:
+                    mlflow.set_tracking_uri(tracking_uri)
+                    client = MlflowClient(tracking_uri)
+                    # 确保注册存在
+                    try:
+                        client.get_registered_model(reg_name)
+                    except Exception:
+                        client.create_registered_model(reg_name)
+                    v = mlflow.register_model(model_uri=model_uri, name=reg_name)
+                    st.success(f"已发起注册，version={v.version}")
+                except Exception as e:
+                    st.error(f"注册失败: {e}")
+        st.caption("如需自动化，把训练脚本的 mlflow.log_* 与本页的注册流程串联即可。")
+        
+    def render_one_into_two_strategy(self):
+        """一进二策略：数据→训练→预测（示例可跑）"""
+        st.header("🚀 一进二涨停板选股 (示例版)")
+        st.caption("使用示例1min数据与Stacking+校准快速跑通链路；接入真实数据后可直接替换数据构建部分。")
+        # 参数
+        colA, colB, colC = st.columns(3)
+        with colA:
+            symbols = st.multiselect("股票池", ["000001.SZ", "000002.SZ", "600000.SH", "600519.SH", "000858.SZ"], ["000001.SZ", "600519.SH"]) 
+        with colB:
+            start = st.date_input("开始", value=(datetime.now()-timedelta(days=90)).date(), key="qlib_dataset_start")
+        with colC:
+            end = st.date_input("结束", value=datetime.now().date(), key="qlib_dataset_end")
+        if st.button("📦 构建数据集"):
+            with st.spinner("正在生成示例数据…"):
+                df = build_sample_dataset(symbols, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
+                st.session_state['oit_dataset'] = df
+                st.success(f"数据集已就绪：{df.shape}")
+                st.dataframe(df.head(5), use_container_width=True)
+        st.divider()
+        # 训练
+        top_n = st.slider("TopN", 5, 50, 20)
+        if st.button("🧠 训练模型"):
+            df = st.session_state.get('oit_dataset')
+            if df is None or df.empty:
+                st.error("请先构建数据集")
+            else:
+                trainer = OneIntoTwoTrainer(top_n=top_n)
+                with st.spinner("训练中…"):
+                    res = trainer.fit(df)
+                st.session_state['oit_result'] = res
+                st.success(f"AUC(pool)={res.auc_pool:.3f} | AUC(board)={res.auc_board:.3f} | 阈值≈{res.threshold_topn:.3f}")
+        st.divider()
+        # 预测&选股（当天示例）
+        if st.button("🎯 生成T+1候选"):
+            res = st.session_state.get('oit_result')
+            if not res:
+                st.error("请先训练模型")
+            else:
+                # 使用最近一天模拟特征
+                today = datetime.now().strftime('%Y-%m-%d')
+                rows = []
+                for s in symbols:
+                    m = create_sample_high_freq_data(s)
+                    feats = extract_limitup_features(m, s)
+                    feats['date'] = today; feats['symbol'] = s
+                    rows.append(feats)
+                feat_df = pd.DataFrame(rows)
+                ranked = rank_candidates(res.model_board, feat_df, threshold=res.threshold_topn, top_n=top_n)
+                st.subheader("入选列表")
+                st.dataframe(ranked, use_container_width=True, hide_index=True)
+                st.info("可在‘风险管理’中进一步做流动性门控与排队评估。")
         
     def render_rdagent_tabs(self):
         """渲染RD-Agent的6个子tabs"""
@@ -847,12 +1202,14 @@ class UnifiedDashboard:
         with col1:
             start_date = st.date_input(
                 "开始日期",
-                value=datetime.now() - timedelta(days=30)
+                value=(datetime.now() - timedelta(days=30)).date(),
+                key="history_start_date"
             )
         with col2:
             end_date = st.date_input(
                 "结束日期",
-                value=datetime.now()
+                value=datetime.now().date(),
+                key="history_end_date"
             )
         
         # 历史收益曲线
@@ -2415,7 +2772,8 @@ class UnifiedDashboard:
         with col2:
             date_range = st.date_input(
                 "日期范围",
-                value=[datetime.now() - timedelta(days=30), datetime.now()]
+                value=[(datetime.now() - timedelta(days=30)).date(), datetime.now().date()],
+                key="data_source_test_date_range"
             )
         
         with col3:

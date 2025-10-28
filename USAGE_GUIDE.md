@@ -4,9 +4,9 @@
 
 麒麟量化系统提供多种使用方式:
 1. **Web 界面** (最推荐) - 可视化仪表板
-2. **命令行** - 快速演示和测试
+2. **命令�?* - 快速演示和测试
 3. **API 服务** - FastAPI REST 接口
-4. **Jupyter Notebook** - 交互式研究
+4. **Jupyter Notebook** - 交互式研�?
 
 ---
 
@@ -15,46 +15,46 @@
 ### 启动 Streamlit Dashboard
 
 ```powershell
-# 激活虚拟环境
+# 激活虚拟环�?
 .\.qilin\Scripts\Activate.ps1
 
 # 方法A: 使用启动脚本(推荐)
-python run_dashboard.py
+python start_web.py
 
 # 方法B: 直接启动
 streamlit run app\web\unified_agent_dashboard.py
 
-# 方法C: 统一仪表板
+# 方法C: 统一仪表�?
 streamlit run web\unified_dashboard.py
 ```
 
 ### 访问地址
 
-启动后在浏览器访问:
+启动后在浏览器访�?
 - **默认地址**: http://localhost:8501
 - **局域网访问**: http://[你的IP]:8501
 
-### 功能特性
+### 功能特�?
 
-✅ **实时监控**
+�?**实时监控**
 - 实时行情数据
-- 持仓状态
+- 持仓状�?
 - 订单跟踪
 - 盈亏分析
 
-✅ **智能分析**
+�?**智能分析**
 - 多Agent协同决策
-- 涨停板预测
+- 涨停板预�?
 - 市场情绪分析
 - 资金流向追踪
 
-✅ **可视化图表**
+�?**可视化图�?*
 - K线图
-- 因子贡献图
+- 因子贡献�?
 - 收益曲线
 - 风险分布
 
-✅ **交易管理**
+�?**交易管理**
 - 策略配置
 - 风控参数
 - 回测分析
@@ -62,37 +62,37 @@ streamlit run web\unified_dashboard.py
 
 ---
 
-## ⚡ 方式2: 命令行快速演示
+## �?方式2: 命令行快速演�?
 
-### quickstart.py - 快速体验
+### quickstart.py - 快速体�?
 
 ```powershell
-# 激活虚拟环境
+# 激活虚拟环�?
 .\.qilin\Scripts\Activate.ps1
 
-# 运行快速演示
+# 运行快速演�?
 python quickstart.py
 ```
 
 **功能菜单**:
-1. 快速演示 - 分析3只股票,展示决策过程
+1. 快速演�?- 分析3只股�?展示决策过程
 2. 性能测试 - 测试并行分析50只股票的速度
-3. 退出
+3. 退�?
 
 **示例输出**:
 ```
 股票: 000001
 综合得分: 85.60
 决策建议: strong_buy
-置信度: 82.00%
+置信�? 82.00%
 建议仓位: large
 理由: 生态位优势+资金流入+情绪良好
 风险等级: medium
 
 各Agent评分:
-  - 生态位Agent: 21.5分
-  - 资金分析Agent: 19.8分
-  - 竞价博弈Agent: 13.5分
+  - 生态位Agent: 21.5�?
+  - 资金分析Agent: 19.8�?
+  - 竞价博弈Agent: 13.5�?
   ...
 ```
 
@@ -114,7 +114,7 @@ python main.py --help
 
 **参数说明**:
 - `--mode`: 运行模式 (backtest/live/replay)
-- `--start_date`: 开始日期
+- `--start_date`: 开始日�?
 - `--end_date`: 结束日期
 - `--symbols`: 股票代码(逗号分隔)
 - `--config`: 配置文件路径
@@ -126,7 +126,7 @@ python main.py --help
 ### 启动 FastAPI 服务
 
 ```powershell
-# 激活虚拟环境
+# 激活虚拟环�?
 .\.qilin\Scripts\Activate.ps1
 
 # 启动 API 服务
@@ -160,7 +160,7 @@ curl -X POST http://localhost:8000/api/v1/backtest \
 ### 启动 JupyterLab
 
 ```powershell
-# 激活虚拟环境
+# 激活虚拟环�?
 .\.qilin\Scripts\Activate.ps1
 
 # 启动 JupyterLab
@@ -171,8 +171,8 @@ jupyter lab
 
 ### 示例 Notebook
 
-在 `examples/` 目录查看示例:
-- `limitup_example.py` - 涨停板分析
+�?`examples/` 目录查看示例:
+- `limitup_example.py` - 涨停板分�?
 - `integration_test_remaining_modules.py` - 系统集成测试
 - `predict_limit_up_demo.py` - 预测演示
 
@@ -180,16 +180,16 @@ jupyter lab
 
 ## 🎮 使用场景
 
-### 场景1: 学习和测试
+### 场景1: 学习和测�?
 
 ```powershell
-# 1. 快速演示功能
+# 1. 快速演示功�?
 python quickstart.py
 
 # 2. 查看 Web 界面
-python run_dashboard.py
+python start_web.py
 
-# 3. 交互式研究
+# 3. 交互式研�?
 jupyter lab
 ```
 
@@ -203,17 +203,17 @@ notepad config.yaml
 python main.py --mode backtest --start_date 2024-01-01 --end_date 2024-12-31
 
 # 3. 查看报告
-# 报告保存在 reports/ 目录
+# 报告保存�?reports/ 目录
 ```
 
 ### 场景3: 实盘监控
 
 ```powershell
 # 1. 启动 Web 界面
-python run_dashboard.py
+python start_web.py
 
 # 2. 在浏览器配置:
-#    - 选择股票池
+#    - 选择股票�?
 #    - 设置风控参数
 #    - 启动实时监控
 
@@ -244,7 +244,7 @@ print(result)
 ### 编辑 config.yaml
 
 ```yaml
-# 数据源配置
+# 数据源配�?
 data:
   akshare:
     enabled: true  # 使用 AkShare 在线数据
@@ -261,22 +261,22 @@ trading:
 
 # 风控配置
 risk:
-  max_drawdown: 0.15  # 最大回撤
-  max_position_size: 0.3  # 单只最大仓位
+  max_drawdown: 0.15  # 最大回�?
+  max_position_size: 0.3  # 单只最大仓�?
 ```
 
 ---
 
-## 🛠️ 常用命令速查
+## 🛠�?常用命令速查
 
 ```powershell
-# 激活环境
+# 激活环�?
 .\.qilin\Scripts\Activate.ps1
 
 # Web 界面
-python run_dashboard.py
+python start_web.py
 
-# 快速演示
+# 快速演�?
 python quickstart.py
 
 # 完整回测
@@ -302,47 +302,47 @@ cat logs\qilin.log
 ### 主页面布局
 
 ```
-┌─────────────────────────────────────────────────┐
-│  🐉 麒麟量化平台    🟢 开盘中    📡 连接正常  │
-├─────────────────────────────────────────────────┤
-│ ┌─────────────┐ ┌──────────────────────────┐   │
-│ │   侧边栏    │ │      主显示区域          │   │
-│ │             │ │                          │   │
-│ │ • 股票池    │ │  📈 实时K线              │   │
-│ │ • 策略配置  │ │  📊 因子贡献             │   │
-│ │ • 风控参数  │ │  💰 持仓状态             │   │
-│ │ • 实时监控  │ │  📋 订单列表             │   │
-│ │ • 回测分析  │ │  🎯 交易信号             │   │
-│ │             │ │                          │   │
-│ └─────────────┘ └──────────────────────────┘   │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────�?
+�? 🐉 麒麟量化平台    🟢 开盘中    📡 连接正常  �?
+├─────────────────────────────────────────────────�?
+�?┌─────────────�?┌──────────────────────────�?  �?
+�?�?  侧边�?   �?�?     主显示区�?         �?  �?
+�?�?            �?�?                         �?  �?
+�?�?�?股票�?   �?�? 📈 实时K�?             �?  �?
+�?�?�?策略配置  �?�? 📊 因子贡献             �?  �?
+�?�?�?风控参数  �?�? 💰 持仓状�?            �?  �?
+�?�?�?实时监控  �?�? 📋 订单列表             �?  �?
+�?�?�?回测分析  �?�? 🎯 交易信号             �?  �?
+�?�?            �?�?                         �?  �?
+�?└─────────────�?└──────────────────────────�?  �?
+└─────────────────────────────────────────────────�?
 ```
 
 ### 核心功能
 
 1. **实时监控** - 查看市场实时变化
-2. **智能分析** - AI驱动的决策建议
-3. **风险管理** - 实时风险监控和预警
+2. **智能分析** - AI驱动的决策建�?
+3. **风险管理** - 实时风险监控和预�?
 4. **回测系统** - 历史数据策略验证
-5. **报表生成** - 一键生成分析报告
+5. **报表生成** - 一键生成分析报�?
 
 ---
 
-## 🔥 快速上手 (3分钟)
+## 🔥 快速上�?(3分钟)
 
 ```powershell
-# 1. 激活环境
+# 1. 激活环�?
 .\.qilin\Scripts\Activate.ps1
 
 # 2. 启动 Web 界面
-python run_dashboard.py
+python start_web.py
 
-# 3. 浏览器访问
+# 3. 浏览器访�?
 #    http://localhost:8501
 
-# 4. 开始使用!
+# 4. 开始使�?
 #    - 左侧选择股票
-#    - 点击"开始分析"
+#    - 点击"开始分�?
 #    - 查看实时建议
 ```
 
@@ -350,9 +350,9 @@ python run_dashboard.py
 
 ## 💡 使用建议
 
-### 初学者
+### 初学�?
 
-1. 先运行 `python quickstart.py` 了解系统
+1. 先运�?`python quickstart.py` 了解系统
 2. 启动 Web 界面熟悉功能
 3. 使用小额资金测试
 4. 阅读 README.md 深入了解
@@ -367,38 +367,38 @@ python run_dashboard.py
 ### 专业用户
 
 1. 修改 Agent 权重优化策略
-2. 添加自定义因子
+2. 添加自定义因�?
 3. 集成自己的数据源
 4. 部署到服务器实盘运行
 
 ---
 
-## ❓ 常见问题
+## �?常见问题
 
 ### Q1: Web 界面启动失败?
 A: 
 ```powershell
-# 检查 streamlit 是否安装
+# 检�?streamlit 是否安装
 pip list | findstr streamlit
 
 # 如未安装
 pip install streamlit
 
 # 重新启动
-python run_dashboard.py
+python start_web.py
 ```
 
 ### Q2: 数据加载失败?
-A: 确保 AkShare 可用,或配置 Tushare token
+A: 确保 AkShare 可用,或配�?Tushare token
 
-### Q3: 性能慢?
+### Q3: 性能�?
 A: 
-- 减少股票池数量
+- 减少股票池数�?
 - 调整刷新间隔
 - 使用本地 Qlib 数据
 
 ### Q4: 如何修改策略?
-A: 编辑 `config.yaml`,调整各 Agent 权重和风控参数
+A: 编辑 `config.yaml`,调整�?Agent 权重和风控参�?
 
 ---
 
@@ -410,6 +410,7 @@ A: 编辑 `config.yaml`,调整各 Agent 权重和风控参数
 
 ---
 
-**祝您使用愉快!** 🦄✨
+**祝您使用愉快!** 🦄�?
 
-**麒麟量化系统** - A股"一进二"量化作战平台
+**麒麟量化系统** - A�?一进二"量化作战平台
+

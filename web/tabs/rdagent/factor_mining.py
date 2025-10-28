@@ -16,9 +16,11 @@ from typing import Dict, List, Any
 import sys
 from pathlib import Path
 
-# 添加RD-Agent路径
-rdagent_path = Path("G:/test/RD-Agent")
-if rdagent_path.exists() and str(rdagent_path) not in sys.path:
+# 添加RD-Agent路径（优先环境变量 RDAGENT_PATH）
+import os
+rdagent_env = os.getenv("RDAGENT_PATH")
+rdagent_path = Path(rdagent_env) if rdagent_env else None
+if rdagent_path and rdagent_path.exists() and str(rdagent_path) not in sys.path:
     sys.path.insert(0, str(rdagent_path))
 
 
@@ -502,14 +504,35 @@ class FactorMiningTab:
             st.info("还没有生成的因子，请先在'LLM因子生成'或'研报因子提取'中生成因子")
     
     def start_factor_generation(self, factor_type, method, max_factors, description):
-        """开始因子生成"""
+        """开始因子生成：优先调用RD-Agent真实接口，失败则回退到Mock"""
         st.session_state.factor_generation_running = True
         
         with st.spinner(f"正在生成{factor_type}..."):
-            # 模拟生成过程
-            for i in range(min(5, max_factors)):
-                factor = self.generate_mock_factor(i, factor_type)
-                st.session_state.generated_factors.append(factor)
+            try:
+                from .rdagent_api import get_rdagent_api
+                import asyncio
+                api = get_rdagent_api()
+                cfg = {
+                    'factor_type': factor_type,
+                    'method': method,
+                    'max_factors': int(max_factors),
+                    'description': (description or '').strip(),
+                }
+                res = asyncio.run(api.run_factor_generation(cfg))
+                if res.get('success') and res.get('factors'):
+                    st.session_state.generated_factors = res['factors']
+                else:
+                    # 回退到本地Mock生成
+                    st.warning("RD-Agent未可用或返回为空，使用本地模拟生成")
+                    st.session_state.generated_factors = [
+                        self.generate_mock_factor(i, factor_type) for i in range(min(5, max_factors))
+                    ]
+            except Exception as e:
+                st.error(f"因子生成调用失败: {e}")
+                st.warning("使用本地模拟数据代替")
+                st.session_state.generated_factors = [
+                    self.generate_mock_factor(i, factor_type) for i in range(min(5, max_factors))
+                ]
         
         st.session_state.factor_generation_running = False
         st.success(f"成功生成 {len(st.session_state.generated_factors)} 个因子!")

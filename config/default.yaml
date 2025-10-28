@@ -1,3 +1,71 @@
+
+# v2.1 新增: 市场风格元帅配置
+# 定义不同市场风格下的策略参数
+market_regimes:
+  # 默认的“游资混战期”配置
+  # 当市场热点散乱，缺乏主线，短线博弈激烈时，元帅会启用此配置
+  HOT_MONEY_CHAOS:
+    description: "市场热点散乱，缺乏主线，短线博弈激烈，风险较高。"
+    
+    # 当前风格下的Agent权重, 总和建议为1.0 (风险为负)
+    agent_weights:
+      zt_quality: 0.15
+      leader: 0.15
+      auction: 0.12
+      money_flow: 0.12
+      emotion: 0.10
+      risk: -0.10       # 风险Agent作为负向指标或在决策中特殊处理
+      technical: 0.08
+      position: 0.08
+      news: 0.08
+      sector: 0.07
+
+    # 当前风格下的风控参数
+    risk_parameters:
+      max_total_position: 0.6   # 混战期降低总仓位
+      default_stop_loss: 0.04   # 更严格的止损
+      default_take_profit: 0.08 # 见好就收
+      
+  # 示例：主升浪时期配置
+  # 当市场情绪高涨，主线明确，赚钱效应好时，元帅会启用此配置
+  MAIN_WAVE:
+    description: "市场情绪高涨，主线明确，赚钱效应好。"
+    agent_weights:
+      zt_quality: 0.10
+      leader: 0.20       # 龙头权重更高
+      auction: 0.10
+      money_flow: 0.15   # 资金追逐龙头
+      emotion: 0.12      # 情绪加成
+      risk: -0.05
+      technical: 0.08
+      position: 0.10
+      news: 0.05
+      sector: 0.05
+    risk_parameters:
+      max_total_position: 1.0   # 可以更激进
+      default_stop_loss: 0.07   # 容忍更大回撤
+      default_take_profit: 0.20 # 让利润奔跑
+
+  # 示例：退潮/冰点期配置
+  # 当市场情绪低迷，亏钱效应明显，应以防御为主时，元帅会启用此配置
+  RECESSION:
+    description: "市场情绪低迷，亏钱效应明显，防御为主。"
+    agent_weights:
+      zt_quality: 0.05
+      leader: 0.05
+      auction: 0.10
+      money_flow: 0.10
+      emotion: 0.10
+      risk: -0.25       # 风险权重显著提高
+      technical: 0.15   # 更注重技术形态
+      position: 0.10
+      news: 0.05
+      sector: 0.05
+    risk_parameters:
+      max_total_position: 0.2   # 严格控制仓位
+      default_stop_loss: 0.03   # 快速止损
+      default_take_profit: 0.05 # 降低盈利预期
+
 # 麒麟量化系统 - 默认配置文件
 # 此文件定义系统的默认配置，可被环境变量或命令行参数覆盖
 
@@ -44,21 +112,19 @@ trading:
 
 agents:
   # Agent配置
-  parallel: true  # 并行执行
-  timeout: 30  # 超时时间（秒）
-  
-  # 权重配置
-  weights:
-    market_ecology: 0.12
-    auction_game: 0.15
-    money_nature: 0.12
-    zt_quality: 0.15
-    leader: 0.10
-    emotion: 0.08
-    technical: 0.08
-    position: 0.07
-    risk: 0.08
-    news: 0.05
+  parallel: true      # 并行执行
+  timeout: 30         # 超时时间（秒）
+
+  # v2.1 新增：决策阈值，用于 IntegratedDecisionAgent
+  decision_thresholds:
+    strong_buy:
+      score: 85       # 得分高于85
+      confidence: 0.75  # 且置信度高于0.75
+    buy:
+      score: 70
+      confidence: 0.65
+    watch:
+      score: 40
 
 database:
   # MongoDB

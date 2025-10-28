@@ -9,9 +9,11 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 import logging
 
-# 添加RD-Agent路径
-rdagent_path = Path("G:/test/RD-Agent")
-if rdagent_path.exists() and str(rdagent_path) not in sys.path:
+# 添加RD-Agent路径（优先环境变量 RDAGENT_PATH）
+import os
+rdagent_env = os.getenv("RDAGENT_PATH")
+rdagent_path = Path(rdagent_env) if rdagent_env else None
+if rdagent_path and rdagent_path.exists() and str(rdagent_path) not in sys.path:
     sys.path.insert(0, str(rdagent_path))
 
 logger = logging.getLogger(__name__)

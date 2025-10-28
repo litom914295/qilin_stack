@@ -2,19 +2,19 @@
 
 ## 📋 概述
 
-本文档总结了对麒麟量化统一平台的所有改进和新增功能。
+本文档总结了对麒麟量化统一平台的所有改进和新增功能�?
 
-## ✨ 新增功能
+## �?新增功能
 
-### 1. 配置管理系统 ✅
+### 1. 配置管理系统 �?
 **文件**: `app/core/config_manager_unified.py`
 
 **功能**:
-- ✅ 统一的YAML/JSON配置文件管理
-- ✅ 支持从环境变量读取敏感信息
-- ✅ 配置验证和错误检查
-- ✅ 配置热加载和导出
-- ✅ 模块启用/禁用控制
+- �?统一的YAML/JSON配置文件管理
+- �?支持从环境变量读取敏感信�?
+- �?配置验证和错误检�?
+- �?配置热加载和导出
+- �?模块启用/禁用控制
 
 **使用示例**:
 ```python
@@ -32,21 +32,21 @@ config_manager.save_config()
 is_valid, errors = config_manager.validate_config()
 ```
 
-### 2. 性能监控系统 ✅
+### 2. 性能监控系统 �?
 **文件**: `app/core/performance_monitor.py` (已存在，功能完善)
 
 **功能**:
-- ✅ 系统资源监控（CPU、内存、磁盘、网络）
-- ✅ 交易性能监控（执行时间、成功率、滑点等）
-- ✅ Agent性能监控（响应时间、准确率、资源使用）
-- ✅ 警报管理系统
-- ✅ 性能报告生成
+- �?系统资源监控（CPU、内存、磁盘、网络）
+- �?交易性能监控（执行时间、成功率、滑点等�?
+- �?Agent性能监控（响应时间、准确率、资源使用）
+- �?警报管理系统
+- �?性能报告生成
 
 **使用示例**:
 ```python
 from app.core.performance_monitor import performance_monitor, monitor_performance
 
-# 使用装饰器监控函数
+# 使用装饰器监控函�?
 @monitor_performance('qlib', 'factor_calculation')
 def calculate_factors():
     # 你的代码
@@ -60,15 +60,15 @@ print(summary)
 performance_monitor.export_report('performance_report.json')
 ```
 
-### 3. 数据导出系统 ✅
+### 3. 数据导出系统 �?
 **文件**: `app/utils/data_exporter.py`
 
 **功能**:
-- ✅ 支持5种格式：Excel、CSV、JSON、Markdown、HTML
-- ✅ 单个分析结果导出
-- ✅ 批量分析结果导出
-- ✅ 自动格式化和美化
-- ✅ 多Sheet Excel支持
+- �?支持5种格式：Excel、CSV、JSON、Markdown、HTML
+- �?单个分析结果导出
+- �?批量分析结果导出
+- �?自动格式化和美化
+- �?多Sheet Excel支持
 
 **使用示例**:
 ```python
@@ -90,48 +90,48 @@ filepath = data_exporter.export_batch_results(
 )
 ```
 
-### 4. 三项目集成 ✅
+### 4. 三项目集�?�?
 **文件**: `app/integrations/*.py`
 
-**已集成模块**:
-- ✅ Qlib集成 (`qlib_integration.py`)
-  - 数据查询、因子计算、模型训练、策略回测
-- ✅ RD-Agent集成 (`rdagent_integration.py`)
-  - 自动因子生成、模型优化、策略生成、研究循环
-- ✅ TradingAgents集成 (`tradingagents_integration.py`)
-  - 单股分析、批量分析、多智能体辩论、会员管理
-- ✅ 数据共享桥接 (`data_bridge.py`)
-  - 因子共享、模型共享、策略共享、数据转换
+**已集成模�?*:
+- �?Qlib集成 (`qlib_integration.py`)
+  - 数据查询、因子计算、模型训练、策略回�?
+- �?RD-Agent集成 (`rdagent_integration.py`)
+  - 自动因子生成、模型优化、策略生成、研究循�?
+- �?TradingAgents集成 (`tradingagents_integration.py`)
+  - 单股分析、批量分析、多智能体辩论、会员管�?
+- �?数据共享桥接 (`data_bridge.py`)
+  - 因子共享、模型共享、策略共享、数据转�?
 
-### 5. 统一Web界面 ✅
+### 5. 统一Web界面 �?
 **文件**: `app/web/unified_dashboard.py`
 
 **功能**:
-- ✅ 三个项目功能统一入口
-- ✅ 侧边栏导航和模块状态
-- ✅ 实时数据展示
-- ✅ 错误提示和帮助信息
-- ✅ 响应式设计
+- �?三个项目功能统一入口
+- �?侧边栏导航和模块状�?
+- �?实时数据展示
+- �?错误提示和帮助信�?
+- �?响应式设�?
 
 ## 📂 新增文件列表
 
 ### 核心模块
 ```
 app/core/
-├── config_manager_unified.py    # 配置管理器（新增）
+├── config_manager_unified.py    # 配置管理器（新增�?
 └── performance_monitor.py       # 性能监控（已存在，完善）
 ```
 
 ### 工具模块
 ```
 app/utils/
-└── data_exporter.py             # 数据导出器（新增）
+└── data_exporter.py             # 数据导出器（新增�?
 ```
 
 ### 集成模块
 ```
 app/integrations/
-├── __init__.py                  # 初始化文件（新增）
+├── __init__.py                  # 初始化文件（新增�?
 ├── qlib_integration.py          # Qlib集成（新增）
 ├── rdagent_integration.py       # RD-Agent集成（新增）
 ├── tradingagents_integration.py # TradingAgents集成（新增）
@@ -144,46 +144,46 @@ app/web/
 └── unified_dashboard.py         # 统一Dashboard（新增）
 ```
 
-### 配置和文档
+### 配置和文�?
 ```
 ├── config.yaml                  # 配置文件（新增）
-├── run_unified_dashboard.py     # 启动脚本（新增）
+├── start_web.py     # 启动脚本（新增）
 ├── test_integration.py          # 集成测试（新增）
 ├── README_INTEGRATION.md        # 集成说明（新增）
 └── docs/
     ├── INTEGRATION_GUIDE.md     # 集成指南（新增）
-    └── IMPROVEMENTS.md          # 本文档（新增）
+    └── IMPROVEMENTS.md          # 本文档（新增�?
 ```
 
-## 🔄 改进的功能
+## 🔄 改进的功�?
 
 ### 1. 错误处理增强
-- ✅ 统一的异常处理机制
-- ✅ 详细的错误日志记录
-- ✅ 用户友好的错误提示
+- �?统一的异常处理机�?
+- �?详细的错误日志记�?
+- �?用户友好的错误提�?
 
 ### 2. 日志系统完善
-- ✅ 结构化日志输出
-- ✅ 日志级别控制
-- ✅ 日志文件轮转
+- �?结构化日志输�?
+- �?日志级别控制
+- �?日志文件轮转
 
 ### 3. 性能优化
-- ✅ 缓存机制
-- ✅ 并发处理
-- ✅ 资源监控
+- �?缓存机制
+- �?并发处理
+- �?资源监控
 
-## 📊 功能对比表
+## 📊 功能对比�?
 
-| 功能分类 | 改进前 | 改进后 |
+| 功能分类 | 改进�?| 改进�?|
 |---------|-------|--------|
-| **配置管理** | ❌ 无 | ✅ 统一配置系统 |
-| **性能监控** | ✅ 基础监控 | ✅ 全面监控 + 报告 |
-| **数据导出** | ❌ 无 | ✅ 5种格式 |
-| **项目集成** | ❌ 无 | ✅ 3个项目 |
-| **统一界面** | ❌ 无 | ✅ 完整Dashboard |
-| **数据共享** | ❌ 无 | ✅ 跨项目共享 |
-| **会员管理** | ❌ 无 | ✅ 完整系统 |
-| **批量分析** | ❌ 无 | ✅ 支持批量 |
+| **配置管理** | �?�?| �?统一配置系统 |
+| **性能监控** | �?基础监控 | �?全面监控 + 报告 |
+| **数据导出** | �?�?| �?5种格�?|
+| **项目集成** | �?�?| �?3个项�?|
+| **统一界面** | �?�?| �?完整Dashboard |
+| **数据共享** | �?�?| �?跨项目共�?|
+| **会员管理** | �?�?| �?完整系统 |
+| **批量分析** | �?�?| �?支持批量 |
 
 ## 🎯 使用场景
 
@@ -198,7 +198,7 @@ factors = rdagent_integration.auto_generate_factors(
     iterations=3
 )
 
-# 2. 在Qlib中验证因子
+# 2. 在Qlib中验证因�?
 from app.integrations import qlib_integration
 
 for factor in factors:
@@ -257,7 +257,7 @@ model_config = rdagent_integration.optimize_model(
     iterations=5
 )
 
-# 2. 在Qlib中训练模型
+# 2. 在Qlib中训练模�?
 from app.integrations import qlib_integration
 
 model = qlib_integration.train_model(
@@ -277,14 +277,14 @@ data_bridge.save_model(
 )
 ```
 
-## 🚀 快速开始
+## 🚀 快速开�?
 
 ### 1. 配置系统
 ```bash
 # 编辑配置文件
 vi config.yaml
 
-# 或设置环境变量
+# 或设置环境变�?
 export OPENAI_API_KEY="your_key"
 export QLIB_DATA_PATH="~/.qlib/qlib_data/cn_data"
 ```
@@ -298,7 +298,7 @@ python test_integration.py
 ### 3. 启动Web界面
 ```bash
 # 启动统一Dashboard
-python run_unified_dashboard.py
+python start_web.py
 ```
 
 ### 4. 访问界面
@@ -309,57 +309,57 @@ python run_unified_dashboard.py
 ## 📈 性能指标
 
 ### 改进效果
-- ⚡ **启动速度**: 提升30%（通过配置缓存）
-- 💾 **内存使用**: 降低20%（通过资源监控）
-- 📊 **分析效率**: 提升50%（通过批量处理）
-- 🔧 **配置灵活性**: 提升100%（统一配置系统）
+- �?**启动速度**: 提升30%（通过配置缓存�?
+- 💾 **内存使用**: 降低20%（通过资源监控�?
+- 📊 **分析效率**: 提升50%（通过批量处理�?
+- 🔧 **配置灵活�?*: 提升100%（统一配置系统�?
 
 ## 🔮 未来计划
 
-### 短期计划（1-2周）
+### 短期计划�?-2周）
 - [ ] 添加历史记录功能
-- [ ] 优化UI体验（加载动画、进度条）
-- [ ] 添加数据可视化（图表展示）
-- [ ] 增强错误处理和日志
+- [ ] 优化UI体验（加载动画、进度条�?
+- [ ] 添加数据可视化（图表展示�?
+- [ ] 增强错误处理和日�?
 
-### 中期计划（1-2月）
+### 中期计划�?-2月）
 - [ ] 创建RESTful API接口
-- [ ] 支持多用户系统
-- [ ] 添加策略回测可视化
-- [ ] 集成更多数据源
+- [ ] 支持多用户系�?
+- [ ] 添加策略回测可视�?
+- [ ] 集成更多数据�?
 
-### 长期计划（3-6月）
+### 长期计划�?-6月）
 - [ ] 实盘交易支持
-- [ ] 移动端应用
+- [ ] 移动端应�?
 - [ ] 云端部署方案
 - [ ] AI辅助决策
 
 ## 📝 更新日志
 
 ### v1.1.0 (当前版本)
-- ✨ 新增配置管理系统
-- ✨ 新增数据导出功能
-- ✨ 完善性能监控系统
-- ✨ 集成三大开源项目
-- ✨ 创建统一Web界面
-- 📚 完善文档和示例
+- �?新增配置管理系统
+- �?新增数据导出功能
+- �?完善性能监控系统
+- �?集成三大开源项�?
+- �?创建统一Web界面
+- 📚 完善文档和示�?
 
 ### v1.0.0 (初始版本)
-- ✨ 基础框架搭建
-- ✨ 麒麟量化核心功能
-- ✨ 一进二涨停板选股
-- ✨ 市场风格动态切换
+- �?基础框架搭建
+- �?麒麟量化核心功能
+- �?一进二涨停板选股
+- �?市场风格动态切�?
 
 ## 💡 贡献指南
 
 欢迎贡献代码和提出建议！
 
 ### 如何贡献
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+1. Fork 本项�?
+2. 创建特性分�?(`git checkout -b feature/AmazingFeature`)
 3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+5. 开�?Pull Request
 
 ## 📞 联系方式
 
@@ -371,3 +371,4 @@ python run_unified_dashboard.py
 <div align="center">
 Made with ❤️ by Qilin Quant Team
 </div>
+

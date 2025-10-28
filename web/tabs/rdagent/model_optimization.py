@@ -135,7 +135,14 @@ class ModelOptimizationTab:
         col1, col2 = st.columns(2)
         with col1:
             if st.button("🚀 开始搜索", type="primary", use_container_width=True):
-                self.start_architecture_search()
+                self.start_architecture_search(
+                    search_space=search_space,
+                    search_method=search_method,
+                    max_trials=int(max_trials),
+                    max_layers=int(max_layers),
+                    hidden_size_range=hidden_size_range,
+                    search_budget=float(search_budget)
+                )
         with col2:
             if st.button("⏸️ 停止", use_container_width=True):
                 st.session_state.optimization_running = False
@@ -223,7 +230,15 @@ class ModelOptimizationTab:
         
         if st.button("🎯 开始调优", type="primary", use_container_width=True):
             with st.spinner("正在调优超参数..."):
-                self.start_hyperparameter_tuning()
+                self.start_hyperparameter_tuning(
+                    tuning_method=tuning_method,
+                    max_evals=int(max_evals),
+                    lr_range=(lr_min, lr_max),
+                    batch_sizes=batch_sizes,
+                    l2_weight=float(l2_weight),
+                    dropout=float(dropout),
+                    optimizers=optimizer
+                )
         
         # 调优历史
         if st.session_state.optimization_history:
@@ -415,35 +430,62 @@ class ModelOptimizationTab:
             
             st.plotly_chart(fig, use_container_width=True)
     
-    def start_architecture_search(self):
-        """开始架构搜索"""
-        with st.spinner("正在搜索最优架构..."):
-            import time
-            time.sleep(2)
-            
-            # 生成模拟模型
-            for i in range(5):
-                model = {
-                    'architecture': np.random.choice(['LSTM', 'GRU', 'Transformer']),
-                    'layers': np.random.randint(3, 12),
-                    'params': np.random.randint(1, 10) * 1e6,
-                    'accuracy': np.random.uniform(0.75, 0.90),
-                    'train_time': np.random.uniform(50, 200)
-                }
-                st.session_state.optimized_models.append(model)
+    def start_architecture_search(self, **kwargs):
+        """开始架构搜索：优先调用RD-Agent真实接口，失败则回退Mock"""
+        try:
+            from .rdagent_api import get_rdagent_api
+            import asyncio
+            api = get_rdagent_api()
+            cfg = {
+                'search_space': kwargs.get('search_space'),
+                'search_method': kwargs.get('search_method'),
+                'max_trials': int(kwargs.get('max_trials', 10)),
+                'max_layers': int(kwargs.get('max_layers', 10)),
+                'hidden_size_range': kwargs.get('hidden_size_range'),
+                'search_budget': float(kwargs.get('search_budget', 0)),
+            }
+            res = asyncio.run(api.run_model_optimization(cfg))
+            if res.get('success') and res.get('models'):
+                st.session_state.optimized_models = res['models']
+            else:
+                st.warning("RD-Agent未可用或无返回，使用本地模拟结果")
+                st.session_state.optimized_models = self._mock_models(5)
+        except Exception as e:
+            st.error(f"架构搜索调用失败: {e}")
+            st.session_state.optimized_models = self._mock_models(5)
         
         st.success(f"搜索完成! 发现 {len(st.session_state.optimized_models)} 个候选架构")
         st.rerun()
     
-    def start_hyperparameter_tuning(self):
-        """开始超参数调优"""
-        import time
-        time.sleep(2)
-        
-        st.session_state.optimization_history.append({
-            'trial': len(st.session_state.optimization_history) + 1,
-            'score': 0.7 + len(st.session_state.optimization_history) * 0.01
-        })
+    def start_hyperparameter_tuning(self, **kwargs):
+        """开始超参数调优：复用 RD-Agent 模型优化接口，记录历史"""
+        try:
+            from .rdagent_api import get_rdagent_api
+            import asyncio
+            api = get_rdagent_api()
+            cfg = {
+                'search_space': 'HyperParamTuning',
+                'search_method': kwargs.get('tuning_method'),
+                'max_trials': int(kwargs.get('max_evals', 50)),
+                'lr_range': kwargs.get('lr_range'),
+                'batch_sizes': kwargs.get('batch_sizes'),
+                'l2_weight': float(kwargs.get('l2_weight', 0.0)),
+                'dropout': float(kwargs.get('dropout', 0.0)),
+                'optimizers': kwargs.get('optimizers'),
+            }
+            res = asyncio.run(api.run_model_optimization(cfg))
+            # 记录一次历史（摘要）
+            st.session_state.optimization_history.append({
+                'trial': len(st.session_state.optimization_history) + 1,
+                'score': max([m.get('accuracy', 0) for m in res.get('models', [])] or [0])
+            })
+        except Exception as e:
+            st.error(f"调优调用失败: {e}")
+            # 模拟一次推进
+            st.session_state.optimization_history.append({
+                'trial': len(st.session_state.optimization_history) + 1,
+                'score': 0.7 + len(st.session_state.optimization_history) * 0.01
+            })
         
         st.success("调优完成!")
         st.rerun()
@@ -457,20 +499,32 @@ class ModelOptimizationTab:
         st.success("Ensemble创建成功!")
     
     def visualize_architecture(self):
-        """可视化模型架构"""
-        st.code("""
-        最优架构:
-        ├── Input Layer (128)
-        ├── LSTM Layer (256, dropout=0.2)
-        ├── Attention Layer
-        ├── LSTM Layer (128, dropout=0.1)
-        ├── Dense Layer (64, relu)
-        ├── Dropout (0.3)
-        └── Output Layer (1, sigmoid)
-        
-        总参数: 3.2M
-        训练参数: 3.2M
-        """, language="text")
+        """可视化模型架构（若有真实返回可用其描述）"""
+        if st.session_state.optimized_models:
+            best = st.session_state.optimized_models[0]
+            arch = best.get('architecture', 'Unknown')
+            layers = best.get('layers', 'N/A')
+            params = best.get('params', 'N/A')
+            st.code(f"""
+最优架构:
+├── Architecture: {arch}
+├── Layers: {layers}
+└── Params: {params}
+""", language="text")
+        else:
+            st.code("""
+最优架构:
+├── Input Layer (128)
+├── LSTM Layer (256, dropout=0.2)
+├── Attention Layer
+├── LSTM Layer (128, dropout=0.1)
+├── Dense Layer (64, relu)
+├── Dropout (0.3)
+└── Output Layer (1, sigmoid)
+
+总参数: 3.2M
+训练参数: 3.2M
+""", language="text")
     
     def render_model_interpreter(self):
         """模型解释器模块"""

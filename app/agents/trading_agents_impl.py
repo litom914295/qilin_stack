@@ -995,6 +995,70 @@ class SectorAgent:
         }
 
 
+
+
+
+class MarketRegimeMarshal:
+    """
+    市场风格元帅 - v2.1 新增
+    系统的最高指挥官，根据市场整体状态，动态调整系统作战模式。
+    """
+    def __init__(self, config: Dict = None):
+        self.name = "市场风格元帅"
+        self.logger = logging.getLogger(self.name)
+        # TODO: 应从config加载更多配置
+        self.config = config if config is not None else {}
+
+    async def get_operational_command(self) -> Dict[str, Any]:
+        """
+        分析当前市场，发布作战指令。
+        
+        作战指令包含：
+        - market_regime: 当前市场风格 (e.g., '主升浪', '混沌期', '退潮期')
+        - agent_weights: 针对当前风格，动态调整各Agent的权重
+        - risk_parameters: 动态调整风控参数 (e.g., 总仓位, 止损线)
+
+        NOTE: 这是一个简化的实现。在实际应用中，这里需要接入大盘数据
+              （如成交量、涨跌家数、情绪指标等）来做更精准的判断。
+        """
+        self.logger.info("元帅正在分析市场，制定今日作战指令...")
+        
+        # 简化逻辑：此处暂时返回一个默认的“游资混战期”指令
+        # 实际应基于对市场数据的分析来选择
+        market_regime = "HOT_MONEY_CHAOS (游资混战期)"
+        
+        # 默认权重，后续可根据不同风格调整
+        agent_weights = {
+            'zt_quality': 0.15,
+            'leader': 0.15,
+            'auction': 0.12,
+            'money_flow': 0.12,
+            'emotion': 0.10,
+            'risk': -0.10,  # 风险Agent为负权重或在决策时特殊处理
+            'technical': 0.08,
+            'position': 0.08,
+            'news': 0.08,
+            'sector': 0.07
+        }
+        
+        # 默认风控参数
+        risk_parameters = {
+            'max_total_position': 0.8,
+            'default_stop_loss': 0.05,
+            'default_take_profit': 0.10,
+        }
+        
+        command = {
+            "market_regime": market_regime,
+            "agent_weights": agent_weights,
+            "risk_parameters": risk_parameters
+        }
+        
+        self.logger.info(f"今日作战指令已生成: {command}")
+        
+        return command
+
+
 class IntegratedDecisionAgent:
     """综合决策Agent - 汇总所有Agent分析结果做最终决策"""
     
@@ -1089,21 +1153,30 @@ class IntegratedDecisionAgent:
     
     def _make_decision(self, score: float, confidence: float, results: Dict) -> Dict[str, Any]:
         """ v2.1 升级：基于“分数+置信度”双重门槛生成交易决策 """
-        
-        # 在你的 config.yaml 中加载这些新阈值
-        # thresholds = self.config['agents']['thresholds']
-        # strong_buy_score = thresholds['strong_buy']['score']
-        # strong_buy_confidence = thresholds['strong_buy']['confidence']
-        
-        if score >= 85 and confidence >= 0.75 and risk_level != 'high': # 硬编码示例
+
+        # 从Agent结果中提取关键决策参数
+        risk_details = results.get('risk', {}).get('details', {})
+        risk_level = risk_details.get('risk_level', 'high')  # 默认高风险
+
+        position_details = results.get('position', {}).get('details', {})
+        position_suggestion = position_details.get('suggested_position', '0%') # 默认0仓位
+
+        # TODO: 这些阈值后续应从 config.yaml 文件动态加载
+        strong_buy_score = 85
+        strong_buy_confidence = 0.75
+        buy_score = 70
+        buy_confidence = 0.65
+        watch_score = 40
+
+        if score >= strong_buy_score and confidence >= strong_buy_confidence and risk_level != 'high':
             action = 'strong_buy'
             position = position_suggestion
             reason = "多项指标强势，且确定性高，风险可控"
-        elif score >= 70 and confidence >= 0.65 and risk_level in ['low', 'medium']:
+        elif score >= buy_score and confidence >= buy_confidence and risk_level in ['low', 'medium']:
             action = 'buy'
             position = position_suggestion
             reason = "指标良好，确定性较高，可适度参与"
-        elif score >= 40:
+        elif score >= watch_score:
             action = 'watch'
             position = '0%'
             reason = "指标中性或确定性不足，建议观望"

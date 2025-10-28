@@ -180,9 +180,37 @@ python scripts/get_data.py --source qlib
 
 ## 🎓 进阶使用
 
+### 启动 Web 交互界面
+
+系统提供了两种运行方式：
+
+**方式1：Web 可视化界面（推荐日常研究使用）**
+```powershell
+# 激活虚拟环境
+.\.qilin\Scripts\Activate.ps1
+
+# 方法A：使用启动脚本
+python start_web.py
+
+# 方法B：直接使用 streamlit 命令
+streamlit run web/unified_dashboard.py
+```
+
+**方式2：命令行模式（用于批量回测和自动化）**
+```powershell
+# 激活虚拟环境
+.\.qilin\Scripts\Activate.ps1
+
+# 运行模拟回测
+python main.py --mode simulation
+
+# 指定日期回测
+python main.py --mode simulation --date 2024-10-22
+```
+
 ### 自定义权重（调整顾问的话语权）
 
-你可以通过修改 `config.example.yaml` 文件中的 `market_regime` 部分，来精细调整不同市场风格下，各个Agent的权重和风控参数。
+你可以通过修改 `config/default.yaml` 文件中的 `market_regimes` 部分，来精细调整不同市场风格下，各个Agent的权重和风控参数。
 
 ### 部署到服务器
 

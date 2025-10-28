@@ -338,6 +338,17 @@ alerting:
 
 ## 环境变量
 
+- Windows PowerShell 环境变量与启动指南：参见 [docs/ENV_SETUP_WINDOWS.md](ENV_SETUP_WINDOWS.md)
+- 安全与合规配置：参见 [docs/security/audit_compliance.md](security/audit_compliance.md)
+- 在线服务/集成指南：
+  - Qlib 功能分析与缺失项： [docs/QLIB_FEATURE_ANALYSIS.md](QLIB_FEATURE_ANALYSIS.md)
+  - TradingAgents 集成说明： [tradingagents_integration/README.md](../tradingagents_integration/README.md)
+  - RD-Agent 集成指南： [docs/RD-Agent_Integration_Guide.md](RD-Agent_Integration_Guide.md)
+- 监控/运维：
+  - 监控指标： [docs/MONITORING_METRICS.md](MONITORING_METRICS.md)
+  - SLO/接受标准： [docs/sla/slo.yaml](sla/slo.yaml)
+  - 部署指南： [docs/DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+
 ### 必需变量
 
 ```bash

@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 import pandas as pd
 import numpy as np
-import aiohttp
+import qlib
+from qlib.data import D
+import akshare as ak
 import sys
 
 # 添加项目路径
@@ -45,6 +47,18 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None):
     )
     
     return logging.getLogger("QilinWorkflow")
+
+
+
+# v2.1 升级：初始化Qlib，为后续真实数据接入做准备
+try:
+    # Qlib数据路径 - v2.1已根据项目结构确认
+    provider_uri = "G:/test/qlib/qlib_data/cn_data"
+    qlib.init(provider_uri=provider_uri, region="cn")
+    print(f"Qlib 初始化成功，数据路径: {provider_uri}")
+except Exception as e:
+    print(f"Qlib 初始化失败，请检查数据路径配置: {e}")
+    # 在没有Qlib环境时，系统仍可作为框架运行，但数据加载会失败
 
 
 class DataManager:
@@ -108,57 +122,48 @@ class DataManager:
         return market_data
     
     async def _load_ohlcv_data(self, symbols: List[str], date: Optional[str], backtest: bool) -> Dict:
-        """加载OHLCV数据"""
+        """加载OHLCV数据 - v2.1已改造为使用Qlib"""
+        self.logger.info(f"使用Qlib加载OHLCV数据，股票数: {len(symbols)}")
         try:
-            if backtest and date:
-                # 回测模式：从历史数据文件加载
-                file_path = Path(f"data/history/{date}/ohlcv.parquet")
-                if file_path.exists():
-                    df = pd.read_parquet(file_path)
-                    return {s: df[df['symbol'] == s] for s in symbols}
+            if not symbols:
+                return {}
+
+            # 定义需要获取的特征
+            field_names = ['$open', '$high', '$low', '$close', '$volume', '$turnover']
             
-            # 实盘模式：从API获取
-            # 这里应该调用实际的数据API
-            data = {}
-            for symbol in symbols:
-                # 模拟数据
-                data[symbol] = pd.DataFrame({
-                    'open': np.random.uniform(10, 11, 20),
-                    'high': np.random.uniform(11, 12, 20),
-                    'low': np.random.uniform(9, 10, 20),
-                    'close': np.random.uniform(10, 11, 20),
-                    'volume': np.random.uniform(1000000, 5000000, 20),
-                    'turnover_rate': np.random.uniform(1, 20, 20)
-                })
+            # 确定查询日期
+            end_date = pd.to_datetime(date) if date else pd.Timestamp.now()
+            start_date = end_date - pd.Timedelta(days=90) # 默认加载前90天的数据
+
+            # 使用 qlib.data.D.features API 来获取数据
+            # freq="day" 表示日线数据
+            df = D.features(symbols, field_names, start_time=start_date.strftime('%Y-%m-%d'), end_time=end_date.strftime('%Y-%m-%d'), freq='day')
+            
+            if df.empty:
+                self.logger.warning("Qlib未能加载到任何OHLCV数据")
+                return {}
+
+            # Qlib返回的是一个MultiIndex的DataFrame，我们需要按股票代码将其拆分为字典
+            data = {symbol: df.xs(symbol, level=1) for symbol in symbols}
+            
+            self.logger.info(f"成功从Qlib加载了 {len(data)} 只股票的OHLCV数据")
             return data
             
         except Exception as e:
-            self.logger.error(f"加载OHLCV数据失败: {e}")
+            self.logger.error(f"使用Qlib加载OHLCV数据失败: {e}")
+            self.logger.error("请确认：1. Qlib已正确初始化；2. 数据路径正确；3. 数据已下载至对应路径。")
             return {}
     
     async def _load_news_data(self, symbols: List[str], date: Optional[str], backtest: bool) -> Dict:
         """加载新闻数据"""
         try:
-            news_data = {}
-            
-            # 模拟新闻数据
-            news_templates = [
-                "{symbol}公司获得重大订单",
-                "{symbol}发布业绩预增公告",
-                "机构密集调研{symbol}",
-                "{symbol}股价创历史新高",
-                "北向资金大幅买入{symbol}",
-                "{symbol}所属板块强势拉升"
-            ]
-            
-            for symbol in symbols:
-                news_data[symbol] = [
-                    template.format(symbol=symbol)
-                    for template in np.random.choice(news_templates, size=3, replace=False)
-                ]
-            
-            self.logger.debug(f"加载新闻数据: {len(news_data)}条")
-            return news_data
+            # v2.1新增：使用akshare获取新闻数据示例（默认注释）
+            # aiohttp库可能需要安装: pip install aiohttp
+            # news_df = ak.stock_news_em(stock="600519") #以单只股票为例
+            # for symbol in symbols:
+            #     pass #... 遍历并处理
+            self.logger.debug("加载新闻数据: (当前为模拟)")
+            return {symbol: [] for symbol in symbols}
             
         except Exception as e:
             self.logger.error(f"加载新闻数据失败: {e}")
@@ -167,21 +172,12 @@ class DataManager:
     async def _load_lhb_data(self, symbols: List[str], date: Optional[str], backtest: bool) -> Dict:
         """加载龙虎榜数据"""
         try:
-            lhb_data = {}
-            
-            # 模拟龙虎榜数据
-            for symbol in symbols:
-                if np.random.random() > 0.7:  # 30%概率上龙虎榜
-                    lhb_data[symbol] = {
-                        'net_buy': np.random.uniform(-5, 10),  # 净买入（亿元）
-                        'buy_amount': np.random.uniform(1, 15),
-                        'sell_amount': np.random.uniform(1, 10),
-                        'famous_seats': ['华泰深圳益田路', '中信上海溧阳路']
-                    }
-                else:
-                    lhb_data[symbol] = {'net_buy': 0}
-            
-            return lhb_data
+            # v2.1新增：使用akshare获取龙虎榜数据示例（默认注释）
+            # lhb_df = ak.stock_lhb_detail_em(start_date="20230901", end_date="20230907")
+            # for symbol in symbols:
+            #     pass #... 遍历并处理
+            self.logger.debug("加载龙虎榜数据: (当前为模拟)")
+            return {symbol: {'net_buy': 0} for symbol in symbols}
             
         except Exception as e:
             self.logger.error(f"加载龙虎榜数据失败: {e}")
@@ -190,17 +186,12 @@ class DataManager:
     async def _load_money_flow_data(self, symbols: List[str], date: Optional[str], backtest: bool) -> Dict:
         """加载资金流向数据"""
         try:
-            money_flow = {}
-            
-            for symbol in symbols:
-                money_flow[symbol] = {
-                    f'{symbol}_main': np.random.uniform(-5, 10),  # 主力净流入
-                    f'{symbol}_super_ratio': np.random.uniform(0.05, 0.3),  # 超大单比例
-                    f'{symbol}_consecutive': np.random.randint(0, 5),  # 连续流入天数
-                    f'{symbol}_northbound': np.random.uniform(-1, 3)  # 北向资金
-                }
-            
-            return money_flow
+            # v2.1新增：使用akshare获取资金流数据示例（默认注释）
+            # for symbol in symbols: 
+            #     money_df = ak.stock_individual_fund_flow(stock=symbol, market="sz") # market: sz/sh
+            #     pass #... 遍历并处理
+            self.logger.debug("加载资金流向数据: (当前为模拟)")
+            return {symbol: {} for symbol in symbols}
             
         except Exception as e:
             self.logger.error(f"加载资金流向数据失败: {e}")
@@ -209,19 +200,11 @@ class DataManager:
     async def _load_sector_data(self, symbols: List[str], date: Optional[str], backtest: bool) -> Dict:
         """加载板块数据"""
         try:
-            sector_data = {
-                'sector_change': np.random.uniform(-2, 5),
-                'sector_money_flow': np.random.uniform(-10, 20),
-                'rotation_score': np.random.uniform(0, 100),
-                'hot_days': np.random.randint(0, 10)
-            }
-            
-            for symbol in symbols:
-                sector_data[f'{symbol}_rank'] = np.random.randint(1, 20)
-                sector_data[f'{symbol}_heat'] = np.random.uniform(0, 100)
-                sector_data[f'{symbol}_sector_rank'] = np.random.randint(1, 30)
-            
-            return sector_data
+            # TODO: 实现真实的板块数据加载逻辑
+            # 可以通过 Tushare Pro, Akshare, 或其他数据源获取板块涨幅、热度、排名等信息
+            # 此处返回空数据作为示例
+            self.logger.debug("加载板块数据: (当前为模拟)")
+            return {}
             
         except Exception as e:
             self.logger.error(f"加载板块数据失败: {e}")
@@ -230,31 +213,13 @@ class DataManager:
     async def _load_technical_indicators(self, symbols: List[str], date: Optional[str], backtest: bool) -> Dict:
         """加载技术指标"""
         try:
-            tech_data = {}
-            
-            for symbol in symbols:
-                tech_data[symbol] = {
-                    'rsi': np.random.uniform(30, 80),
-                    'macd': np.random.uniform(-1, 1),
-                    'volatility': np.random.uniform(0.01, 0.05),
-                    'seal_ratio': np.random.uniform(0.01, 0.15),
-                    'zt_time': np.random.choice(['09:35', '10:15', '11:00', '14:00']),
-                    'open_times': np.random.randint(0, 3),
-                    'consecutive_limit': np.random.randint(0, 5),
-                    'auction_change': np.random.uniform(-2, 8),
-                    'auction_volume_ratio': np.random.uniform(0.05, 0.2),
-                    'bid_ask_ratio': np.random.uniform(0.5, 4),
-                    'auction_volatility': np.random.uniform(0.1, 1),
-                    'large_order_ratio': np.random.uniform(0.05, 0.4),
-                    'relative_strength': np.random.uniform(30, 90),
-                    'portfolio_correlation': np.random.uniform(0, 1),
-                    'timing_score': np.random.uniform(30, 90),
-                    'resistance_distance': np.random.uniform(0, 0.1),
-                    'pattern': np.random.choice(['none', 'flag', 'cup_handle', 'consolidation'])
-                }
-            
-            return tech_data
-            
+            # TODO: 实现真实的技术指标计算/加载逻辑
+            # 大部分技术指标 (如RSI, MACD) 可以基于Qlib加载的OHLCV数据进行计算
+            # 另一部分 (如封单比, 竞价波动) 需要更高频的数据源
+            # 此处返回空数据作为示例
+            self.logger.debug("加载技术指标: (当前为模拟)")
+            return {symbol: {} for symbol in symbols}
+
         except Exception as e:
             self.logger.error(f"加载技术指标失败: {e}")
             return {}
@@ -262,24 +227,11 @@ class DataManager:
     async def _load_fundamental_data(self, symbols: List[str], date: Optional[str], backtest: bool) -> Dict:
         """加载基本面数据"""
         try:
-            fundamental = {}
-            
-            for symbol in symbols:
-                fundamental[symbol] = {
-                    'pe_ratio': np.random.uniform(10, 50),
-                    'pb_ratio': np.random.uniform(1, 5),
-                    'roe': np.random.uniform(5, 30),
-                    'revenue_growth': np.random.uniform(-10, 50),
-                    'profit_growth': np.random.uniform(-20, 60),
-                    'financial_score': np.random.uniform(40, 90),
-                    'regulatory_risk': np.random.choice(['low', 'medium', 'high'], p=[0.6, 0.3, 0.1]),
-                    'history_leader_times': np.random.randint(0, 5),
-                    'retail_sentiment': np.random.uniform(20, 90),
-                    'institution_rating': np.random.uniform(2.5, 5),
-                    'news_freshness': np.random.uniform(0, 1)
-                }
-            
-            return fundamental
+            # TODO: 实现真实的基本面数据加载逻辑
+            # 可以通过 Qlib 的特征库或 Tushare Pro 的接口获取
+            # 此处返回空数据作为示例
+            self.logger.debug("加载基本面数据: (当前为模拟)")
+            return {symbol: {} for symbol in symbols}
             
         except Exception as e:
             self.logger.error(f"加载基本面数据失败: {e}")
@@ -288,8 +240,11 @@ class DataManager:
     async def _load_market_mood(self, date: Optional[str], backtest: bool) -> float:
         """加载市场情绪指数"""
         try:
-            # 实际应该从API或计算得出
-            return np.random.uniform(20, 80)
+            # TODO: 实现真实的市场情绪计算逻辑
+            # 可以通过计算全市场涨跌比、成交量、炸板率等指标综合得出
+            # 此处返回一个中性值50.0
+            self.logger.debug("加载市场情绪: (当前为模拟)")
+            return 50.0
         except Exception as e:
             self.logger.error(f"加载市场情绪失败: {e}")
             return 50.0
@@ -304,6 +259,14 @@ class TradingWorkflow:
         self.data_manager = DataManager(config)
         self.decision_agent = IntegratedDecisionAgent()
         self.execution_history = []
+        self.operational_command = {} # v2.1 新增：用于存储元帅的作战指令
+
+    def set_operational_command(self, command: Dict[str, Any]):
+        """ v2.1 升级：接收并应用元帅的作战指令 """
+        self.logger.info(f"接收到新的作战指令: {command.get('market_regime', '未知')}")
+        self.operational_command = command
+        # TODO: 未来可将指令传递给决策Agent，以动态调整其内部参数
+        # self.decision_agent.set_operational_command(command)
         
     async def run(
         self,
@@ -608,17 +571,26 @@ async def main():
             config.update(file_config)
     
     # 股票列表
+    # 格式化股票代码，以适配akshare等库 (e.g., 600519 -> sh600519)
+    def format_symbol(s):
+        if s.startswith('6'):
+            return f"sh{s}"
+        elif s.startswith(('0', '3')):
+            return f"sz{s}"
+        return s
+
     if args.symbols:
-        symbols = args.symbols
+        symbols = [format_symbol(s) for s in args.symbols]
     else:
         # 默认股票池
-        symbols = [
-            '000001', '000002', '000858', '002142', '002236',
-            '300750', '300059', '600519', '000333', '002415'
+        default_symbols = [
+            '600519', '000001', '000858', '300750', '002415',
+            '601318', '600036', '000651', '000333', '002714'
         ]
+        symbols = [format_symbol(s) for s in default_symbols]
     
     logger.info(f"配置: {config}")
-    logger.info(f"股票池: {symbols}")
+    logger.info(f"股票池 (格式化后): {symbols}")
     
     # 创建并运行工作流
     workflow = TradingWorkflow(config)

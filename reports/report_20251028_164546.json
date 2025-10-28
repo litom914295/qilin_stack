@@ -1,0 +1,1356 @@
+{
+  "summary": {
+    "total_analyzed": 6,
+    "total_signals": 0,
+    "total_executed": 0,
+    "execution_time": 0.023001670837402344,
+    "avg_analysis_time": 0.003833611806233724,
+    "timestamp": "2025-10-28T16:45:46.978469"
+  },
+  "scores": {
+    "average": 9.76,
+    "max": 9.76,
+    "min": 9.76,
+    "distribution": {
+      "excellent": 0,
+      "good": 0,
+      "moderate": 0,
+      "poor": 6
+    }
+  },
+  "top_stocks": [
+    {
+      "rank": 1,
+      "symbol": "000001",
+      "score": 9.76,
+      "decision": "avoid"
+    },
+    {
+      "rank": 2,
+      "symbol": "000002",
+      "score": 9.76,
+      "decision": "avoid"
+    },
+    {
+      "rank": 3,
+      "symbol": "000858",
+      "score": 9.76,
+      "decision": "avoid"
+    },
+    {
+      "rank": 4,
+      "symbol": "002142",
+      "score": 9.76,
+      "decision": "avoid"
+    },
+    {
+      "rank": 5,
+      "symbol": "300750",
+      "score": 9.76,
+      "decision": "avoid"
+    },
+    {
+      "rank": 6,
+      "symbol": "600519",
+      "score": 9.76,
+      "decision": "avoid"
+    }
+  ],
+  "signals": [],
+  "execution": [],
+  "details": {
+    "analysis_results": [
+      {
+        "symbol": "000001",
+        "timestamp": "2025-10-28T16:45:46.976467",
+        "total_score": 109.0,
+        "weighted_score": 9.76,
+        "total_confidence": 0.7595238095238097,
+        "decision": {
+          "action": "avoid",
+          "confidence": 0.7595238095238097,
+          "position": "0%",
+          "reason": "指标偏弱或不确定性高，建议回避",
+          "risk_level": "high",
+          "decision_trace": {
+            "contributions": [
+              {
+                "agent": "position",
+                "score": 45.0,
+                "confidence": 0.8,
+                "weight": 0.08,
+                "contribution": 3.6
+              },
+              {
+                "agent": "emotion",
+                "score": 20.0,
+                "confidence": 0.65,
+                "weight": 0.1,
+                "contribution": 2.0
+              },
+              {
+                "agent": "sector",
+                "score": 18.0,
+                "confidence": 0.75,
+                "weight": 0.07,
+                "contribution": 1.2600000000000002
+              },
+              {
+                "agent": "auction",
+                "score": 10.0,
+                "confidence": 0.85,
+                "weight": 0.12,
+                "contribution": 1.2
+              },
+              {
+                "agent": "leader",
+                "score": 6.0,
+                "confidence": 0.8,
+                "weight": 0.15,
+                "contribution": 0.8999999999999999
+              },
+              {
+                "agent": "news",
+                "score": 10.0,
+                "confidence": 0.7,
+                "weight": 0.08,
+                "contribution": 0.8
+              },
+              {
+                "agent": "zt_quality",
+                "score": 0,
+                "confidence": 0.5,
+                "weight": 0.15,
+                "contribution": 0.0
+              },
+              {
+                "agent": "money_flow",
+                "score": 0.0,
+                "confidence": 0.8,
+                "weight": 0.12,
+                "contribution": 0.0
+              },
+              {
+                "agent": "technical",
+                "score": 0,
+                "confidence": 0.9,
+                "weight": 0.08,
+                "contribution": 0.0
+              },
+              {
+                "agent": "risk",
+                "score": 0,
+                "confidence": 0.95,
+                "weight": 0.1,
+                "contribution": 0.0
+              }
+            ],
+            "warnings": []
+          },
+          "entry_price": null,
+          "stop_loss": null,
+          "take_profit": null
+        },
+        "details": {
+          "zt_quality": {
+            "score": 0,
+            "confidence": 0.5,
+            "weight": 0.15,
+            "weighted": 0.0,
+            "details": {
+              "error": "无数据"
+            }
+          },
+          "leader": {
+            "score": 6.0,
+            "confidence": 0.8,
+            "weight": 0.15,
+            "weighted": 0.8999999999999999,
+            "details": {
+              "sector_rank": 5,
+              "consecutive_limit": 0,
+              "news_count": 0,
+              "money_flow": 0,
+              "history_leader": 0
+            }
+          },
+          "auction": {
+            "score": 10.0,
+            "confidence": 0.85,
+            "weight": 0.12,
+            "weighted": 1.2,
+            "details": {
+              "auction_change": 0,
+              "auction_volume_ratio": 0.05,
+              "bid_ask_ratio": 1.0,
+              "auction_volatility": 0.5,
+              "large_order_ratio": 0.1
+            }
+          },
+          "money_flow": {
+            "score": 0.0,
+            "confidence": 0.8,
+            "weight": 0.12,
+            "weighted": 0.0,
+            "details": {
+              "main_netflow": 0,
+              "super_large_ratio": 0,
+              "consecutive_inflow": 0,
+              "sector_flow": 0,
+              "northbound": 0
+            }
+          },
+          "emotion": {
+            "score": 20.0,
+            "confidence": 0.65,
+            "weight": 0.1,
+            "weighted": 2.0,
+            "details": {
+              "market_mood": 50.0,
+              "stock_heat": 50,
+              "news_sentiment": 0,
+              "retail_sentiment": 50,
+              "institution_rating": 3
+            }
+          },
+          "technical": {
+            "score": 0,
+            "confidence": 0.9,
+            "weight": 0.08,
+            "weighted": 0.0,
+            "details": {
+              "error": "'close'"
+            }
+          },
+          "position": {
+            "score": 45.0,
+            "confidence": 0.8,
+            "weight": 0.08,
+            "weighted": 3.6,
+            "details": {
+              "market_strength": 0.5,
+              "stock_rs": 50,
+              "volatility": 0.02,
+              "correlation": 0.5,
+              "timing_score": 50,
+              "suggested_position": "13.5%"
+            }
+          },
+          "risk": {
+            "score": 0,
+            "confidence": 0.95,
+            "weight": 0.1,
+            "weighted": 0.0,
+            "details": {
+              "error": "single positional indexer is out-of-bounds"
+            }
+          },
+          "news": {
+            "score": 10.0,
+            "confidence": 0.7,
+            "weight": 0.08,
+            "weighted": 0.8,
+            "details": {
+              "major_positive": 0,
+              "moderate_positive": 0,
+              "negative": 0,
+              "news_count": 0,
+              "freshness": 0.5,
+              "news_impact": []
+            }
+          },
+          "sector": {
+            "score": 18.0,
+            "confidence": 0.75,
+            "weight": 0.07,
+            "weighted": 1.2600000000000002,
+            "details": {
+              "sector_strength": 0,
+              "sector_position": 10,
+              "rotation_score": 50,
+              "sector_money": 0,
+              "sector_hot_days": 0
+            }
+          }
+        },
+        "analysis_time": 0.010002
+      },
+      {
+        "symbol": "000002",
+        "timestamp": "2025-10-28T16:45:46.977475",
+        "total_score": 109.0,
+        "weighted_score": 9.76,
+        "total_confidence": 0.7595238095238097,
+        "decision": {
+          "action": "avoid",
+          "confidence": 0.7595238095238097,
+          "position": "0%",
+          "reason": "指标偏弱或不确定性高，建议回避",
+          "risk_level": "high",
+          "decision_trace": {
+            "contributions": [
+              {
+                "agent": "position",
+                "score": 45.0,
+                "confidence": 0.8,
+                "weight": 0.08,
+                "contribution": 3.6
+              },
+              {
+                "agent": "emotion",
+                "score": 20.0,
+                "confidence": 0.65,
+                "weight": 0.1,
+                "contribution": 2.0
+              },
+              {
+                "agent": "sector",
+                "score": 18.0,
+                "confidence": 0.75,
+                "weight": 0.07,
+                "contribution": 1.2600000000000002
+              },
+              {
+                "agent": "auction",
+                "score": 10.0,
+                "confidence": 0.85,
+                "weight": 0.12,
+                "contribution": 1.2
+              },
+              {
+                "agent": "leader",
+                "score": 6.0,
+                "confidence": 0.8,
+                "weight": 0.15,
+                "contribution": 0.8999999999999999
+              },
+              {
+                "agent": "news",
+                "score": 10.0,
+                "confidence": 0.7,
+                "weight": 0.08,
+                "contribution": 0.8
+              },
+              {
+                "agent": "zt_quality",
+                "score": 0,
+                "confidence": 0.5,
+                "weight": 0.15,
+                "contribution": 0.0
+              },
+              {
+                "agent": "money_flow",
+                "score": 0.0,
+                "confidence": 0.8,
+                "weight": 0.12,
+                "contribution": 0.0
+              },
+              {
+                "agent": "technical",
+                "score": 0,
+                "confidence": 0.9,
+                "weight": 0.08,
+                "contribution": 0.0
+              },
+              {
+                "agent": "risk",
+                "score": 0,
+                "confidence": 0.95,
+                "weight": 0.1,
+                "contribution": 0.0
+              }
+            ],
+            "warnings": []
+          },
+          "entry_price": null,
+          "stop_loss": null,
+          "take_profit": null
+        },
+        "details": {
+          "zt_quality": {
+            "score": 0,
+            "confidence": 0.5,
+            "weight": 0.15,
+            "weighted": 0.0,
+            "details": {
+              "error": "无数据"
+            }
+          },
+          "leader": {
+            "score": 6.0,
+            "confidence": 0.8,
+            "weight": 0.15,
+            "weighted": 0.8999999999999999,
+            "details": {
+              "sector_rank": 5,
+              "consecutive_limit": 0,
+              "news_count": 0,
+              "money_flow": 0,
+              "history_leader": 0
+            }
+          },
+          "auction": {
+            "score": 10.0,
+            "confidence": 0.85,
+            "weight": 0.12,
+            "weighted": 1.2,
+            "details": {
+              "auction_change": 0,
+              "auction_volume_ratio": 0.05,
+              "bid_ask_ratio": 1.0,
+              "auction_volatility": 0.5,
+              "large_order_ratio": 0.1
+            }
+          },
+          "money_flow": {
+            "score": 0.0,
+            "confidence": 0.8,
+            "weight": 0.12,
+            "weighted": 0.0,
+            "details": {
+              "main_netflow": 0,
+              "super_large_ratio": 0,
+              "consecutive_inflow": 0,
+              "sector_flow": 0,
+              "northbound": 0
+            }
+          },
+          "emotion": {
+            "score": 20.0,
+            "confidence": 0.65,
+            "weight": 0.1,
+            "weighted": 2.0,
+            "details": {
+              "market_mood": 50.0,
+              "stock_heat": 50,
+              "news_sentiment": 0,
+              "retail_sentiment": 50,
+              "institution_rating": 3
+            }
+          },
+          "technical": {
+            "score": 0,
+            "confidence": 0.9,
+            "weight": 0.08,
+            "weighted": 0.0,
+            "details": {
+              "error": "'close'"
+            }
+          },
+          "position": {
+            "score": 45.0,
+            "confidence": 0.8,
+            "weight": 0.08,
+            "weighted": 3.6,
+            "details": {
+              "market_strength": 0.5,
+              "stock_rs": 50,
+              "volatility": 0.02,
+              "correlation": 0.5,
+              "timing_score": 50,
+              "suggested_position": "13.5%"
+            }
+          },
+          "risk": {
+            "score": 0,
+            "confidence": 0.95,
+            "weight": 0.1,
+            "weighted": 0.0,
+            "details": {
+              "error": "single positional indexer is out-of-bounds"
+            }
+          },
+          "news": {
+            "score": 10.0,
+            "confidence": 0.7,
+            "weight": 0.08,
+            "weighted": 0.8,
+            "details": {
+              "major_positive": 0,
+              "moderate_positive": 0,
+              "negative": 0,
+              "news_count": 0,
+              "freshness": 0.5,
+              "news_impact": []
+            }
+          },
+          "sector": {
+            "score": 18.0,
+            "confidence": 0.75,
+            "weight": 0.07,
+            "weighted": 1.2600000000000002,
+            "details": {
+              "sector_strength": 0,
+              "sector_position": 10,
+              "rotation_score": 50,
+              "sector_money": 0,
+              "sector_hot_days": 0
+            }
+          }
+        },
+        "analysis_time": 0.010002
+      },
+      {
+        "symbol": "000858",
+        "timestamp": "2025-10-28T16:45:46.977475",
+        "total_score": 109.0,
+        "weighted_score": 9.76,
+        "total_confidence": 0.7595238095238097,
+        "decision": {
+          "action": "avoid",
+          "confidence": 0.7595238095238097,
+          "position": "0%",
+          "reason": "指标偏弱或不确定性高，建议回避",
+          "risk_level": "high",
+          "decision_trace": {
+            "contributions": [
+              {
+                "agent": "position",
+                "score": 45.0,
+                "confidence": 0.8,
+                "weight": 0.08,
+                "contribution": 3.6
+              },
+              {
+                "agent": "emotion",
+                "score": 20.0,
+                "confidence": 0.65,
+                "weight": 0.1,
+                "contribution": 2.0
+              },
+              {
+                "agent": "sector",
+                "score": 18.0,
+                "confidence": 0.75,
+                "weight": 0.07,
+                "contribution": 1.2600000000000002
+              },
+              {
+                "agent": "auction",
+                "score": 10.0,
+                "confidence": 0.85,
+                "weight": 0.12,
+                "contribution": 1.2
+              },
+              {
+                "agent": "leader",
+                "score": 6.0,
+                "confidence": 0.8,
+                "weight": 0.15,
+                "contribution": 0.8999999999999999
+              },
+              {
+                "agent": "news",
+                "score": 10.0,
+                "confidence": 0.7,
+                "weight": 0.08,
+                "contribution": 0.8
+              },
+              {
+                "agent": "zt_quality",
+                "score": 0,
+                "confidence": 0.5,
+                "weight": 0.15,
+                "contribution": 0.0
+              },
+              {
+                "agent": "money_flow",
+                "score": 0.0,
+                "confidence": 0.8,
+                "weight": 0.12,
+                "contribution": 0.0
+              },
+              {
+                "agent": "technical",
+                "score": 0,
+                "confidence": 0.9,
+                "weight": 0.08,
+                "contribution": 0.0
+              },
+              {
+                "agent": "risk",
+                "score": 0,
+                "confidence": 0.95,
+                "weight": 0.1,
+                "contribution": 0.0
+              }
+            ],
+            "warnings": []
+          },
+          "entry_price": null,
+          "stop_loss": null,
+          "take_profit": null
+        },
+        "details": {
+          "zt_quality": {
+            "score": 0,
+            "confidence": 0.5,
+            "weight": 0.15,
+            "weighted": 0.0,
+            "details": {
+              "error": "无数据"
+            }
+          },
+          "leader": {
+            "score": 6.0,
+            "confidence": 0.8,
+            "weight": 0.15,
+            "weighted": 0.8999999999999999,
+            "details": {
+              "sector_rank": 5,
+              "consecutive_limit": 0,
+              "news_count": 0,
+              "money_flow": 0,
+              "history_leader": 0
+            }
+          },
+          "auction": {
+            "score": 10.0,
+            "confidence": 0.85,
+            "weight": 0.12,
+            "weighted": 1.2,
+            "details": {
+              "auction_change": 0,
+              "auction_volume_ratio": 0.05,
+              "bid_ask_ratio": 1.0,
+              "auction_volatility": 0.5,
+              "large_order_ratio": 0.1
+            }
+          },
+          "money_flow": {
+            "score": 0.0,
+            "confidence": 0.8,
+            "weight": 0.12,
+            "weighted": 0.0,
+            "details": {
+              "main_netflow": 0,
+              "super_large_ratio": 0,
+              "consecutive_inflow": 0,
+              "sector_flow": 0,
+              "northbound": 0
+            }
+          },
+          "emotion": {
+            "score": 20.0,
+            "confidence": 0.65,
+            "weight": 0.1,
+            "weighted": 2.0,
+            "details": {
+              "market_mood": 50.0,
+              "stock_heat": 50,
+              "news_sentiment": 0,
+              "retail_sentiment": 50,
+              "institution_rating": 3
+            }
+          },
+          "technical": {
+            "score": 0,
+            "confidence": 0.9,
+            "weight": 0.08,
+            "weighted": 0.0,
+            "details": {
+              "error": "'close'"
+            }
+          },
+          "position": {
+            "score": 45.0,
+            "confidence": 0.8,
+            "weight": 0.08,
+            "weighted": 3.6,
+            "details": {
+              "market_strength": 0.5,
+              "stock_rs": 50,
+              "volatility": 0.02,
+              "correlation": 0.5,
+              "timing_score": 50,
+              "suggested_position": "13.5%"
+            }
+          },
+          "risk": {
+            "score": 0,
+            "confidence": 0.95,
+            "weight": 0.1,
+            "weighted": 0.0,
+            "details": {
+              "error": "single positional indexer is out-of-bounds"
+            }
+          },
+          "news": {
+            "score": 10.0,
+            "confidence": 0.7,
+            "weight": 0.08,
+            "weighted": 0.8,
+            "details": {
+              "major_positive": 0,
+              "moderate_positive": 0,
+              "negative": 0,
+              "news_count": 0,
+              "freshness": 0.5,
+              "news_impact": []
+            }
+          },
+          "sector": {
+            "score": 18.0,
+            "confidence": 0.75,
+            "weight": 0.07,
+            "weighted": 1.2600000000000002,
+            "details": {
+              "sector_strength": 0,
+              "sector_position": 10,
+              "rotation_score": 50,
+              "sector_money": 0,
+              "sector_hot_days": 0
+            }
+          }
+        },
+        "analysis_time": 0.010008
+      },
+      {
+        "symbol": "002142",
+        "timestamp": "2025-10-28T16:45:46.977475",
+        "total_score": 109.0,
+        "weighted_score": 9.76,
+        "total_confidence": 0.7595238095238097,
+        "decision": {
+          "action": "avoid",
+          "confidence": 0.7595238095238097,
+          "position": "0%",
+          "reason": "指标偏弱或不确定性高，建议回避",
+          "risk_level": "high",
+          "decision_trace": {
+            "contributions": [
+              {
+                "agent": "position",
+                "score": 45.0,
+                "confidence": 0.8,
+                "weight": 0.08,
+                "contribution": 3.6
+              },
+              {
+                "agent": "emotion",
+                "score": 20.0,
+                "confidence": 0.65,
+                "weight": 0.1,
+                "contribution": 2.0
+              },
+              {
+                "agent": "sector",
+                "score": 18.0,
+                "confidence": 0.75,
+                "weight": 0.07,
+                "contribution": 1.2600000000000002
+              },
+              {
+                "agent": "auction",
+                "score": 10.0,
+                "confidence": 0.85,
+                "weight": 0.12,
+                "contribution": 1.2
+              },
+              {
+                "agent": "leader",
+                "score": 6.0,
+                "confidence": 0.8,
+                "weight": 0.15,
+                "contribution": 0.8999999999999999
+              },
+              {
+                "agent": "news",
+                "score": 10.0,
+                "confidence": 0.7,
+                "weight": 0.08,
+                "contribution": 0.8
+              },
+              {
+                "agent": "zt_quality",
+                "score": 0,
+                "confidence": 0.5,
+                "weight": 0.15,
+                "contribution": 0.0
+              },
+              {
+                "agent": "money_flow",
+                "score": 0.0,
+                "confidence": 0.8,
+                "weight": 0.12,
+                "contribution": 0.0
+              },
+              {
+                "agent": "technical",
+                "score": 0,
+                "confidence": 0.9,
+                "weight": 0.08,
+                "contribution": 0.0
+              },
+              {
+                "agent": "risk",
+                "score": 0,
+                "confidence": 0.95,
+                "weight": 0.1,
+                "contribution": 0.0
+              }
+            ],
+            "warnings": []
+          },
+          "entry_price": null,
+          "stop_loss": null,
+          "take_profit": null
+        },
+        "details": {
+          "zt_quality": {
+            "score": 0,
+            "confidence": 0.5,
+            "weight": 0.15,
+            "weighted": 0.0,
+            "details": {
+              "error": "无数据"
+            }
+          },
+          "leader": {
+            "score": 6.0,
+            "confidence": 0.8,
+            "weight": 0.15,
+            "weighted": 0.8999999999999999,
+            "details": {
+              "sector_rank": 5,
+              "consecutive_limit": 0,
+              "news_count": 0,
+              "money_flow": 0,
+              "history_leader": 0
+            }
+          },
+          "auction": {
+            "score": 10.0,
+            "confidence": 0.85,
+            "weight": 0.12,
+            "weighted": 1.2,
+            "details": {
+              "auction_change": 0,
+              "auction_volume_ratio": 0.05,
+              "bid_ask_ratio": 1.0,
+              "auction_volatility": 0.5,
+              "large_order_ratio": 0.1
+            }
+          },
+          "money_flow": {
+            "score": 0.0,
+            "confidence": 0.8,
+            "weight": 0.12,
+            "weighted": 0.0,
+            "details": {
+              "main_netflow": 0,
+              "super_large_ratio": 0,
+              "consecutive_inflow": 0,
+              "sector_flow": 0,
+              "northbound": 0
+            }
+          },
+          "emotion": {
+            "score": 20.0,
+            "confidence": 0.65,
+            "weight": 0.1,
+            "weighted": 2.0,
+            "details": {
+              "market_mood": 50.0,
+              "stock_heat": 50,
+              "news_sentiment": 0,
+              "retail_sentiment": 50,
+              "institution_rating": 3
+            }
+          },
+          "technical": {
+            "score": 0,
+            "confidence": 0.9,
+            "weight": 0.08,
+            "weighted": 0.0,
+            "details": {
+              "error": "'close'"
+            }
+          },
+          "position": {
+            "score": 45.0,
+            "confidence": 0.8,
+            "weight": 0.08,
+            "weighted": 3.6,
+            "details": {
+              "market_strength": 0.5,
+              "stock_rs": 50,
+              "volatility": 0.02,
+              "correlation": 0.5,
+              "timing_score": 50,
+              "suggested_position": "13.5%"
+            }
+          },
+          "risk": {
+            "score": 0,
+            "confidence": 0.95,
+            "weight": 0.1,
+            "weighted": 0.0,
+            "details": {
+              "error": "single positional indexer is out-of-bounds"
+            }
+          },
+          "news": {
+            "score": 10.0,
+            "confidence": 0.7,
+            "weight": 0.08,
+            "weighted": 0.8,
+            "details": {
+              "major_positive": 0,
+              "moderate_positive": 0,
+              "negative": 0,
+              "news_count": 0,
+              "freshness": 0.5,
+              "news_impact": []
+            }
+          },
+          "sector": {
+            "score": 18.0,
+            "confidence": 0.75,
+            "weight": 0.07,
+            "weighted": 1.2600000000000002,
+            "details": {
+              "sector_strength": 0,
+              "sector_position": 10,
+              "rotation_score": 50,
+              "sector_money": 0,
+              "sector_hot_days": 0
+            }
+          }
+        },
+        "analysis_time": 0.010008
+      },
+      {
+        "symbol": "300750",
+        "timestamp": "2025-10-28T16:45:46.977475",
+        "total_score": 109.0,
+        "weighted_score": 9.76,
+        "total_confidence": 0.7595238095238097,
+        "decision": {
+          "action": "avoid",
+          "confidence": 0.7595238095238097,
+          "position": "0%",
+          "reason": "指标偏弱或不确定性高，建议回避",
+          "risk_level": "high",
+          "decision_trace": {
+            "contributions": [
+              {
+                "agent": "position",
+                "score": 45.0,
+                "confidence": 0.8,
+                "weight": 0.08,
+                "contribution": 3.6
+              },
+              {
+                "agent": "emotion",
+                "score": 20.0,
+                "confidence": 0.65,
+                "weight": 0.1,
+                "contribution": 2.0
+              },
+              {
+                "agent": "sector",
+                "score": 18.0,
+                "confidence": 0.75,
+                "weight": 0.07,
+                "contribution": 1.2600000000000002
+              },
+              {
+                "agent": "auction",
+                "score": 10.0,
+                "confidence": 0.85,
+                "weight": 0.12,
+                "contribution": 1.2
+              },
+              {
+                "agent": "leader",
+                "score": 6.0,
+                "confidence": 0.8,
+                "weight": 0.15,
+                "contribution": 0.8999999999999999
+              },
+              {
+                "agent": "news",
+                "score": 10.0,
+                "confidence": 0.7,
+                "weight": 0.08,
+                "contribution": 0.8
+              },
+              {
+                "agent": "zt_quality",
+                "score": 0,
+                "confidence": 0.5,
+                "weight": 0.15,
+                "contribution": 0.0
+              },
+              {
+                "agent": "money_flow",
+                "score": 0.0,
+                "confidence": 0.8,
+                "weight": 0.12,
+                "contribution": 0.0
+              },
+              {
+                "agent": "technical",
+                "score": 0,
+                "confidence": 0.9,
+                "weight": 0.08,
+                "contribution": 0.0
+              },
+              {
+                "agent": "risk",
+                "score": 0,
+                "confidence": 0.95,
+                "weight": 0.1,
+                "contribution": 0.0
+              }
+            ],
+            "warnings": []
+          },
+          "entry_price": null,
+          "stop_loss": null,
+          "take_profit": null
+        },
+        "details": {
+          "zt_quality": {
+            "score": 0,
+            "confidence": 0.5,
+            "weight": 0.15,
+            "weighted": 0.0,
+            "details": {
+              "error": "无数据"
+            }
+          },
+          "leader": {
+            "score": 6.0,
+            "confidence": 0.8,
+            "weight": 0.15,
+            "weighted": 0.8999999999999999,
+            "details": {
+              "sector_rank": 5,
+              "consecutive_limit": 0,
+              "news_count": 0,
+              "money_flow": 0,
+              "history_leader": 0
+            }
+          },
+          "auction": {
+            "score": 10.0,
+            "confidence": 0.85,
+            "weight": 0.12,
+            "weighted": 1.2,
+            "details": {
+              "auction_change": 0,
+              "auction_volume_ratio": 0.05,
+              "bid_ask_ratio": 1.0,
+              "auction_volatility": 0.5,
+              "large_order_ratio": 0.1
+            }
+          },
+          "money_flow": {
+            "score": 0.0,
+            "confidence": 0.8,
+            "weight": 0.12,
+            "weighted": 0.0,
+            "details": {
+              "main_netflow": 0,
+              "super_large_ratio": 0,
+              "consecutive_inflow": 0,
+              "sector_flow": 0,
+              "northbound": 0
+            }
+          },
+          "emotion": {
+            "score": 20.0,
+            "confidence": 0.65,
+            "weight": 0.1,
+            "weighted": 2.0,
+            "details": {
+              "market_mood": 50.0,
+              "stock_heat": 50,
+              "news_sentiment": 0,
+              "retail_sentiment": 50,
+              "institution_rating": 3
+            }
+          },
+          "technical": {
+            "score": 0,
+            "confidence": 0.9,
+            "weight": 0.08,
+            "weighted": 0.0,
+            "details": {
+              "error": "'close'"
+            }
+          },
+          "position": {
+            "score": 45.0,
+            "confidence": 0.8,
+            "weight": 0.08,
+            "weighted": 3.6,
+            "details": {
+              "market_strength": 0.5,
+              "stock_rs": 50,
+              "volatility": 0.02,
+              "correlation": 0.5,
+              "timing_score": 50,
+              "suggested_position": "13.5%"
+            }
+          },
+          "risk": {
+            "score": 0,
+            "confidence": 0.95,
+            "weight": 0.1,
+            "weighted": 0.0,
+            "details": {
+              "error": "single positional indexer is out-of-bounds"
+            }
+          },
+          "news": {
+            "score": 10.0,
+            "confidence": 0.7,
+            "weight": 0.08,
+            "weighted": 0.8,
+            "details": {
+              "major_positive": 0,
+              "moderate_positive": 0,
+              "negative": 0,
+              "news_count": 0,
+              "freshness": 0.5,
+              "news_impact": []
+            }
+          },
+          "sector": {
+            "score": 18.0,
+            "confidence": 0.75,
+            "weight": 0.07,
+            "weighted": 1.2600000000000002,
+            "details": {
+              "sector_strength": 0,
+              "sector_position": 10,
+              "rotation_score": 50,
+              "sector_money": 0,
+              "sector_hot_days": 0
+            }
+          }
+        },
+        "analysis_time": 0.010008
+      },
+      {
+        "symbol": "600519",
+        "timestamp": "2025-10-28T16:45:46.977475",
+        "total_score": 109.0,
+        "weighted_score": 9.76,
+        "total_confidence": 0.7595238095238097,
+        "decision": {
+          "action": "avoid",
+          "confidence": 0.7595238095238097,
+          "position": "0%",
+          "reason": "指标偏弱或不确定性高，建议回避",
+          "risk_level": "high",
+          "decision_trace": {
+            "contributions": [
+              {
+                "agent": "position",
+                "score": 45.0,
+                "confidence": 0.8,
+                "weight": 0.08,
+                "contribution": 3.6
+              },
+              {
+                "agent": "emotion",
+                "score": 20.0,
+                "confidence": 0.65,
+                "weight": 0.1,
+                "contribution": 2.0
+              },
+              {
+                "agent": "sector",
+                "score": 18.0,
+                "confidence": 0.75,
+                "weight": 0.07,
+                "contribution": 1.2600000000000002
+              },
+              {
+                "agent": "auction",
+                "score": 10.0,
+                "confidence": 0.85,
+                "weight": 0.12,
+                "contribution": 1.2
+              },
+              {
+                "agent": "leader",
+                "score": 6.0,
+                "confidence": 0.8,
+                "weight": 0.15,
+                "contribution": 0.8999999999999999
+              },
+              {
+                "agent": "news",
+                "score": 10.0,
+                "confidence": 0.7,
+                "weight": 0.08,
+                "contribution": 0.8
+              },
+              {
+                "agent": "zt_quality",
+                "score": 0,
+                "confidence": 0.5,
+                "weight": 0.15,
+                "contribution": 0.0
+              },
+              {
+                "agent": "money_flow",
+                "score": 0.0,
+                "confidence": 0.8,
+                "weight": 0.12,
+                "contribution": 0.0
+              },
+              {
+                "agent": "technical",
+                "score": 0,
+                "confidence": 0.9,
+                "weight": 0.08,
+                "contribution": 0.0
+              },
+              {
+                "agent": "risk",
+                "score": 0,
+                "confidence": 0.95,
+                "weight": 0.1,
+                "contribution": 0.0
+              }
+            ],
+            "warnings": []
+          },
+          "entry_price": null,
+          "stop_loss": null,
+          "take_profit": null
+        },
+        "details": {
+          "zt_quality": {
+            "score": 0,
+            "confidence": 0.5,
+            "weight": 0.15,
+            "weighted": 0.0,
+            "details": {
+              "error": "无数据"
+            }
+          },
+          "leader": {
+            "score": 6.0,
+            "confidence": 0.8,
+            "weight": 0.15,
+            "weighted": 0.8999999999999999,
+            "details": {
+              "sector_rank": 5,
+              "consecutive_limit": 0,
+              "news_count": 0,
+              "money_flow": 0,
+              "history_leader": 0
+            }
+          },
+          "auction": {
+            "score": 10.0,
+            "confidence": 0.85,
+            "weight": 0.12,
+            "weighted": 1.2,
+            "details": {
+              "auction_change": 0,
+              "auction_volume_ratio": 0.05,
+              "bid_ask_ratio": 1.0,
+              "auction_volatility": 0.5,
+              "large_order_ratio": 0.1
+            }
+          },
+          "money_flow": {
+            "score": 0.0,
+            "confidence": 0.8,
+            "weight": 0.12,
+            "weighted": 0.0,
+            "details": {
+              "main_netflow": 0,
+              "super_large_ratio": 0,
+              "consecutive_inflow": 0,
+              "sector_flow": 0,
+              "northbound": 0
+            }
+          },
+          "emotion": {
+            "score": 20.0,
+            "confidence": 0.65,
+            "weight": 0.1,
+            "weighted": 2.0,
+            "details": {
+              "market_mood": 50.0,
+              "stock_heat": 50,
+              "news_sentiment": 0,
+              "retail_sentiment": 50,
+              "institution_rating": 3
+            }
+          },
+          "technical": {
+            "score": 0,
+            "confidence": 0.9,
+            "weight": 0.08,
+            "weighted": 0.0,
+            "details": {
+              "error": "'close'"
+            }
+          },
+          "position": {
+            "score": 45.0,
+            "confidence": 0.8,
+            "weight": 0.08,
+            "weighted": 3.6,
+            "details": {
+              "market_strength": 0.5,
+              "stock_rs": 50,
+              "volatility": 0.02,
+              "correlation": 0.5,
+              "timing_score": 50,
+              "suggested_position": "13.5%"
+            }
+          },
+          "risk": {
+            "score": 0,
+            "confidence": 0.95,
+            "weight": 0.1,
+            "weighted": 0.0,
+            "details": {
+              "error": "single positional indexer is out-of-bounds"
+            }
+          },
+          "news": {
+            "score": 10.0,
+            "confidence": 0.7,
+            "weight": 0.08,
+            "weighted": 0.8,
+            "details": {
+              "major_positive": 0,
+              "moderate_positive": 0,
+              "negative": 0,
+              "news_count": 0,
+              "freshness": 0.5,
+              "news_impact": []
+            }
+          },
+          "sector": {
+            "score": 18.0,
+            "confidence": 0.75,
+            "weight": 0.07,
+            "weighted": 1.2600000000000002,
+            "details": {
+              "sector_strength": 0,
+              "sector_position": 10,
+              "rotation_score": 50,
+              "sector_money": 0,
+              "sector_hot_days": 0
+            }
+          }
+        },
+        "analysis_time": 0.010008
+      }
+    ],
+    "timestamp": "2025-10-28T16:45:46.978469"
+  }
+}
