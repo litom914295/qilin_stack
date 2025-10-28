@@ -78,14 +78,18 @@ class LimitUpScanner:
             return results
             
         except ImportError:
-            logger.error("AKShare未安装，请运行: pip install akshare")
+            logger.warning("AKShare未安装，使用模拟数据")
+            logger.info("安装命令: pip install akshare")
             return self._get_mock_limitup_data()
         except Exception as e:
-            logger.error(f"扫描涨停股失败: {e}")
+            logger.warning(f"无法获取真实数据: {str(e)[:100]}")
+            logger.info("原因可能是: 网络连接失败/代理设置/数据源不可用")
+            logger.info("正在使用模拟数据演示...")
             return self._get_mock_limitup_data()
     
     def _get_mock_limitup_data(self) -> List[Dict[str, Any]]:
         """获取模拟涨停股数据（演示用）"""
+        logger.warning("⚠️ 当前使用模拟数据，非实时行情！")
         return [
             {
                 'symbol': 'SZ000001',

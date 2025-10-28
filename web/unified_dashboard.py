@@ -1759,7 +1759,14 @@ class UnifiedDashboard:
                     if df_results.empty:
                         st.warning("⚠️ 今日暂无涨停股或数据获取失败")
                     else:
-                        st.success(f"✅ 扫描完成！找到 {len(df_results)} 只涨停股")
+                        # 检查是否为模拟数据
+                        is_mock = len(df_results) == 3 and df_results.iloc[0]['name'] == '浦发银行'
+                        
+                        if is_mock:
+                            st.warning(f"⚠️ 网络连接失败，当前显示的是模拟数据（非实时行情）")
+                            st.info("🔧 解决方法: 检查网络连接或关闭代理后重试")
+                        else:
+                            st.success(f"✅ 扫描完成！找到 {len(df_results)} 只真实涨停股")
                         
                         st.divider()
                         
