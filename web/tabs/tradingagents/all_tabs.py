@@ -39,19 +39,31 @@ if ta_path.exists() and str(ta_path) not in sys.path:
 
 # 可选：接入本项目内置真实集成（若可用则用；否则保持演示模式）
 try:
-    from tradingagents_integration.real_integration import create_integration
+    from tradingagents_integration.full_agents_integration import create_full_integration, FullAgentsIntegration
     _TA_INTEGRATION_AVAILABLE = True
+    _FULL_10_AGENTS = True
 except Exception:
-    _TA_INTEGRATION_AVAILABLE = False
+    try:
+        from tradingagents_integration.real_integration import create_integration
+        _TA_INTEGRATION_AVAILABLE = True
+        _FULL_10_AGENTS = False
+    except Exception:
+        _TA_INTEGRATION_AVAILABLE = False
+        _FULL_10_AGENTS = False
 
 
 def _get_ta_integration():
-    """获取/初始化 TradingAgents 实例（全局复用）"""
+    """获取/初始化 TradingAgents 实例（全局复用，优先使用10个智能体）"""
     if not _TA_INTEGRATION_AVAILABLE:
         return None
     if 'ta_integration' not in st.session_state:
-        # 可读取自定义配置文件路径（如 config/tradingagents.yaml）
-        st.session_state.ta_integration = create_integration()
+        # 优先使用完整10个智能体集成
+        if _FULL_10_AGENTS:
+            st.session_state.ta_integration = create_full_integration()
+            st.session_state.ta_mode = "full_10_agents"
+        else:
+            st.session_state.ta_integration = create_integration()
+            st.session_state.ta_mode = "basic"
     return st.session_state.ta_integration
 
 
@@ -59,22 +71,48 @@ def render_agent_management():
     """智能体管理tab"""
     st.header("🔍 智能体管理")
     
-    st.markdown("""
-    **6类专业分析师智能体**
-    - 📊 基本面分析师
-    - 📈 技术分析师  
-    - 📰 新闻分析师
-    - 💬 社交媒体分析师
-    - 🔼 看涨研究员
-    - 🔽 看跌研究员
-    """)
+    # 显示当前模式
+    mode = st.session_state.get('ta_mode', 'demo')
+    if mode == "full_10_agents":
+        st.success("✅ 当前使用：完整10个专业智能体模式")
+        st.markdown("""
+        **10个专业A股交易智能体**
+        - 🌍 市场生态分析 (MarketEcologyAgent)
+        - 🎯 竞价博弈分析 (AuctionGameAgent)
+        - 💼 仓位控制 (PositionControlAgent) ⭐
+        - 📊 成交量分析 (VolumeAnalysisAgent)
+        - 📈 技术指标分析 (TechnicalIndicatorAgent)
+        - 😊 市场情绪分析 (SentimentAnalysisAgent)
+        - ⚠️ 风险管理 (RiskManagementAgent) ⭐
+        - 🕯️ K线形态识别 (PatternRecognitionAgent)
+        - 🌐 宏观经济分析 (MacroeconomicAgent)
+        - 🔄 套利机会分析 (ArbitrageAgent)
+        """)
+    else:
+        st.info("ℹ️ 当前使用：演示模式 (6个基础智能体)")
+        st.markdown("""
+        **6类专业分析师智能体**
+        - 📊 基本面分析师
+        - 📈 技术分析师  
+        - 📰 新闻分析师
+        - 💬 社交媒体分析师
+        - 🔼 看涨研究员
+        - 🔽 看跌研究员
+        """)
     
     # 智能体状态总览（若已接入真实系统则展示真实数量）
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         integration = _get_ta_integration()
-        agents_cnt = len(integration.get_status().get('enabled_agents', [])) if integration else 6
-        st.metric("激活智能体", f"{agents_cnt}/{agents_cnt}", "100%")
+        if integration:
+            status = integration.get_status()
+            agents_cnt = status.get('agents_count', 6)
+            if 'mode' in status and status['mode'] == 'full_10_agents':
+                st.metric("激活智能体", f"{agents_cnt}/10", "✅ 完整模式")
+            else:
+                st.metric("激活智能体", f"{agents_cnt}", "基础模式")
+        else:
+            st.metric("激活智能体", "6/6", "演示模式")
     with col2:
         st.metric("平均响应时间", "2.3s", "-0.5s")
     with col3:
@@ -84,22 +122,47 @@ def render_agent_management():
     
     st.divider()
     
-    # 智能体详细配置（若可用则列出真实智能体名）
+    # 智能体详细配置（若可用则列出真实智能体名和权重）
     st.subheader("⚙️ 智能体配置")
-    real_agents = None
-    if integration := _get_ta_integration():
-        real_agents = integration.get_status().get('enabled_agents', None)
-    agents_config = (
-        [{"name": n, "emoji": "✅", "status": "✅ 运行中", "weight": 0.15} for n in (real_agents or [])]
-        or [
-            {"name": "基本面分析师", "emoji": "📊", "status": "✅ 运行中", "weight": 0.20},
-            {"name": "技术分析师", "emoji": "📈", "status": "✅ 运行中", "weight": 0.25},
-            {"name": "新闻分析师", "emoji": "📰", "status": "✅ 运行中", "weight": 0.15},
-            {"name": "社交媒体分析师", "emoji": "💬", "status": "✅ 运行中", "weight": 0.10},
-            {"name": "看涨研究员", "emoji": "🔼", "status": "✅ 运行中", "weight": 0.15},
-            {"name": "看跌研究员", "emoji": "🔽", "status": "✅ 运行中", "weight": 0.15}
+    agents_config = []
+    
+    integration = _get_ta_integration()
+    if integration and st.session_state.get('ta_mode') == 'full_10_agents':
+        # 使用完整10个智能体的配置
+        status = integration.get_status()
+        weights = status.get('weights', {})
+        
+        agent_info = [
+            {"name": "市场生态分析", "key": "market_ecology", "emoji": "🌍"},
+            {"name": "竞价博弈分析", "key": "auction_game", "emoji": "🎯"},
+            {"name": "仓位控制", "key": "position_control", "emoji": "💼"},
+            {"name": "成交量分析", "key": "volume", "emoji": "📊"},
+            {"name": "技术指标分析", "key": "technical", "emoji": "📈"},
+            {"name": "市场情绪分析", "key": "sentiment", "emoji": "😊"},
+            {"name": "风险管理", "key": "risk", "emoji": "⚠️"},
+            {"name": "K线形态识别", "key": "pattern", "emoji": "🕯️"},
+            {"name": "宏观经济分析", "key": "macroeconomic", "emoji": "🌐"},
+            {"name": "套利机会分析", "key": "arbitrage", "emoji": "🔄"}
         ]
-    )
+        
+        for info in agent_info:
+            agents_config.append({
+                "name": info["name"],
+                "key": info["key"],
+                "emoji": info["emoji"],
+                "status": "✅ 运行中",
+                "weight": weights.get(info["key"], 0.1)
+            })
+    else:
+        # 使用默认6个智能体配置
+        agents_config = [
+            {"name": "基本面分析师", "key": "fundamental", "emoji": "📊", "status": "✅ 运行中", "weight": 0.20},
+            {"name": "技术分析师", "key": "technical", "emoji": "📈", "status": "✅ 运行中", "weight": 0.25},
+            {"name": "新闻分析师", "key": "news", "emoji": "📰", "status": "✅ 运行中", "weight": 0.15},
+            {"name": "社交媒体分析师", "key": "social", "emoji": "💬", "status": "✅ 运行中", "weight": 0.10},
+            {"name": "看涨研究员", "key": "bullish", "emoji": "🔼", "status": "✅ 运行中", "weight": 0.15},
+            {"name": "看跌研究员", "key": "bearish", "emoji": "🔽", "status": "✅ 运行中", "weight": 0.15}
+        ]
     
     for agent in agents_config:
         with st.expander(f"{agent['emoji']} {agent['name']} - {agent['status']}"):
@@ -172,11 +235,22 @@ def render_collaboration():
             for r in range(int(rounds)):
                 if integration:
                     market_data = {
+                        "symbol": symbol,
                         "price": float(_np.random.uniform(8, 20)),
+                        "prev_close": float(_np.random.uniform(8, 20)),
                         "change_pct": float(_np.random.uniform(-0.03, 0.05)),
                         "volume": int(_np.random.randint(1_000_000, 8_000_000)),
+                        "avg_volume": int(_np.random.randint(800_000, 5_000_000)),
+                        "advances": int(_np.random.randint(1500, 2500)),
+                        "declines": int(_np.random.randint(1000, 2000)),
+                        "money_inflow": float(_np.random.uniform(500_000_000, 2_000_000_000)),
+                        "money_outflow": float(_np.random.uniform(400_000_000, 1_800_000_000)),
                     }
-                    res = asyncio.run(integration.analyze_stock(symbol, market_data))
+                    # 判断是否为完整10个智能体模式
+                    if st.session_state.get('ta_mode') == 'full_10_agents':
+                        res = asyncio.run(integration.analyze_comprehensive(symbol, market_data))
+                    else:
+                        res = asyncio.run(integration.analyze_stock(symbol, market_data))
                 else:
                     res = None
                 now = datetime.now().strftime('%H:%M:%S')
