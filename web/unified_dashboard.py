@@ -1716,16 +1716,128 @@ class UnifiedDashboard:
     
     def render_limitup_analysis(self):
         """渲染高频涨停板分析页面 (P2-1)"""
-        st.header("🔥 高频涨停板分析")
+        st.header("🔥 涨停板智能分析")
         
         st.markdown("""
         **功能说明:** 
-        - 基于1分钟/5分钟级别高频数据分析涨停板盘中特征
-        - 6大维度评分：量能爆发、封单稳定性、大单流入、尾盘封单强度、涨停打开次数、量萎缩度
-        - 预测次日继续涨停概率
+        - ✨ **一键扫描**: 自动查找当天收盘涨停股并批量分析
+        - 📊 **智能评分**: 4大维度自动打分(涨停时间、封单强度、开板次数、量能)
+        - 🎯 **强弱排序**: 按照综合得分自动排序，重点关注强势股
+        - 🚨 **操作建议**: 给出明确的“重点关注”/“谨慎观望”/“不建议”
         """)
         
         st.divider()
+        
+        # ===== 一键扫描功能 =====
+        st.subheader("🚀 一键扫描（推荐）")
+        
+        col_scan1, col_scan2 = st.columns([3, 1])
+        
+        with col_scan1:
+            st.info("💡 点击按钮后，系统将自动：扫描今日涨停股 → 分析强弱 → 排序打分 → 给出建议")
+        
+        with col_scan2:
+            auto_scan_btn = st.button(
+                "🔍 一键扫描分析",
+                use_container_width=True,
+                type="primary",
+                help="自动查找并分析今日所有涨停股"
+            )
+        
+        if auto_scan_btn:
+            with st.spinner("🔍 正在扫描涨停股..."):
+                try:
+                    # 导入扫描器
+                    import sys
+                    from pathlib import Path
+                    sys.path.insert(0, str(Path(__file__).parent.parent))
+                    from app.limitup_scanner import scan_and_analyze_today
+                    
+                    # 执行扫描
+                    df_results = scan_and_analyze_today()
+                    
+                    if df_results.empty:
+                        st.warning("⚠️ 今日暂无涨停股或数据获取失败")
+                    else:
+                        st.success(f"✅ 扫描完成！找到 {len(df_results)} 只涨停股")
+                        
+                        st.divider()
+                        
+                        # 显示统计信息
+                        col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+                        
+                        strong_count = len(df_results[df_results['total_score'] >= 85])
+                        medium_count = len(df_results[(df_results['total_score'] >= 70) & (df_results['total_score'] < 85)])
+                        weak_count = len(df_results[df_results['total_score'] < 70])
+                        
+                        with col_stat1:
+                            st.metric("🔥 强势涨停", f"{strong_count}只")
+                        with col_stat2:
+                            st.metric("⚠️ 一般涨停", f"{medium_count}只")
+                        with col_stat3:
+                            st.metric("❌ 弱势涨停", f"{weak_count}只")
+                        with col_stat4:
+                            avg_score = df_results['total_score'].mean()
+                            st.metric("📊 平均得分", f"{avg_score:.1f}")
+                        
+                        st.divider()
+                        
+                        # 显示分析结果表格
+                        st.subheader("📊 分析结果（按得分排序）")
+                        
+                        # 准备显示数据
+                        display_df = df_results[['name', 'symbol', 'total_score', 'rating', 'recommendation']].copy()
+                        display_df.columns = ['股票名称', '代码', '综合得分', '评级', '操作建议']
+                        
+                        # 显示表格
+                        st.dataframe(
+                            display_df,
+                            use_container_width=True,
+                            hide_index=True,
+                            height=400
+                        )
+                        
+                        # 重点关注提示
+                        if strong_count > 0:
+                            st.divider()
+                            st.subheader("🎯 重点关注股票")
+                            strong_stocks = df_results[df_results['total_score'] >= 85]
+                            
+                            for idx, row in strong_stocks.iterrows():
+                                with st.expander(f"🔥 {row['name']} ({row['symbol']}) - 得分: {row['total_score']}"):
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.metric("🕒 涨停时间得分", f"{row['scores']['time_score']}")
+                                        st.metric("💪 封单强度得分", f"{row['scores']['seal_score']}")
+                                    with col2:
+                                        st.metric("🔓 开板次数得分", f"{row['scores']['open_score']}")
+                                        st.metric("📊 量能得分", f"{row['scores']['volume_score']}")
+                                    
+                                    st.success(f"📌 **建议**: {row['recommendation']}")
+                        
+                        # 下载按钮
+                        st.divider()
+                        csv = df_results.to_csv(index=False, encoding='utf-8-sig')
+                        st.download_button(
+                            label="💾 下载分析结果 (CSV)",
+                            data=csv,
+                            file_name=f"limitup_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv"
+                        )
+                        
+                except ImportError as e:
+                    st.error(f"❌ 缺少依赖: {e}\n\n请确保已安装 akshare: pip install akshare")
+                except Exception as e:
+                    st.error(f"❌ 扫描失败: {e}")
+                    import traceback
+                    with st.expander("🔍 查看详细错误"):
+                        st.code(traceback.format_exc())
+        
+        st.divider()
+        st.divider()
+        
+        # ===== 单股深度分析 =====
+        st.subheader("🔍 单股深度分析（可选）")
         
         # 配置区
         col1, col2, col3 = st.columns(3)
