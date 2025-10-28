@@ -89,6 +89,7 @@ class E2ESLOValidator:
                 # 4. 生成推荐
                 recommendation = await self._generate_recommendation(
                     stock_code, agent_scores
+                )
                 
                 # 5. 风控检查
                 risk_passed = await self._risk_check(recommendation)
@@ -118,6 +119,7 @@ class E2ESLOValidator:
             latency_metrics.p95 <= SLO_P95_LATENCY_MS and
             signal_coverage >= SLO_SIGNAL_COVERAGE and
             availability >= SLO_AVAILABILITY
+        )
         
         result = E2ETestResult(
             test_name="end_to_end_flow",
@@ -133,6 +135,7 @@ class E2ESLOValidator:
                 'recommendations': len(recommendations)
             },
             timestamp=datetime.now()
+        )
         
         self.test_results.append(result)
         self._print_result(result)
@@ -180,6 +183,7 @@ class E2ESLOValidator:
                 recovered and
                 fully_recovered and
                 recovery_time <= SLO_RECOVERY_TIME_SECONDS
+            )
             
             result = E2ETestResult(
                 test_name="failover_recovery",
@@ -195,6 +199,7 @@ class E2ESLOValidator:
                     'fully_recovered': fully_recovered
                 },
                 timestamp=datetime.now()
+            )
             
             self.test_results.append(result)
             self._print_result(result)
@@ -212,6 +217,7 @@ class E2ESLOValidator:
                 availability=0,
                 details={'error': str(e)},
                 timestamp=datetime.now()
+            )
     
     async def test_concurrent_load(self, concurrent_stocks: int = 100) -> E2ETestResult:
         """
@@ -245,6 +251,7 @@ class E2ESLOValidator:
         passed = (
             latency_metrics.p95 <= SLO_P95_LATENCY_MS and
             success_rate >= 0.95  # 成功率 ≥ 95%
+        )
         
         result = E2ETestResult(
             test_name="concurrent_load",
@@ -260,6 +267,7 @@ class E2ESLOValidator:
                 'throughput_qps': concurrent_stocks / total_time if total_time > 0 else 0
             },
             timestamp=datetime.now()
+        )
         
         self.test_results.append(result)
         self._print_result(result)
@@ -281,6 +289,7 @@ class E2ESLOValidator:
             max=max(sorted_latencies),
             mean=statistics.mean(sorted_latencies),
             samples=n
+        )
     
     def _simulate_accuracy(self, recommendations: List[Dict]) -> float:
         """模拟准确率（实际需要T+1验证）"""

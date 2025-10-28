@@ -12,6 +12,7 @@ from .stream_processor import (
     StreamPipeline,
     RealTimeDataValidator,
     StreamManager
+)
 
 __all__ = [
     'StreamMessage',

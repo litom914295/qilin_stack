@@ -47,6 +47,7 @@ class MicrostructureIndicators:
         
         bucket_imbalance['abs_imbalance'] = abs(
             bucket_imbalance['buy_volume'] - bucket_imbalance['sell_volume']
+        )
         
         # 计算VPIN
         vpin = bucket_imbalance['abs_imbalance'] / bucket_imbalance['volume']
@@ -99,6 +100,7 @@ class MicrostructureIndicators:
         lambda_series = pd.Series(
             [np.nan] * window + lambda_values,
             index=df.index
+        )
         
         return lambda_series.fillna(method='ffill')
     
@@ -165,6 +167,7 @@ class MicrostructureIndicators:
         roll_series = pd.Series(
             [np.nan] * window + roll_spread,
             index=df.index
+        )
         
         return roll_series
 
@@ -308,7 +311,7 @@ class MachineLearningIndicators:
         result = pd.Series(
             [np.nan] * (lookback + pattern_length) + similarity_scores,
             index=df.index
-        
+        )
         return result
     
     @staticmethod
@@ -362,6 +365,7 @@ class MachineLearningIndicators:
             probabilities,
             columns=[f'regime_{i}_prob' for i in range(n_regimes)],
             index=features.index
+        )
         
         # 补充缺失值
         result = result.reindex(df.index).fillna(method='ffill')
@@ -412,6 +416,7 @@ class MachineLearningIndicators:
             n_estimators=100,
             max_depth=5,
             random_state=42
+        )
         rf.fit(features_scaled, target)
         
         # 获取特征重要性
@@ -525,6 +530,7 @@ class NetworkIndicators:
         result = pd.Series(
             [np.nan] * window + centrality_scores,
             index=returns_df.index
+        )
         
         return result
     
@@ -576,8 +582,10 @@ class NetworkIndicators:
                 total_spillover,
                 index=returns_df.index,
                 columns=['spillover_index']
-            
-        except Exception:result = pd.DataFrame(0, index=returns_df.index,
+            )
+        
+        except Exception:
+            result = pd.DataFrame(0, index=returns_df.index,
                                 columns=['spillover_index'])
         
         return result

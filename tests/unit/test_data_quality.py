@@ -16,7 +16,7 @@ from app.data import (
     QualityMonitor,
     QualityCheckType,
     SeverityLevel
-
+)
 
 @pytest.mark.unit
 class TestDataQualityChecker:

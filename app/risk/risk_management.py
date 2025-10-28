@@ -95,6 +95,7 @@ class PositionSizer:
             # 凯利公式
             kelly_fraction = self._calculate_kelly_fraction(
                 win_rate, avg_win, avg_loss
+            )
             position_value = capital * min(kelly_fraction, self.max_position_size)
         
         elif stop_loss:
@@ -306,6 +307,7 @@ class StopLossManager:
             self.highest_prices[symbol] = max(
                 self.highest_prices[symbol],
                 current_price
+            )
         
         # 计算移动止损
         highest = self.highest_prices[symbol]
@@ -340,6 +342,7 @@ class StopLossManager:
         stop_loss = self.stop_levels.get(
             symbol,
             entry_price * (1 - self.stop_loss_pct)
+        )
         
         if current_price <= stop_loss:
             return True, "stop_loss"
@@ -576,12 +579,13 @@ class RiskManager:
             max_position_size=config.get('max_position_size', 0.2),
             max_positions=config.get('max_positions', 10),
             risk_per_trade=config.get('risk_per_trade', 0.02)
+        )
         
         self.stop_loss_manager = StopLossManager(
             stop_loss_pct=config.get('stop_loss', 0.08),
             take_profit_pct=config.get('take_profit', 0.20),
             trailing_stop_pct=config.get('trailing_stop', 0.05)
-        
+        )
         self.risk_calculator = RiskCalculator()
         
         # 风险限制
@@ -631,6 +635,7 @@ class RiskManager:
         # 判断风险等级
         risk_level = self._determine_risk_level(
             var_95, max_drawdown, volatility, sharpe_ratio
+        )
         
         return RiskMetrics(
             var_95=var_95,
@@ -646,7 +651,7 @@ class RiskManager:
             volatility=volatility,
             downside_volatility=downside_volatility,
             risk_level=risk_level
-    
+        )
     def _determine_risk_level(
         self,
         var: float,
@@ -796,6 +801,7 @@ if __name__ == "__main__":
         positions={'AAPL': 100, 'GOOGL': 50},
         prices={'AAPL': 150, 'GOOGL': 2800},
         capital=100000
+    )
     
     print("=== 风险评估结果 ===")
     print(f"VaR (95%): {metrics.var_95:.2%}")
@@ -811,6 +817,7 @@ if __name__ == "__main__":
         price=150,
         stop_loss=138,
         volatility=0.25
+    )
     print(f"\n建议仓位: {position_size}股")
     
     # 根据风险调整仓位
@@ -818,4 +825,5 @@ if __name__ == "__main__":
         'AAPL',
         position_size,
         metrics
+    )
     print(f"风险调整后仓位: {adjusted_size}股")

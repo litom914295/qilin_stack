@@ -5,12 +5,9 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 import pandas as pd
-import numpy as np
 import logging
-from pathlib import Path
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +135,7 @@ class TradingContext:
     管理所有时间线的数据：D日历史、T+1日盘前、实时数据
     """
     
-    def __init__(self, symbol: str, current_time: datetime):
+    def __init__(self, symbol: str = "TEST", current_time: Optional[datetime] = None):
         """
         初始化交易上下文
         
@@ -147,12 +144,12 @@ class TradingContext:
             current_time: 当前时间（T+1日的某个时刻）
         """
         self.symbol = symbol
-        self.current_time = current_time
-        self.trade_date = current_time.strftime('%Y-%m-%d')
+        self.current_time = current_time or datetime.now()
+        self.trade_date = self.current_time.strftime('%Y-%m-%d')
         
         # 计算关键时间点
         self.t1_date = self.trade_date  # T+1日（今天）
-        self.d_date = self._get_previous_trade_date(current_time)  # D日（上一个交易日）
+        self.d_date = self._get_previous_trade_date(self.current_time)  # D日（上一个交易日）
         self.d_minus_1_date = self._get_previous_trade_date(
             datetime.strptime(self.d_date, '%Y-%m-%d')
         )  # D-1日
@@ -186,6 +183,24 @@ class TradingContext:
         }
         
         logger.info(f"初始化交易上下文 - 股票:{symbol}, D日:{self.d_date}, T+1日:{self.t1_date}")
+
+    def create_context(self, symbol: str, d_day_historical: pd.DataFrame, t1_premarket: pd.DataFrame) -> Dict[str, Any]:
+        """创建统一上下文字典（用于测试）"""
+        return {
+            'symbol': symbol,
+            'd_day_data': d_day_historical,
+            't1_data': t1_premarket,
+        }
+
+    def validate_data(self, data: pd.DataFrame, required_fields: List[str]) -> Tuple[bool, List[str]]:
+        """简单数据校验：非空且包含必需字段"""
+        errors: List[str] = []
+        if data is None or data.empty:
+            errors.append("数据为空")
+        missing = [f for f in required_fields if f not in data.columns]
+        if missing:
+            errors.append(f"缺失必需字段: {', '.join(missing)}")
+        return (len(errors) == 0), errors
     
     def _get_previous_trade_date(self, date: datetime) -> str:
         """获取前一个交易日（简化版，实际需要交易日历）"""

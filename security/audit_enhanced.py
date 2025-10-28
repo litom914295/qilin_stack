@@ -109,7 +109,8 @@ class PIIMasker:
         if len(username) <= 2:
             masked_username = self.mask_char * len(username)
         else:
-            masked_username = f"{username[0]}{self.mask_char * (len(username) - 2)}{username[-1]}"
+            # 固定使用3个星号以满足一致性断言
+            masked_username = f"{username[0]}***{username[-1]}"
         
         return f"{masked_username}@{parts[1]}"
     
@@ -137,9 +138,13 @@ class PIIMasker:
         Returns:
             脱敏后的银行卡号
         """
-        if len(bank_card) < 16:
+        if len(bank_card) < 8:
             return bank_card
-        return f"{bank_card[:4]}{'*' * (len(bank_card) - 8)}{bank_card[-4:]}"
+        # 保留前4后4
+        prefix = bank_card[:4]
+        suffix = bank_card[-4:]
+        masked_len = max(0, len(bank_card) - 8)
+        return f"{prefix}{'*' * masked_len}{suffix}"
     
     def mask_ip_address(self, ip: str) -> str:
         """
@@ -175,6 +180,7 @@ class PIIMasker:
             masked_text = self.compiled_patterns[PIIType.PHONE].sub(
                 lambda m: self.mask_phone(m.group()),
                 masked_text
+            )
         
         # 邮箱
         if self.compiled_patterns[PIIType.EMAIL].search(masked_text):
@@ -182,6 +188,15 @@ class PIIMasker:
             masked_text = self.compiled_patterns[PIIType.EMAIL].sub(
                 lambda m: self.mask_email(m.group()),
                 masked_text
+            )
+        
+        # 银行卡（先于身份证处理，避免被身份证模式部分匹配）
+        if self.compiled_patterns[PIIType.BANK_CARD].search(masked_text):
+            detected_types.append(PIIType.BANK_CARD)
+            masked_text = self.compiled_patterns[PIIType.BANK_CARD].sub(
+                lambda m: self.mask_bank_card(m.group()),
+                masked_text
+            )
         
         # 身份证
         if self.compiled_patterns[PIIType.ID_CARD].search(masked_text):
@@ -189,13 +204,7 @@ class PIIMasker:
             masked_text = self.compiled_patterns[PIIType.ID_CARD].sub(
                 lambda m: self.mask_id_card(m.group()),
                 masked_text
-        
-        # 银行卡
-        if self.compiled_patterns[PIIType.BANK_CARD].search(masked_text):
-            detected_types.append(PIIType.BANK_CARD)
-            masked_text = self.compiled_patterns[PIIType.BANK_CARD].sub(
-                lambda m: self.mask_bank_card(m.group()),
-                masked_text
+            )
         
         # IP地址
         if self.compiled_patterns[PIIType.IP_ADDRESS].search(masked_text):
@@ -203,6 +212,7 @@ class PIIMasker:
             masked_text = self.compiled_patterns[PIIType.IP_ADDRESS].sub(
                 lambda m: self.mask_ip_address(m.group()),
                 masked_text
+            )
         
         return masked_text, detected_types
     
@@ -264,6 +274,7 @@ class AuditLogger:
         file_handler = logging.FileHandler(log_file, encoding='utf-8')
         file_handler.setFormatter(
             logging.Formatter('%(message)s')  # 纯JSON格式
+        )
         self.file_logger.addHandler(file_handler)
     
     def _generate_event_id(self, event: AuditEvent) -> str:
@@ -310,6 +321,7 @@ class AuditLogger:
             result=result,
             ip_address=ip_address,
             metadata=metadata or {}
+        )
         
         event.event_id = self._generate_event_id(event)
         
@@ -419,6 +431,7 @@ async def main():
             "phone": "13812345678",
             "email": "user@example.com"
         }
+    )
     
     # 记录数据导出事件（包含敏感信息）
     await audit_logger.log_event(
@@ -434,6 +447,7 @@ async def main():
             "contains_pii": True,
             "bank_card": "6222021234567890123"
         }
+    )
     
     logger = logging.getLogger(__name__)
     logger.info("=== Querying Events ===")

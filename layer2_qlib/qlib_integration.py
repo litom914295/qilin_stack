@@ -569,7 +569,8 @@ class QlibIntegration:
             method="SLSQP",
             bounds=bounds,
             constraints=constraints_list
-        
+        )
+
         # 创建权重DataFrame
         weights_df = pd.DataFrame({
             "stock": predictions.columns,

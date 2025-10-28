@@ -110,6 +110,7 @@ class ABTestingFramework:
                 model_version=v['model_version'],
                 traffic_weight=v.get('traffic_weight', 0.5),
                 description=v.get('description', '')
+            )
             variant_objects.append(variant)
             total_weight += variant.traffic_weight
         
@@ -126,6 +127,7 @@ class ABTestingFramework:
             variants=variant_objects,
             min_sample_size=min_sample_size,
             confidence_level=confidence_level
+        )
         
         self.tests[test_id] = test
         logger.info(f"Created A/B test: {test_id} with {len(variant_objects)} variants")

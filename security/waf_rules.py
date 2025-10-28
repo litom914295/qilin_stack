@@ -280,6 +280,7 @@ class WAFRuleEngine:
                 matched_rules=[],
                 attack_types=[],
                 details={'reason': 'IP in blacklist', 'ip': client_ip}
+            )
         
         # 检查速率限制
         if not self.rate_limiter.allow(client_ip):
@@ -289,10 +290,12 @@ class WAFRuleEngine:
                 matched_rules=[],
                 attack_types=[],
                 details={'reason': 'Rate limit exceeded', 'ip': client_ip}
+            )
         
         # 合并所有需要检查的内容
         check_content = self._prepare_check_content(
             path, headers, body, params
+        )
         
         # 执行规则匹配
         for rule in self.rules:
@@ -333,6 +336,7 @@ class WAFRuleEngine:
                 'path': path,
                 'matched_rule_ids': [r.rule_id for r in matched_rules]
             }
+        )
         
         # 记录日志
         if should_block:
@@ -340,6 +344,7 @@ class WAFRuleEngine:
                 f"WAF BLOCKED: {client_ip} - {method} {path} - "
                 f"Threat: {max_threat_level.value} - "
                 f"Rules: {[r.rule_id for r in matched_rules]}"
+            )
         
         return result
     
@@ -514,6 +519,7 @@ if __name__ == "__main__":
         path="/api/users?id=1' OR '1'='1",
         headers={"User-Agent": "TestBot"},
         client_ip="192.168.1.100"
+    )
     print(f"SQL Injection Test - Blocked: {result.blocked}")
     print(f"Threat Level: {result.threat_level.value}")
     print(f"Matched Rules: {[r.rule_id for r in result.matched_rules]}")
@@ -525,6 +531,7 @@ if __name__ == "__main__":
         headers={"Content-Type": "application/json"},
         body='{"comment": "<script>alert(1)</script>"}',
         client_ip="192.168.1.101"
+    )
     print(f"\nXSS Test - Blocked: {result.blocked}")
     
     # 获取统计

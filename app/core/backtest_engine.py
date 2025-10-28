@@ -5,38 +5,22 @@
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 from enum import Enum
 import json
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
 
-class OrderType(Enum):
-    """订单类型"""
-    MARKET = "market"
-    LIMIT = "limit"
-    STOP = "stop"
-    STOP_LIMIT = "stop_limit"
+# 复用trade_executor中的枚举，避免枚举不一致导致的比较失败
+from app.core.trade_executor import OrderType, OrderSide, OrderStatus
 
 
-class OrderSide(Enum):
-    """订单方向"""
-    BUY = "buy"
-    SELL = "sell"
 
 
-class OrderStatus(Enum):
-    """订单状态"""
-    PENDING = "pending"
-    FILLED = "filled"
-    PARTIALLY_FILLED = "partially_filled"
-    CANCELLED = "cancelled"
-    REJECTED = "rejected"
 
 
 @dataclass
@@ -75,7 +59,7 @@ class Trade:
 
 @dataclass
 class Position:
-    """持仓信息"""
+    """持仓信息 (支持T+1规则)"""
     symbol: str
     quantity: float
     avg_price: float
@@ -85,11 +69,15 @@ class Position:
     market_value: float
     cost_basis: float
     last_update: datetime
+    # T+1相关字段
+    purchase_date: datetime  # 购入日期
+    available_quantity: float = 0  # 可卖数量 (除当日买入外)
+    frozen_quantity: float = 0  # 冻结数量 (当日买入,不可卖)
     metadata: Dict = field(default_factory=dict)
 
 
 class Portfolio:
-    """投资组合管理"""
+    """投资组合管理 (支持T+1规则)"""
     
     def __init__(self, initial_capital: float = 1000000):
         self.initial_capital = initial_capital
@@ -98,17 +86,32 @@ class Portfolio:
         self.trades: List[Trade] = []
         self.equity_curve: List[Tuple[datetime, float]] = []
         self.daily_returns: List[float] = []
+        self.current_date: Optional[datetime] = None  # 当前交易日
         
     def update_position(self, symbol: str, quantity: float, price: float, timestamp: datetime):
-        """更新持仓"""
+        """更新持仓 (支持T+1规则)"""
         if symbol in self.positions:
             position = self.positions[symbol]
             if quantity > 0:  # 买入
                 total_cost = position.avg_price * position.quantity + price * quantity
                 position.quantity += quantity
                 position.avg_price = total_cost / position.quantity if position.quantity > 0 else 0
+                
+                # T+1: 当日买入的股票冻结,次日才能卖出
+                position.frozen_quantity += quantity
+                position.purchase_date = timestamp
             else:  # 卖出
+                # 验证T+1规则：只能卖出可用数量
+                sell_qty = abs(quantity)
+                if sell_qty > position.available_quantity:
+                    raise ValueError(
+                        f"T+1限制: {symbol} 可卖数量={position.available_quantity}, "
+                        f"请求卖出={sell_qty}, 冻结数量={position.frozen_quantity}"
+                    )
+                
                 position.quantity += quantity  # quantity为负数
+                position.available_quantity -= sell_qty
+                
                 if position.quantity <= 0:
                     del self.positions[symbol]
             
@@ -119,6 +122,7 @@ class Portfolio:
                 position.unrealized_pnl = (price - position.avg_price) * position.quantity
         else:
             if quantity > 0:
+                # T+1: 新买入的股票全部冻结
                 self.positions[symbol] = Position(
                     symbol=symbol,
                     quantity=quantity,
@@ -128,8 +132,25 @@ class Portfolio:
                     realized_pnl=0,
                     market_value=quantity * price,
                     cost_basis=quantity * price,
-                    last_update=timestamp
+                    last_update=timestamp,
+                    purchase_date=timestamp,
+                    available_quantity=0,  # 当日买入,不可卖
+                    frozen_quantity=quantity
+                )
     
+    def unfreeze_positions(self, current_date: datetime):
+        """
+        解冻持仓 (次日调用)
+        T+1规则: 将上个交易日买入的股票转为可用
+        
+        Args:
+            current_date: 当前日期
+        """
+        for symbol, position in self.positions.items():
+            # 如果不是同一天,解冻之前的冻结数量
+            if position.purchase_date and position.purchase_date.date() < current_date.date():
+                position.available_quantity += position.frozen_quantity
+                position.frozen_quantity = 0
     def get_total_value(self) -> float:
         """获取总资产价值"""
         positions_value = sum(pos.market_value for pos in self.positions.values())
@@ -199,7 +220,7 @@ class BacktestEngine:
         return order.order_id
     
     def _validate_order(self, order: Order) -> bool:
-        """验证订单有效性"""
+        """验证订单有效性 (含 T+1 规则)"""
         if order.side == OrderSide.BUY:
             # 检查资金是否充足
             required_cash = order.quantity * (order.price or self._get_current_price(order.symbol))
@@ -215,6 +236,16 @@ class BacktestEngine:
                 return False
             
             position = self.portfolio.positions[order.symbol]
+            
+            # T+1规则: 只能卖出可用数量 (不包含当日买入)
+            if position.available_quantity < order.quantity:
+                logger.warning(
+                    f"T+1限制: {order.symbol} 可卖数量={position.available_quantity}, "
+                    f"请求卖出={order.quantity}, "
+                    f"冻结数量={position.frozen_quantity} (当日买入不可卖)"
+                )
+                return False
+            
             if position.quantity < order.quantity:
                 logger.warning(f"持仓不足: {order.symbol}, 需要{order.quantity}, 可用{position.quantity}")
                 return False
@@ -235,6 +266,7 @@ class BacktestEngine:
         commission = max(
             order.quantity * execution_price * self.commission_rate,
             self.min_commission
+        )
         
         # 更新订单状态
         order.status = OrderStatus.FILLED
@@ -252,6 +284,7 @@ class BacktestEngine:
                 order.quantity, 
                 execution_price, 
                 self.current_timestamp
+            )
         else:
             total_proceeds = order.quantity * execution_price - commission
             self.portfolio.cash += total_proceeds
@@ -260,6 +293,7 @@ class BacktestEngine:
                 -order.quantity, 
                 execution_price, 
                 self.current_timestamp
+            )
         
         # 记录成交
         trade = Trade(
@@ -271,6 +305,7 @@ class BacktestEngine:
             timestamp=self.current_timestamp,
             commission=commission,
             slippage=order.slippage
+        )
         self.portfolio.trades.append(trade)
         
         logger.debug(f"订单执行: {order.symbol} {order.side.value} {order.quantity}@{execution_price:.2f}")
@@ -302,6 +337,10 @@ class BacktestEngine:
         
         for date in trading_days:
             self.current_timestamp = date
+            self.portfolio.current_date = date
+            
+            # T+1规则: 每日开盘前解冻上个交易日买入的股票
+            self.portfolio.unfreeze_positions(date)
             
             # 更新持仓市值
             self._update_positions()
@@ -547,6 +586,7 @@ class StrategyOptimizer:
                     strategy.generate_signals,
                     strategy.start_date,
                     strategy.end_date
+                )
                 
                 # 获取优化目标值
                 target_value = self.backtest_engine.performance_metrics.get(optimization_target, 0)
@@ -631,6 +671,7 @@ if __name__ == "__main__":
         initial_capital=1000000,
         commission_rate=0.0003,
         slippage_rate=0.0001
+    )
     
     # 加载数据（示例）
     # data = pd.read_csv("historical_data.csv", index_col='date', parse_dates=True)

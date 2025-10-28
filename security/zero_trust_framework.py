@@ -93,6 +93,7 @@ class ZeroTrustFramework:
         self.redis_client = await aioredis.create_redis_pool(
             self.config.get('redis_url', 'redis://localhost'),
             encoding='utf-8'
+        )
         logger.info("Zero Trust Framework initialized successfully")
     
     async def authenticate_user(self, credentials: Dict[str, Any]) -> Tuple[bool, Optional[str]]:

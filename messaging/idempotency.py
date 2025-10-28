@@ -57,6 +57,7 @@ class IdempotencyManager:
                 self.redis_url,
                 encoding="utf-8",
                 decode_responses=True
+            )
             logger.info("Connected to Redis for idempotency management")
     
     async def disconnect(self):
@@ -116,6 +117,7 @@ class IdempotencyManager:
                 completed_at=datetime.fromisoformat(record_data['completed_at']) if record_data.get('completed_at') else None,
                 attempt_count=record_data.get('attempt_count', 0),
                 last_error=record_data.get('last_error')
+            )
             
             # 检查哈希是否匹配
             if record.message_hash == message_hash:
@@ -160,6 +162,7 @@ class IdempotencyManager:
             completed_at=None,
             attempt_count=1,
             last_error=None
+        )
         
         record_data = {
             'message_id': record.message_id,
@@ -177,6 +180,7 @@ class IdempotencyManager:
             json.dumps(record_data),
             nx=True,  # Only set if not exists
             ex=self.ttl_seconds
+        )
         
         if success:
             logger.info(f"Marked message {message_id} as processing")
@@ -211,6 +215,7 @@ class IdempotencyManager:
                 redis_key,
                 json.dumps(record_data),
                 ex=self.ttl_seconds
+            )
             
             logger.info(f"Marked message {message_id} as completed")
     
@@ -241,6 +246,7 @@ class IdempotencyManager:
                 redis_key,
                 json.dumps(record_data),
                 ex=self.ttl_seconds
+            )
             
             logger.warning(f"Marked message {message_id} as failed: {error}")
     
@@ -335,6 +341,7 @@ class KafkaIdempotentConsumer:
                 message_id=message_id,
                 message=message,
                 handler=handler
+            )
             
             return processed
             

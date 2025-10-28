@@ -65,6 +65,7 @@ class IntegratedTradingContext:
             symbol,
             start_date.strftime('%Y-%m-%d'),
             end_date.strftime('%Y-%m-%d')
+        )
         
         # 设置到context
         self.context.set_historical_data(historical_data.tail(lookback_days))
@@ -175,6 +176,7 @@ class IntegratedTradingContext:
             symbol,
             start_date.strftime('%Y-%m-%d'),
             end_date.strftime('%Y-%m-%d')
+        )
         
         ctx.set_historical_data(historical_data.tail(lookback_days))
         
@@ -358,6 +360,7 @@ class DataStreamManager:
         self.is_streaming = True
         self.stream_task = asyncio.create_task(
             self._stream_loop(symbols, interval, callback)
+        )
         logger.info(f"数据流已启动: {symbols}")
     
     async def _stream_loop(
@@ -423,6 +426,7 @@ async def example_usage():
     from app.agents.enhanced_agents import (
         EnhancedAuctionGameAgent,
         EnhancedMarketEcologyAgent
+    )
     
     agents = [
         EnhancedAuctionGameAgent(),
@@ -432,6 +436,7 @@ async def example_usage():
     results = await context.batch_analyze(
         ['000001', '000002', '000858'],
         agents
+    )
     
     print("\n批量分析结果:")
     for symbol, scores in results.items():
@@ -447,6 +452,7 @@ async def example_usage():
         ['000001'],
         interval=5,
         callback=on_data_update
+    )
     
     # 运行10秒后停止
     await asyncio.sleep(10)

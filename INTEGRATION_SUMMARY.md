@@ -123,7 +123,7 @@ Qilin Stack 整体架构
 ```yaml
 llm_provider: "openai"
 llm_model: "gpt-5-thinking-all"
-llm_api_key: "sk-ArQi0bOqLCqsY3sdGnfqF2tSsOnPAV7MyorFrM1Wcqo2uXiw"
+llm_api_key: ${OPENAI_API_KEY}
 llm_api_base: "https://api.tu-zi.com"
 ```
 

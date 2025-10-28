@@ -77,7 +77,7 @@ class DependencyHealthProbe:
             'Dependency health status (0=unhealthy, 0.5=degraded, 1=healthy)',
             ['dependency', 'type'],
             registry=self.registry
-        
+        )
         # 探针响应时间
         self.probe_response_time = Histogram(
             'qilin_dependency_probe_duration_seconds',
@@ -85,6 +85,7 @@ class DependencyHealthProbe:
             ['dependency', 'type'],
             buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
             registry=self.registry
+        )
         
         # 探针失败次数
         self.probe_failures = Counter(
@@ -92,13 +93,14 @@ class DependencyHealthProbe:
             'Total number of dependency probe failures',
             ['dependency', 'type'],
             registry=self.registry
-        
+        )
         # 依赖可用性
         self.dependency_availability = Gauge(
             'qilin_dependency_availability',
             'Dependency availability over time window',
             ['dependency', 'type'],
             registry=self.registry
+        )
     
     def register_dependency(self, config: DependencyConfig):
         """
@@ -113,7 +115,7 @@ class DependencyHealthProbe:
     async def _ensure_http_session(self):
         """确保HTTP会话存在"""
         if self.http_session is None or self.http_session.closed:
-
+            timeout = aiohttp.ClientTimeout(total=5)
             self.http_session = aiohttp.ClientSession(timeout=timeout)
     
     async def probe_database(self, config: DependencyConfig) -> ProbeResult:
@@ -135,6 +137,8 @@ class DependencyHealthProbe:
             
             conn = await asyncio.wait_for(
                 asyncpg.connect(config.endpoint),
+                timeout=config.timeout_seconds
+            )
 
             # 执行简单查询
             await conn.fetchval('SELECT 1')
@@ -148,7 +152,8 @@ class DependencyHealthProbe:
                 status=HealthStatus.HEALTHY,
                 response_time_ms=response_time_ms,
                 timestamp=datetime.now()
-            
+            )
+        
         except asyncio.TimeoutError:
             response_time_ms = config.timeout_seconds * 1000
             return ProbeResult(
@@ -158,6 +163,7 @@ class DependencyHealthProbe:
                 response_time_ms=response_time_ms,
                 timestamp=datetime.now(),
                 error_message="Connection timeout"
+            )
         except Exception as e:
             response_time_ms = (time.time() - start_time) * 1000
             return ProbeResult(
@@ -167,6 +173,7 @@ class DependencyHealthProbe:
                 response_time_ms=response_time_ms,
                 timestamp=datetime.now(),
                 error_message=str(e)
+            )
     
     async def probe_redis(self, config: DependencyConfig) -> ProbeResult:
         """
@@ -183,6 +190,8 @@ class DependencyHealthProbe:
         try:
             redis_client = await asyncio.wait_for(
                 aioredis.from_url(config.endpoint),
+                timeout=config.timeout_seconds
+            )
 
             # PING测试
             await redis_client.ping()
@@ -199,12 +208,9 @@ class DependencyHealthProbe:
                 dependency_type=config.type,
                 status=HealthStatus.HEALTHY,
                 response_time_ms=response_time_ms,
-                timestamp=datetime.now(),
-                details={
-                    'connected_clients': info.get('connected_clients', 0),
-                    'used_memory_human': info.get('used_memory_human', 'N/A')
-                }
-            
+                timestamp=datetime.now()
+            )
+        
         except asyncio.TimeoutError:
             response_time_ms = config.timeout_seconds * 1000
             return ProbeResult(
@@ -214,6 +220,7 @@ class DependencyHealthProbe:
                 response_time_ms=response_time_ms,
                 timestamp=datetime.now(),
                 error_message="Connection timeout"
+            )
         except Exception as e:
             response_time_ms = (time.time() - start_time) * 1000
             return ProbeResult(
@@ -223,7 +230,8 @@ class DependencyHealthProbe:
                 response_time_ms=response_time_ms,
                 timestamp=datetime.now(),
                 error_message=str(e)
-    
+            )
+        
     async def probe_http_endpoint(self, config: DependencyConfig) -> ProbeResult:
         """
         探测HTTP端点健康
@@ -258,6 +266,7 @@ class DependencyHealthProbe:
                         response_time_ms=response_time_ms,
                         timestamp=datetime.now(),
                         details={'http_status': response.status}
+                    )
                     
         except asyncio.TimeoutError:
             response_time_ms = config.timeout_seconds * 1000
@@ -268,6 +277,7 @@ class DependencyHealthProbe:
                 response_time_ms=response_time_ms,
                 timestamp=datetime.now(),
                 error_message="Request timeout"
+            )
         except Exception as e:
             response_time_ms = (time.time() - start_time) * 1000
             return ProbeResult(
@@ -277,6 +287,7 @@ class DependencyHealthProbe:
                 response_time_ms=response_time_ms,
                 timestamp=datetime.now(),
                 error_message=str(e)
+            )
     
     async def probe_dependency(self, dependency_name: str) -> ProbeResult:
         """
@@ -365,6 +376,7 @@ class DependencyHealthProbe:
                     response_time_ms=0,
                     timestamp=datetime.now(),
                     error_message=str(result)
+                )
             else:
                 probe_results[name] = result
         
@@ -396,6 +408,7 @@ class DependencyHealthProbe:
         has_degraded = any(
             result.status == HealthStatus.DEGRADED
             for result in self.probe_results.values()
+        )
         
         if has_degraded:
             return HealthStatus.DEGRADED

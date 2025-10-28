@@ -41,3 +41,4 @@ async def prometheus_metrics():
     return Response(
         content=metrics.get_metrics(),
         media_type=CONTENT_TYPE_LATEST
+    )

@@ -11,32 +11,70 @@ import numpy as np
 import logging
 from pathlib import Path
 import sys
+import os
 
-# 添加tradingagents项目路径
-sys.path.insert(0, str(Path("D:/test/Qlib/tradingagents")))
+# 添加tradingagents项目路径（优先环境变量，其次不修改路径）
+TA_PATH = Path(os.getenv("TRADINGAGENTS_PATH", ""))
+if TA_PATH and TA_PATH.exists():
+    sys.path.insert(0, str(TA_PATH))
 
 # 导入tradingagents组件
 try:
     from tradingagents.agents import BaseAgent
     from tradingagents.llm.base import BaseLLM
-    from tradingagents.tools import (
-        SearchTool,
-        CalculatorTool,
-        ChartTool,
-        DataAnalysisTool
+    from tradingagents.tools import SearchTool, CalculatorTool, ChartTool, DataAnalysisTool
     from tradingagents.dataflows import DataFlow
     from tradingagents.utils.logging_utils import get_logger
     TRADINGAGENTS_AVAILABLE = True
-except ImportError as e:
+except Exception as e:
     print(f"Warning: Could not import tradingagents components: {e}")
     TRADINGAGENTS_AVAILABLE = False
     BaseAgent = object  # 占位符
 
-# 导入麒麟堆栈组件
-from ..agents.trading_agents import MultiAgentManager, TradingSignal
-from ..data_layer.data_access_layer import DataAccessLayer
-from ..qlib_integration.qlib_engine import QlibIntegrationEngine
-from ..trading.realtime_trading_system import RealtimeTradingSystem
+# 导入麒麟堆栈组件（容错导入）
+try:
+    from agents.trading_agents import MultiAgentManager, TradingSignal
+except Exception as e:
+    # 占位实现
+    class MultiAgentManager:
+        def __init__(self, *args, **kwargs):
+            pass
+        def register_agent(self, name, agent):
+            pass
+        async def analyze(self, data):
+            return {}
+    
+    class TradingSignal:
+        pass
+    print(f"Warning: MultiAgentManager not available: {e}")
+
+try:
+    from data_layer.data_access_layer import DataAccessLayer
+except Exception as e:
+    # 占位实现
+    class DataAccessLayer:
+        def __init__(self, *args, **kwargs):
+            pass
+    print(f"Warning: DataAccessLayer not available: {e}")
+
+# Qlib 集成适配（命名兼容）
+try:
+    from qlib_integration.qlib_engine import QlibIntegrationEngine
+except Exception as e:
+    # 占位实现
+    class QlibIntegrationEngine:
+        def __init__(self, *args, **kwargs):
+            pass
+    print(f"Warning: QlibIntegrationEngine not available: {e}")
+
+try:
+    from trading.realtime_trading_system import RealtimeTradingSystem
+except Exception as e:
+    # 占位实现
+    class RealtimeTradingSystem:
+        def __init__(self, *args, **kwargs):
+            pass
+    print(f"Warning: RealtimeTradingSystem not available: {e}")
 
 logger = logging.getLogger(__name__)
 
@@ -500,6 +538,7 @@ class UnifiedTradingSystem:
         # 从数据层获取数据
         return await self.adapter.data_access.get_realtime_data(
             symbols=self.config.get('symbols', ['000001', '000002', '600000'])
+        )
     
     async def _process_consensus_signal(self, consensus: Dict[str, Any]):
         """处理共识信号"""

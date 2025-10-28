@@ -176,6 +176,7 @@ class TestBacktestEngine(unittest.TestCase):
             initial_capital=100000,
             commission_rate=0.001,
             slippage_rate=0.0005
+        )
         
         # 创建测试数据
         dates = pd.date_range('2023-01-01', periods=30, freq='D')
@@ -198,6 +199,7 @@ class TestBacktestEngine(unittest.TestCase):
             side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             quantity=100
+        )
         
         self.engine.current_timestamp = self.test_data.index[0]
         order_id = self.engine.place_order(buy_order)
@@ -221,6 +223,7 @@ class TestBacktestEngine(unittest.TestCase):
             side=OrderSide.BUY,
             order_type=OrderType.MARKET,
             quantity=100
+        )
         self.engine.place_order(buy_order)
         
         # 检查持仓
@@ -246,6 +249,7 @@ class TestBacktestEngine(unittest.TestCase):
             simple_strategy,
             start_date=self.test_data.index[0],
             end_date=self.test_data.index[-1]
+        )
         
         # 检查性能指标
         metrics = self.engine.performance_metrics
@@ -270,6 +274,7 @@ class TestAgentOrchestrator(unittest.TestCase):
                 agent, 
                 "trend_following", 
                 0.5 + i * 0.1
+            )
     
     def test_agent_registration(self):
         """测试Agent注册"""
@@ -319,6 +324,7 @@ class TestPerformanceMonitor(unittest.TestCase):
         self.monitor = PerformanceMonitor(
             enable_system_monitor=True,
             system_monitor_interval=0.1
+        )
     
     def tearDown(self):
         """清理"""
@@ -366,10 +372,12 @@ class TestPerformanceMonitor(unittest.TestCase):
                 agent_id, 
                 0.1 + i * 0.05, 
                 success=(i != 1)
+            )
             self.monitor.agent_monitor.record_agent_performance(
                 agent_id, 
                 0.8 - i * 0.1, 
                 0.7 + i * 0.05
+            )
         
         all_metrics = self.monitor.agent_monitor.get_all_agent_metrics()
         self.assertEqual(len(all_metrics), 3)
@@ -416,6 +424,7 @@ class TestTradeExecutor(unittest.TestCase):
                 side=OrderSide.BUY,
                 quantity=1000,
                 order_type=OrderType.MARKET
+            )
             return order_id
         
         order_id = asyncio.run(submit_order())
@@ -430,6 +439,7 @@ class TestTradeExecutor(unittest.TestCase):
                 side=OrderSide.BUY,
                 quantity=3000,
                 strategy="vwap"
+            )
             self.assertIsNotNone(vwap_id)
             
             # 测试智能路由
@@ -438,6 +448,7 @@ class TestTradeExecutor(unittest.TestCase):
                 side=OrderSide.BUY,
                 quantity=500,
                 strategy="smart"
+            )
             self.assertIsNotNone(smart_id)
         
         asyncio.run(test_strategies())
@@ -451,6 +462,7 @@ class TestTradeExecutor(unittest.TestCase):
                 side=OrderSide.BUY,
                 quantity=50000,  # 超过最大订单大小
                 order_type=OrderType.MARKET
+            )
             self.assertIsNone(order_id)
             
             # 测试过小订单（应该被拒绝）
@@ -459,6 +471,7 @@ class TestTradeExecutor(unittest.TestCase):
                 side=OrderSide.BUY,
                 quantity=50,  # 低于最小订单大小
                 order_type=OrderType.MARKET
+            )
             self.assertIsNone(order_id)
         
         asyncio.run(test_risk())
@@ -493,6 +506,7 @@ class TestTradingContext(unittest.TestCase):
             symbol=symbol,
             d_day_historical=d_day_data,
             t1_premarket=t1_data
+        )
         
         self.assertIsNotNone(context_data)
         self.assertEqual(context_data['symbol'], symbol)
@@ -505,6 +519,7 @@ class TestTradingContext(unittest.TestCase):
         is_valid, errors = self.context.validate_data(
             pd.DataFrame(),
             required_fields=['open', 'close']
+        )
         self.assertFalse(is_valid)
         self.assertIn("数据为空", errors)
         
@@ -513,6 +528,7 @@ class TestTradingContext(unittest.TestCase):
         is_valid, errors = self.context.validate_data(
             data,
             required_fields=['open', 'close']
+        )
         self.assertFalse(is_valid)
         self.assertIn("缺失必需字段: close", errors)
 
@@ -542,6 +558,7 @@ class TestTradingAgentsIntegration(unittest.TestCase):
                 MacroAgent,
                 ArbitrageAgent,
                 QilinMultiAgentCoordinator
+            )
             
             # 测试智能体创建
             market_agent = MarketEcologyAgent("test_market")

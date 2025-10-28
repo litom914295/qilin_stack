@@ -123,6 +123,7 @@ class BacktestEngine:
             result = await self.decision_agent.analyze_parallel(
                 symbol,
                 self._context_to_market_context(ctx)
+            )
             
             # 根据得分生成信号
             if result['weighted_score'] >= 70:
@@ -159,6 +160,7 @@ class BacktestEngine:
             money_flow={},
             technical_indicators={},
             fundamental_data={}
+        )
     
     def _execute_trades(self, date: datetime, signals: List[Dict]):
         """执行交易"""
@@ -349,6 +351,7 @@ async def main():
     engine = BacktestEngine(
         start_date='2024-12-15',
         end_date='2024-12-20'
+    )
     
     # 股票池
     symbols = ['000001', '000002', '300750', '002415', '603986']

@@ -7,7 +7,6 @@ import re
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 import pandas as pd
-import numpy as np
 from enum import Enum
 
 class ValidationError(Exception):
@@ -45,6 +44,88 @@ class Validator:
     MAX_POSITION_RATIO = 0.3 # 最大仓位比例
     
     @classmethod
+    def normalize_symbol(cls, symbol: str, output_format: str = "qlib") -> str:
+        """
+        标准化股票代码格式
+        支持多种格式的转换: 600000.SH <-> SH600000
+        
+        Args:
+            symbol: 股票代码 (支持 600000.SH 或 SH600000 格式)
+            output_format: 输出格式 ("qlib" = SH600000, "standard" = 600000.SH)
+            
+        Returns:
+            标准化的股票代码
+            
+        Examples:
+            >>> normalize_symbol("600000.SH", "qlib")
+            "SH600000"
+            >>> normalize_symbol("SH600000", "standard")
+            "600000.SH"
+        """
+        if not symbol:
+            raise ValidationError("股票代码不能为空")
+        
+        symbol = str(symbol).upper().strip()
+        
+        # 验证基本格式 - 必须包含数字
+        if not re.search(r'\d', symbol):
+            raise ValidationError(f"无效的股票代码: {symbol} (必须包含数字)")
+        
+        # 检测当前格式
+        if '.' in symbol:  # 格式: 600000.SH
+            parts = symbol.split('.')
+            if len(parts) != 2:
+                raise ValidationError(f"无效的股票代码格式: {symbol}")
+            code, exchange = parts
+            
+            # 验证代码是6位数字
+            if not (code.isdigit() and len(code) == 6):
+                raise ValidationError(f"无效的股票代码: {symbol} (代码部分应为6位数字)")
+            
+            # 标准化交易所代码
+            exchange_map = {'SH': 'SH', 'SZ': 'SZ', 'BJ': 'BJ', 
+                          'SS': 'SH', 'XSHG': 'SH', 'XSHE': 'SZ'}
+            exchange = exchange_map.get(exchange, exchange)
+            
+            if output_format == "qlib":
+                return f"{exchange}{code}"
+            else:
+                return f"{code}.{exchange}"
+        
+        elif len(symbol) >= 2 and symbol[:2] in ['SH', 'SZ', 'BJ']:  # 格式: SH600000
+            exchange = symbol[:2]
+            code = symbol[2:]
+            
+            # 验证代码部分是6位数字
+            if not (code.isdigit() and len(code) == 6):
+                raise ValidationError(f"无效的股票代码: {symbol} (代码部分应为6位数字)")
+            
+            if output_format == "qlib":
+                return f"{exchange}{code}"
+            else:
+                return f"{code}.{exchange}"
+        
+        else:
+            # 无交易所前缀,验证并自动识别
+            # 必须是6位数字
+            if not (symbol.isdigit() and len(symbol) == 6):
+                raise ValidationError(f"无效的股票代码: {symbol} (应为6位数字或包含交易所前缀)")
+            
+            if symbol.startswith('6'):
+                exchange = 'SH'
+            elif symbol.startswith(('0', '3')):
+                exchange = 'SZ'
+            elif symbol.startswith(('4', '8')):
+                exchange = 'BJ'
+            else:
+                raise ValidationError(f"无法识别的股票代码格式: {symbol}")
+            
+            if output_format == "qlib":
+                return f"{exchange}{symbol}"
+            else:
+                return f"{symbol}.{exchange}"
+    
+    @classmethod
     def validate_symbol(cls, symbol: str, market: MarketType = MarketType.CN_STOCK) -> str:
         """
         验证股票代码
@@ -65,8 +146,12 @@ class Validator:
         if not isinstance(symbol, str):
             raise ValidationError(f"股票代码必须是字符串类型，当前类型: {type(symbol)}")
         
-        # 转换为大写
-        symbol = symbol.upper().strip()
+        # 先标准化为qlib格式
+        try:
+            symbol = cls.normalize_symbol(symbol, "qlib")
+        except ValidationError:
+            # 如果标准化失败,使用原始格式
+            symbol = symbol.upper().strip()
         
         # 验证格式
         pattern = cls.SYMBOL_PATTERNS.get(market)
@@ -74,9 +159,9 @@ class Validator:
             raise ValidationError(
                 f"无效的股票代码格式: {symbol}，"
                 f"预期格式: {pattern}"
+            )
         
         return symbol
-    
     @classmethod
     def validate_quantity(cls, qty: Union[int, float]) -> int:
         """
@@ -183,6 +268,7 @@ class Validator:
         validated_order['price'] = cls.validate_price(
             order['price'], 
             validated_order['symbol']
+        )
         
         # 验证订单类型（如果提供）
         if 'order_type' in order:
@@ -202,7 +288,8 @@ class Validator:
                     validated_order['timestamp'] = order['timestamp']
                 else:
                     validated_order['timestamp'] = datetime.now()
-            except Exception:validated_order['timestamp'] = datetime.now()
+            except Exception:
+                validated_order['timestamp'] = datetime.now()
         else:
             validated_order['timestamp'] = datetime.now()
         
@@ -264,12 +351,63 @@ class Validator:
         return df
     
     @classmethod
-    def validate_config(cls, config: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_parameter(cls, param_name: str, value: Any, 
+                         min_val: Optional[Union[int, float]] = None,
+                         max_val: Optional[Union[int, float]] = None,
+                         allowed_values: Optional[List[Any]] = None) -> Any:
         """
-        验证配置文件
+        配置驱动的参数验证
+        
+        Args:
+            param_name: 参数名称
+            value: 参数值
+            min_val: 最小值
+            max_val: 最大值
+            allowed_values: 允许的值列表
+            
+        Returns:
+            验证后的值
+            
+        Raises:
+            ValidationError: 验证失败
+        """
+        if value is None:
+            raise ValidationError(f"参数 {param_name} 不能为空")
+        
+        # 检查允许值列表
+        if allowed_values is not None:
+            if value not in allowed_values:
+                raise ValidationError(
+                    f"参数 {param_name} 的值 {value} 不在允许的值列表中: {allowed_values}"
+                )
+            return value
+        
+        # 数值范围验证
+        if isinstance(value, (int, float)):
+            if min_val is not None and value < min_val:
+                raise ValidationError(
+                    f"参数 {param_name} 的值 {value} 小于最小值 {min_val}"
+                )
+            if max_val is not None and value > max_val:
+                raise ValidationError(
+                    f"参数 {param_name} 的值 {value} 大于最大值 {max_val}"
+                )
+        
+        return value
+    
+    @classmethod
+    def validate_config(cls, config: Dict[str, Any], 
+                       config_schema: Optional[Dict[str, Dict]] = None) -> Dict[str, Any]:
+        """
+        验证配置文件 (支持配置驱动的验证)
         
         Args:
             config: 配置字典
+            config_schema: 配置模式定义
+                例如: {
+                    'topk': {'min': 1, 'max': 10, 'type': int},
+                    'max_runtime_sec': {'min': 10, 'max': 300, 'type': int}
+                }
             
         Returns:
             验证后的配置
@@ -277,9 +415,43 @@ class Validator:
         Raises:
             ValidationError: 验证失败
         """
-        if not config:
-            raise ValidationError("配置不能为空")
+        # 如果提供了配置模式,按模式验证
+        if config_schema:
+            # 先检查必填字段
+            if not config:
+                required_keys = [k for k, v in config_schema.items() if v.get('required', False)]
+                if required_keys:
+                    raise ValidationError(f"缺少必需的配置项: {', '.join(required_keys)}")
+                else:
+                    raise ValidationError("配置不能为空")
+            
+            for key, schema in config_schema.items():
+                if key in config:
+                    value = config[key]
+                    
+                    # 类型检查
+                    expected_type = schema.get('type')
+                    if expected_type and not isinstance(value, expected_type):
+                        raise ValidationError(
+                            f"参数 {key} 的类型错误: 期望 {expected_type}, 实际 {type(value)}"
+                        )
+                    
+                    # 范围检查
+                    min_val = schema.get('min')
+                    max_val = schema.get('max')
+                    allowed = schema.get('allowed_values')
+                    
+                    config[key] = cls.validate_parameter(
+                        key, value, min_val, max_val, allowed
+                    )
+                elif schema.get('required', False):
+                    raise ValidationError(f"缺少必需的配置项: {key}")
+                elif 'default' in schema:
+                    config[key] = schema['default']
+            
+            return config
         
+        # 默认验证逻辑
         # 验证必需的配置项
         required_keys = ['market', 'capital']
         for key in required_keys:
@@ -373,6 +545,7 @@ class RiskValidator:
         if position_ratio > max_ratio:
             raise ValidationError(
                 f"仓位比例 {position_ratio:.2%} 超过最大限制 {max_ratio:.2%}"
+            )
         
         return True
     
@@ -397,6 +570,7 @@ class RiskValidator:
         if loss_ratio > max_loss:
             raise ValidationError(
                 f"止损比例 {loss_ratio:.2%} 超过最大限制 {max_loss:.2%}"
+            )
         
         return True
     
@@ -418,5 +592,6 @@ class RiskValidator:
         if leverage > max_leverage:
             raise ValidationError(
                 f"杠杆率 {leverage} 超过最大限制 {max_leverage}"
+            )
         
         return True

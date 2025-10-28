@@ -92,6 +92,7 @@ class KeyRotationManager:
             self.config['redis_url'],
             encoding='utf-8',
             decode_responses=True
+        )
         logger.info("Key Rotation Manager initialized")
     
     async def generate_key(self, key_type: KeyType, **kwargs) -> Tuple[str, KeyMetadata]:
@@ -130,6 +131,7 @@ class KeyRotationManager:
             created_at=datetime.now(),
             expires_at=datetime.now() + timedelta(days=rotation_days),
             metadata=kwargs
+        )
         
         # 存储密钥
         await self._store_key(key_id, key_value, metadata)
@@ -167,6 +169,7 @@ class KeyRotationManager:
             old_metadata.key_type,
             previous_key_id=key_id,
             rotation_from=key_id
+        )
         
         # 保留旧密钥（宽限期）
         grace_period = self.config['grace_period_days']
@@ -244,6 +247,7 @@ class KeyRotationManager:
         expiring_keys = []
         alert_threshold = datetime.now() + timedelta(
             days=self.config['alert_before_expiry_days']
+        )
         
         pattern = f"{self.config['key_prefix']}*"
         async for key in self.redis_client.scan_iter(match=pattern):
@@ -388,6 +392,7 @@ class KeyRotationManager:
             redis_key,
             'metadata',
             self._serialize_metadata(metadata)
+        )
     
     async def _update_usage_stats(self, key_id: str):
         """更新使用统计"""
@@ -413,6 +418,7 @@ class KeyRotationManager:
         await self.redis_client.lpush(
             history_key,
             json.dumps(rotation_record)
+        )
         
         # 只保留最近1000条记录
         await self.redis_client.ltrim(history_key, 0, 999)
@@ -424,6 +430,7 @@ class KeyRotationManager:
             backup_key,
             'metadata',
             self._serialize_metadata(metadata)
+        )
         # 备份保留1年
         await self.redis_client.expire(backup_key, 365 * 24 * 3600)
     
@@ -480,7 +487,7 @@ class KeyRotationManager:
             last_used_at=datetime.fromisoformat(obj['last_used_at']) if obj.get('last_used_at') else None,
             usage_count=obj['usage_count'],
             metadata=obj['metadata']
-
+        )
 
 class RotationScheduler:
     """轮换调度器"""
@@ -504,6 +511,7 @@ class RotationScheduler:
                     for key in expiring_keys:
                         logger.warning(
                             f"Key {key.key_id} expires at {key.expires_at}"
+                        )
                 
                 # 自动轮换
                 await self.rotation_manager.auto_rotate_keys()

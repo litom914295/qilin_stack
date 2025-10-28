@@ -19,7 +19,7 @@ from app.mlops import (
     ABTestingFramework,
     OnlineLearningPipeline,
     TestStatus
-
+)
 
 @pytest.mark.mlops
 class TestModelRegistry:
@@ -47,6 +47,7 @@ class TestModelRegistry:
             model_name="test_model",
             tags={'algorithm': 'random_forest'},
             input_example=X[:5]
+        )
         
         assert run_id is not None
         assert isinstance(run_id, str)
@@ -60,6 +61,7 @@ class TestModelRegistry:
             model=model,
             model_name="list_test_model",
             input_example=X[:5]
+        )
         
         # 列出所有模型
         models = registry.list_models()
@@ -78,6 +80,7 @@ class TestModelRegistry:
             model=model,
             model_name="stage_test_model",
             input_example=X[:5]
+        )
         
         # 提升到Production
         models = registry.list_models()
@@ -89,7 +92,8 @@ class TestModelRegistry:
                 model_name=model_name,
                 version=version,
                 stage="Production"
-
+            )
+        
 
 @pytest.mark.mlops
 class TestExperimentTracker:
@@ -106,6 +110,7 @@ class TestExperimentTracker:
             experiment_name="test_experiment",
             run_name="test_run",
             tags={'test': 'true'}
+        )
         
         assert run is not None
         
@@ -117,6 +122,7 @@ class TestExperimentTracker:
         tracker.start_experiment(
             experiment_name="param_test",
             run_name="param_run"
+        )
         
         params = {
             'n_estimators': 100,
@@ -134,6 +140,7 @@ class TestExperimentTracker:
         tracker.start_experiment(
             experiment_name="metric_test",
             run_name="metric_run"
+        )
         
         metrics = {
             'accuracy': 0.95,
@@ -174,6 +181,7 @@ class TestModelEvaluator:
             X_test=X_test,
             y_test=y_test,
             prices=prices
+        )
         
         assert 'accuracy' in metrics
         assert 'precision' in metrics
@@ -215,6 +223,7 @@ class TestABTestingFramework:
                     'traffic_weight': 0.5
                 }
             ]
+        )
         
         assert test.test_id == "test_001"
         assert len(test.variants) == 2
@@ -229,6 +238,7 @@ class TestABTestingFramework:
             variants=[
                 {'name': 'v1', 'model_name': 'm1', 'model_version': 1, 'traffic_weight': 1.0}
             ]
+        )
         
         # 启动测试
         ab_framework.start_test("test_002")
@@ -247,6 +257,7 @@ class TestABTestingFramework:
                 {'name': 'v1', 'model_name': 'm1', 'model_version': 1, 'traffic_weight': 0.6},
                 {'name': 'v2', 'model_name': 'm2', 'model_version': 1, 'traffic_weight': 0.4}
             ]
+        )
         ab_framework.start_test("test_003")
         
         # 路由多次请求
@@ -280,6 +291,7 @@ class TestOnlineLearningPipeline:
             model_name="test_online_model",
             buffer_size=100,
             min_samples_for_update=10
+        )
     
     def test_add_sample(self, pipeline, sample_model_data):
         """测试添加样本"""
@@ -340,6 +352,7 @@ class TestMLOpsIntegration:
         tracker.start_experiment(
             experiment_name="integration_test",
             run_name="full_workflow"
+        )
         
         # 3. 训练模型
         model = RandomForestClassifier(n_estimators=10, random_state=42)
@@ -355,6 +368,7 @@ class TestMLOpsIntegration:
             X_test=X_test,
             y_test=y_test,
             prices=prices
+        )
         
         # 6. 记录指标
         tracker.log_metrics(metrics)
@@ -364,6 +378,7 @@ class TestMLOpsIntegration:
             model=model,
             model_name="integration_test_model",
             input_example=X_train[:5]
+        )
         
         # 8. 结束实验
         tracker.end_experiment()

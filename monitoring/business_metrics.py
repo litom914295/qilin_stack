@@ -99,61 +99,61 @@ class BusinessMetricsCollector:
             'Total number of recommendations generated',
             ['action', 'quality'],
             registry=self.registry
-        
+        )
         # 推荐命中率
         self.recommendation_hit_rate = Gauge(
             'qilin_recommendation_hit_rate',
             'Recommendation hit rate (T+1 validation)',
             ['timeframe'],  # 1d, 7d, 30d
             registry=self.registry
-        
+        )
         # 推荐收益率
         self.recommendation_return = Histogram(
             'qilin_recommendation_return_percent',
             'Recommendation return percentage',
             buckets=[-10, -5, -2, -1, 0, 1, 2, 5, 10, 20],
             registry=self.registry
-        
+        )
         # 平均收益率
         self.avg_return = Gauge(
             'qilin_avg_return_percent',
             'Average return percentage',
             ['timeframe'],
             registry=self.registry
-        
+        )
         # 推荐置信度
         self.recommendation_confidence = Histogram(
             'qilin_recommendation_confidence',
             'Recommendation confidence score',
             buckets=[0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99],
             registry=self.registry
-        
+        )
         # 信号覆盖率
         self.signal_coverage = Gauge(
             'qilin_signal_coverage',
             'Signal coverage ratio',
             registry=self.registry
-        
+        )
         # 当日推荐数量
         self.daily_recommendations = Gauge(
             'qilin_daily_recommendations',
             'Number of recommendations generated today',
             ['action'],
             registry=self.registry
-        
+        )
         # 用户行为指标
         self.active_users = Gauge(
             'qilin_active_users',
             'Number of active users',
             ['period'],  # daily, weekly, monthly
             registry=self.registry
-        
+)
         self.recommendation_follows = Counter(
             'qilin_recommendation_follows_total',
             'Total recommendation follows by users',
             ['action'],
             registry=self.registry
-    
+        )
     def record_recommendation(
         self,
         recommendation_id: str,
@@ -191,6 +191,7 @@ class BusinessMetricsCollector:
             target_price=target_price,
             timestamp=datetime.now(),
             signal_quality=quality
+        )
         
         # 存储
         self.recommendations[recommendation_id] = result
@@ -206,6 +207,7 @@ class BusinessMetricsCollector:
         logger.info(
             f"Recorded recommendation {recommendation_id}: "
             f"{stock_code} {action.value} (confidence={confidence:.2f}, quality={quality.value})"
+        )
         
         return result
     
@@ -249,6 +251,7 @@ class BusinessMetricsCollector:
         logger.info(
             f"Validated recommendation {recommendation_id}: "
             f"return={actual_return:.2%}, correct={is_correct}"
+        )
         
         return True
     
@@ -377,7 +380,7 @@ class BusinessMetricsCollector:
             positive_returns=sum(1 for r in returns if r > 0),
             avg_confidence=sum(rec.confidence for rec in today_recs) / len(today_recs) if today_recs else 0,
             signal_coverage=self.calculate_signal_coverage(3000)  # 假设3000只股票
-        
+        )
         self.daily_metrics.append(metrics)
         
         # 更新每日推荐数量

@@ -166,6 +166,7 @@ class DataAccessLayer:
         # 先从存储获取
         stored_data = await self.storage.query_historical(
             symbol, start_date, end_date, frequency, data_type
+        )
         
         if not stored_data.empty:
             return stored_data
@@ -175,6 +176,7 @@ class DataAccessLayer:
         if provider:
             df = await provider.get_historical(
                 symbol, start_date, end_date, frequency, data_type
+            )
             
             # 存储数据
             if not df.empty:
@@ -357,6 +359,7 @@ class AkShareProvider(DataProvider):
                     start_date=start_date.replace('-', ''),
                     end_date=end_date.replace('-', ''),
                     adjust='qfq'  # 前复权
+                )
                 
                 # 标准化列名
                 df = df.rename(columns={
@@ -438,6 +441,7 @@ class TushareProvider(DataProvider):
                 ts_code=symbol,
                 start_date=start_date.replace('-', ''),
                 end_date=end_date.replace('-', '')
+            )
             df['data_type'] = data_type.value
             df['source'] = DataSource.TUSHARE.value
             return df
@@ -493,15 +497,29 @@ class DataCache:
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.redis_client = redis.Redis(
-            host=config.get('host', 'localhost'),
-            port=config.get('port', 6379),
-            db=config.get('db', 0),
-            decode_responses=True
+        self.redis_client = None
+        self.enabled = False
+        try:
+            self.redis_client = redis.Redis(
+                host=config.get('host', 'localhost'),
+                port=config.get('port', 6379),
+                db=config.get('db', 0),
+                decode_responses=True,
+                socket_connect_timeout=3
+            )
+            # Test connection
+            self.redis_client.ping()
+            self.enabled = True
+            logger.info("Redis cache initialized successfully")
+        except Exception as e:
+            logger.warning(f"Redis not available, cache disabled: {e}")
         self.ttl = config.get('ttl', 60)  # 默认60秒过期
     
     async def get_batch(self, symbols: List[str], data_type: DataType) -> Optional[pd.DataFrame]:
         """批量获取缓存"""
+        if not self.enabled or self.redis_client is None:
+            return None
+            
         try:
             keys = [f"{data_type.value}:{symbol}" for symbol in symbols]
             values = self.redis_client.mget(keys)
@@ -517,6 +535,9 @@ class DataCache:
     
     async def set_batch(self, df: pd.DataFrame, data_type: DataType):
         """批量设置缓存"""
+        if not self.enabled or self.redis_client is None:
+            return
+            
         try:
             grouped = df.groupby('symbol')
             
@@ -535,16 +556,31 @@ class DataStorage:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.storage_type = config.get('type', 'clickhouse')
+        self.client = None
+        self.enabled = False
         
-        if self.storage_type == 'clickhouse':
-            self.client = clickhouse_driver.Client(
-                host=config.get('host', 'localhost'),
-                port=config.get('port', 9000),
-                database=config.get('database', 'qilin')
-        elif self.storage_type == 'mongodb':
-            self.client = AsyncIOMotorClient(
-                config.get('url', 'mongodb://localhost:27017')
-            self.db = self.client[config.get('database', 'qilin')]
+        try:
+            if self.storage_type == 'clickhouse':
+                self.client = clickhouse_driver.Client(
+                    host=config.get('host', 'localhost'),
+                    port=config.get('port', 9000),
+                    database=config.get('database', 'qilin'),
+                    connect_timeout=3
+                )
+                # Test connection
+                self.client.execute('SELECT 1')
+                self.enabled = True
+                logger.info("ClickHouse storage initialized successfully")
+            elif self.storage_type == 'mongodb':
+                self.client = AsyncIOMotorClient(
+                    config.get('url', 'mongodb://localhost:27017'),
+                    serverSelectionTimeoutMS=3000
+                )
+                self.db = self.client[config.get('database', 'qilin')]
+                self.enabled = True
+                logger.info("MongoDB storage initialized successfully")
+        except Exception as e:
+            logger.warning(f"Storage not available ({self.storage_type}): {e}")
     
     async def save_historical(self, df: pd.DataFrame, data_type: DataType):
         """保存历史数据"""
@@ -555,6 +591,7 @@ class DataStorage:
                 self.client.insert_dataframe(
                     f'INSERT INTO {table_name} VALUES',
                     df
+                )
             elif self.storage_type == 'mongodb':
                 # MongoDB存储
                 collection = self.db[f"{data_type.value}_historical"]
@@ -598,13 +635,28 @@ class StreamProcessor:
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.producer = KafkaProducer(
-            bootstrap_servers=config.get('brokers', ['localhost:9092']),
-            value_serializer=lambda v: json.dumps(v).encode('utf-8')
+        self.producer = None
+        self.enabled = False
+        try:
+            self.producer = KafkaProducer(
+                bootstrap_servers=config.get('brokers', ['localhost:9092']),
+                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+                api_version=(0, 10, 1),
+                request_timeout_ms=5000,
+                max_block_ms=5000
+            )
+            self.enabled = True
+            logger.info("Kafka StreamProcessor initialized successfully")
+        except Exception as e:
+            logger.warning(f"Kafka not available, StreamProcessor disabled: {e}")
         self.topic = config.get('topic', 'market_data')
     
     async def send(self, df: pd.DataFrame):
         """发送数据到Kafka"""
+        if not self.enabled or self.producer is None:
+            logger.debug("StreamProcessor is disabled, skipping send")
+            return
+            
         try:
             records = df.to_dict('records')
             for record in records:

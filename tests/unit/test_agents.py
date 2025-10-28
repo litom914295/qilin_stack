@@ -18,7 +18,6 @@ from app.agents.trading_agents_impl import (
     ZTQualityAgent,
     LeaderAgent,
     IntegratedDecisionAgent
-
 )
 
 class TestZTQualityAgent:
@@ -48,6 +47,7 @@ class TestZTQualityAgent:
                 'open_times': 1
             },
             fundamental_data={}
+        )
     
     @pytest.mark.asyncio
     async def test_analyze(self, agent, mock_context):
@@ -92,6 +92,7 @@ class TestLeaderAgent:
             money_flow={'000001': 8.5},
             technical_indicators={'consecutive_limit': 3},
             fundamental_data={'history_leader_times': 2}
+        )
         
         result = await agent.analyze('000001', context)
         
@@ -122,6 +123,7 @@ class TestIntegratedDecisionAgent:
             money_flow={},
             technical_indicators={},
             fundamental_data={}
+        )
         
         result = await agent.analyze_parallel('000001', context)
         
@@ -152,6 +154,7 @@ class TestIntegratedDecisionAgent:
                 'zt_time': '09:30'
             },
             fundamental_data={'financial_score': 85}
+        )
         
         result = await agent.analyze_parallel('000001', context)
         decision = result['decision']
@@ -181,6 +184,7 @@ class TestAgentIntegration:
             money_flow={},
             technical_indicators={},
             fundamental_data={}
+        )
         
         results = []
         for agent in agents:
@@ -212,6 +216,7 @@ async def test_performance():
         money_flow={},
         technical_indicators={},
         fundamental_data={}
+    )
     
     start_time = datetime.now()
     

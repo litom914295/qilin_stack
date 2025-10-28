@@ -295,6 +295,7 @@ class BacktestEngine:
         positions_value = sum(
             pos['shares'] * current_price 
             for pos in portfolio['positions'].values()
+        )
         portfolio['value'] = portfolio['cash'] + positions_value
     
     def _calculate_performance(self, portfolio: Dict, data: pd.DataFrame) -> Dict[str, Any]:
@@ -950,6 +951,7 @@ CMD ["python", "main.py"]
             image, logs = client.images.build(
                 path='.',
                 tag='qilin-trading:latest'
+            )
             
             # 运行容器
             logger.info("Starting containers...")
@@ -966,6 +968,7 @@ CMD ["python", "main.py"]
                 },
                 name='qilin-trading',
                 restart_policy={'Name': 'unless-stopped'}
+            )
             
             logger.info("System deployed successfully with Docker")
             

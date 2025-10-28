@@ -80,6 +80,7 @@ class DataException(QilinException):
             message,
             error_code=ErrorCode.DATA_FETCH_ERROR,
             **kwargs
+        )
 
 
 class DataQualityException(QilinException):
@@ -90,6 +91,7 @@ class DataQualityException(QilinException):
             error_code=ErrorCode.DATA_QUALITY_ERROR,
             details={'quality_issues': quality_issues},
             **kwargs
+        )
 
 
 class AgentException(QilinException):
@@ -100,6 +102,7 @@ class AgentException(QilinException):
             error_code=ErrorCode.AGENT_EXECUTION_ERROR,
             details={'agent_name': agent_name},
             **kwargs
+        )
 
 
 class TradingException(QilinException):
@@ -109,6 +112,7 @@ class TradingException(QilinException):
             message,
             error_code=ErrorCode.TRADING_ERROR,
             **kwargs
+        )
 
 
 class RiskLimitException(QilinException):
@@ -120,6 +124,7 @@ class RiskLimitException(QilinException):
             details={'limit_type': limit_type},
             recoverable=False,  # 风险限制通常不可恢复
             **kwargs
+        )
 
 
 class SecurityException(QilinException):
@@ -130,6 +135,7 @@ class SecurityException(QilinException):
             error_code=ErrorCode.AUTHENTICATION_ERROR,
             recoverable=False,  # 安全异常不可恢复
             **kwargs
+        )
 
 
 class ExceptionHandler:
@@ -235,6 +241,7 @@ class ExceptionHandler:
         logger.error(
             f"Unhandled exception: {type(exception).__name__}: {str(exception)}",
             extra={'traceback': traceback.format_exc()}
+        )
         
         return {
             'handled': False,

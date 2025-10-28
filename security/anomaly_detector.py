@@ -160,6 +160,7 @@ class AnomalyDetector:
                 severity="high",
                 threshold=2,
                 time_window=600  # 10分钟
+            ),
         }
         
         return rules
@@ -274,6 +275,7 @@ class AnomalyDetector:
                 description=f"用户 {user_id} 在 {rule.time_window}秒内登录失败{len(events)}次",
                 user_id=user_id,
                 metadata={"failure_count": len(events), "last_ip": event["ip_address"]}
+            )
         
         return None
     
@@ -299,6 +301,7 @@ class AnomalyDetector:
                 description=f"用户 {user_id} 单次导出 {records} 条记录",
                 user_id=user_id,
                 metadata={"records": records, "export_type": event["metadata"].get("export_type")}
+            )
         
         return None
     
@@ -325,6 +328,7 @@ class AnomalyDetector:
                 description=f"用户 {user_id} 在非工作时间（{current_hour}:00）进行了 {event['action']} 操作",
                 user_id=user_id,
                 metadata={"hour": current_hour, "action": event["action"]}
+            )
         
         return None
     
@@ -353,6 +357,7 @@ class AnomalyDetector:
                 description=f"用户 {user_id} 在 {rule.time_window}秒内调用API {len(events)}次",
                 user_id=user_id,
                 metadata={"call_count": len(events)}
+            )
         
         return None
     
@@ -381,6 +386,7 @@ class AnomalyDetector:
                 description=f"用户 {user_id} 在 {rule.time_window}秒内尝试越权访问{len(events)}次",
                 user_id=user_id,
                 metadata={"attempt_count": len(events)}
+            )
         
         return None
     
@@ -409,6 +415,7 @@ class AnomalyDetector:
                 description=f"用户 {user_id} 在 {rule.time_window}秒内导出数据{len(events)}次",
                 user_id=user_id,
                 metadata={"export_count": len(events)}
+            )
         
         return None
     
@@ -431,6 +438,7 @@ class AnomalyDetector:
             description=f"用户 {user_id} 修改了系统配置",
             user_id=user_id,
             metadata=event["metadata"]
+        )
     
     def _add_to_cache(self, key: str, event: Dict, ttl: int):
         """添加事件到缓存"""
@@ -460,6 +468,7 @@ class AnomalyDetector:
         self.metrics.record_security_event(
             event_subtype=alert.rule_id,
             severity=alert.severity
+        )
         
         # 记录到日志
         logger.warning(
@@ -467,6 +476,7 @@ class AnomalyDetector:
             f"User: {alert.user_id} | "
             f"Severity: {alert.severity} | "
             f"{alert.description}"
+        )
         
         # 保存到活跃告警
         self.active_alerts[alert.alert_id] = alert

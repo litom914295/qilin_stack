@@ -130,6 +130,7 @@ class RDAgent:
             # 1. 生成假设
             hypotheses = await self.hypothesis_generator.generate(
                 research_topic, data, self.knowledge_base
+            )
             results["hypotheses"].extend(hypotheses)
             
             # 2. 对每个假设进行研究
@@ -143,10 +144,12 @@ class RDAgent:
                 # 执行测试
                 test_results = await self.execution_engine.execute(
                     code, data, hypothesis
+                )
                 
                 # 评估反馈
                 evaluation = await self.feedback_evaluator.evaluate(
                     hypothesis, test_results, data
+                )
                 
                 # 更新假设状态
                 hypothesis.status = evaluation["status"]
@@ -197,7 +200,7 @@ class RDAgent:
         # 生成因子假设
         factor_hypotheses = await self.hypothesis_generator.generate_factor_hypotheses(
             data, target, n_factors * 2  # 生成更多以供筛选
-        
+        )
         # 测试每个因子
         for hypothesis in factor_hypotheses:
             # 生成因子计算代码
@@ -206,11 +209,13 @@ class RDAgent:
             # 计算因子值
             factor_values = await self.execution_engine.calculate_factor(
                 factor_code, data
+            )
             
             # 评估因子有效性
             evaluation = await self.feedback_evaluator.evaluate_factor(
                 factor_values, data[target]
-            
+            )
+                
             if evaluation["is_valid"]:
                 factor = FactorDefinition(
                     name=hypothesis.title,
@@ -219,6 +224,7 @@ class RDAgent:
                     category="technical",  # 可以更细分
                     parameters={},
                     performance=evaluation["metrics"]
+                )
                 factors.append(factor)
                 
                 if len(factors) >= n_factors:
@@ -245,7 +251,7 @@ class RDAgent:
         study = optuna.create_study(
             direction="maximize",
             sampler=TPESampler(seed=42)
-        
+        )
         def objective(trial):
             # 采样参数
             params = {}
@@ -255,15 +261,18 @@ class RDAgent:
                         param_name,
                         param_config["min"],
                         param_config["max"]
+                    )
                 elif param_config["type"] == "int":
                     params[param_name] = trial.suggest_int(
                         param_name,
                         param_config["min"],
                         param_config["max"]
+                    )
                 elif param_config["type"] == "categorical":
                     params[param_name] = trial.suggest_categorical(
                         param_name,
                         param_config["choices"]
+                    )
             
             # 回测策略
             backtest_results = self._backtest_strategy(strategy, data, params)
@@ -541,6 +550,7 @@ class HypothesisGenerator:
                 category=case['category'],
                 confidence=case['success_rate'],
                 created_at=datetime.now()
+            )
             hypotheses.append(hypothesis)
         
         return hypotheses
@@ -630,10 +640,12 @@ class Model:
         implementation = implementations.get(
             hypothesis.title,
             "factor_values = data['close'].pct_change()"  # 默认实现
+        )
         
         code = self.templates["factor"].format(
             description=hypothesis.description,
             implementation=implementation
+        )
         
         return code
     
@@ -689,10 +701,12 @@ class Model:
         implementation = implementations.get(
             hypothesis.title,
             "signals = [0] * len(data)  # 默认无信号"
+        )
         
         code = self.templates["strategy"].format(
             description=hypothesis.description,
             implementation=implementation
+        )
         
         return code
     
@@ -702,6 +716,7 @@ class Model:
         code = self.templates["model"].format(
             fit_implementation="# Model fitting logic here",
             predict_implementation="# Prediction logic here"
+        )
         return code
 
 
@@ -813,18 +828,21 @@ class FeedbackEvaluator:
             factor_eval = await self.evaluate_factor(
                 test_results.get("factor_values"),
                 data.get("returns", data["close"].pct_change())
+            )
             evaluation.update(factor_eval)
             
         elif hypothesis.category == "strategy":
             strategy_eval = await self.evaluate_strategy(
                 test_results.get("signals"),
                 data
+            )
             evaluation.update(strategy_eval)
             
         elif hypothesis.category == "model":
             model_eval = await self.evaluate_model(
                 test_results.get("model"),
                 data
+            )
             evaluation.update(model_eval)
         
         return evaluation

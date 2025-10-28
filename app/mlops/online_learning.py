@@ -114,6 +114,7 @@ class OnlineLearningPipeline:
                     self.current_model = self.model_registry.get_model(
                         self.model_name,
                         stage="Production"
+                    )
                     # 获取版本号
                     models = self.model_registry.list_models()
                     for m in models:
@@ -345,6 +346,7 @@ class OnlineLearningPipeline:
                         'online_learning': 'true',
                         'samples_count': str(len(train_df))
                     }
+                )
                 
                 # 提升到生产环境
                 if promote_to_production:
@@ -352,6 +354,7 @@ class OnlineLearningPipeline:
                         model_name=self.model_name,
                         version=new_version,
                         stage="Production"
+                    )
                 
                 # 更新当前模型
                 with self.lock:
@@ -366,6 +369,7 @@ class OnlineLearningPipeline:
                     samples_count=len(train_df),
                     metrics_before=metrics_before,
                     metrics_after=metrics_after
+                )
                 
                 with self.lock:
                     self.update_history.append(update)
@@ -410,6 +414,7 @@ class OnlineLearningPipeline:
                 'trigger': trigger,
                 'mode': 'online_learning'
             }
+        )
         
         # 记录参数
         params = {

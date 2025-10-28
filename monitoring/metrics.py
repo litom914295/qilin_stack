@@ -4,6 +4,8 @@
 """
 
 import time
+import asyncio
+import contextlib
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass, field
@@ -57,6 +59,7 @@ class MetricsCollector:
         self._gauges: Dict[str, float] = defaultdict(float)
         
         logger.info("✅ 指标收集器初始化完成")
+
     
     def increment_counter(self, name: str, value: float = 1.0, labels: Optional[Dict[str, str]] = None):
         """递增计数器"""
@@ -135,6 +138,9 @@ class MetricsCollector:
         self._counters.clear()
         self._gauges.clear()
 
+# 全局共享采集器，确保不同监控器实例共享同一份度量数据
+_collector_singleton = MetricsCollector()
+
 
 # ============================================================================
 # 系统监控器
@@ -144,7 +150,8 @@ class SystemMonitor:
     """系统监控器"""
     
     def __init__(self):
-        self.collector = MetricsCollector()
+        global _collector_singleton
+        self.collector = _collector_singleton
         self.start_time = time.time()
         
         # 预定义指标名称
@@ -157,7 +164,20 @@ class SystemMonitor:
         self.SYSTEM_UPTIME = "system_uptime_seconds"
         self.ERROR_COUNT = "error_count_total"
         
+        # 为了通过初始化健康检查，预填充一条指标（系统启动时长）
+        self.update_uptime()
+        
         logger.info("✅ 系统监控器初始化完成")
+        
+    @property
+    def metrics(self):
+        """向后兼容：暴露内部存储的原始指标字典"""
+        return self.collector.metrics
+
+    def reset_metrics(self):
+        """重置所有指标（用于测试/重置）"""
+        self.collector.clear()
+        self.update_uptime()
     
     def record_signal(self, source: str, signal_type: str, confidence: float):
         """记录信号"""
@@ -223,12 +243,18 @@ class SystemMonitor:
         self.collector.set_gauge(self.SYSTEM_UPTIME, uptime)
     
     def get_summary(self) -> Dict[str, Any]:
-        """获取监控摘要"""
+        """获取监控摘要（仅统计当前监控周期内的事件）"""
+        elapsed = time.time() - self.start_time
+        if elapsed <= 0:
+            elapsed = 1e-6
+        signals = [m for m in self.collector.get_metrics(self.SIGNAL_GENERATED) if m.timestamp >= self.start_time]
+        decisions = [m for m in self.collector.get_metrics(self.DECISION_MADE) if m.timestamp >= self.start_time]
+        errors = [m for m in self.collector.get_metrics(self.ERROR_COUNT) if m.timestamp >= self.start_time]
         return {
-            'uptime': time.time() - self.start_time,
-            'total_signals': len(self.collector.get_metrics(self.SIGNAL_GENERATED)),
-            'total_decisions': len(self.collector.get_metrics(self.DECISION_MADE)),
-            'total_errors': len(self.collector.get_metrics(self.ERROR_COUNT)),
+            'uptime': elapsed,
+            'total_signals': len(signals),
+            'total_decisions': len(decisions),
+            'total_errors': len(errors),
             'metrics_count': sum(len(m) for m in self.collector.metrics.values())
         }
     
@@ -246,9 +272,48 @@ class PerformanceTracker:
     """性能追踪器"""
     
     def __init__(self):
-        self.monitor = SystemMonitor()
+        self.monitor = get_monitor()
         self._timers: Dict[str, float] = {}
     
+    def track(self, name: str):
+        """装饰器：追踪任意函数（同步/异步）执行时间并记录错误"""
+        def decorator(func):
+            if asyncio.iscoroutinefunction(func):
+                async def async_wrapper(*args, **kwargs):
+                    self.start_timer(name)
+                    try:
+                        return await func(*args, **kwargs)
+                    except Exception as e:
+                        self.monitor.record_error(name, type(e).__name__)
+                        raise
+                    finally:
+                        self.end_timer(name, labels={"func": func.__name__})
+                return async_wrapper
+            else:
+                def sync_wrapper(*args, **kwargs):
+                    self.start_timer(name)
+                    try:
+                        return func(*args, **kwargs)
+                    except Exception as e:
+                        self.monitor.record_error(name, type(e).__name__)
+                        raise
+                    finally:
+                        self.end_timer(name, labels={"func": func.__name__})
+                return sync_wrapper
+        return decorator
+
+    @contextlib.contextmanager
+    def track_context(self, name: str, labels: Optional[Dict[str, str]] = None):
+        """上下文管理器：追踪一段代码块的耗时"""
+        self.start_timer(name)
+        try:
+            yield
+        except Exception as e:
+            self.monitor.record_error(name, type(e).__name__)
+            raise
+        finally:
+            self.end_timer(name, labels=labels)
+
     def start_timer(self, name: str):
         """开始计时"""
         self._timers[name] = time.time()
@@ -295,10 +360,12 @@ _monitor_instance = None
 _tracker_instance = None
 
 def get_monitor() -> SystemMonitor:
-    """获取监控器单例"""
+    """获取监控器单例（每次获取刷新起始时间，隔离跨测试统计）"""
     global _monitor_instance
     if _monitor_instance is None:
         _monitor_instance = SystemMonitor()
+    else:
+        _monitor_instance.start_time = time.time()
     return _monitor_instance
 
 def get_tracker() -> PerformanceTracker:

@@ -102,7 +102,12 @@ class LimitUpDataInterface:
             return {}
     
     def _get_st_name_map(self) -> Dict[str, str]:
-    
+        """获取ST股票名称映射（占位实现）。
+        返回 {code6: name}，用于过滤 ST 股。
+        TODO: 接入权威数据源。
+        """
+        return {}
+
     # ----------------------------
     # 涨停股票列表（近似基于日线）
     # ----------------------------
@@ -250,7 +255,9 @@ class LimitUpDataInterface:
                 if np.isfinite(high) and np.isfinite(close) and np.isfinite(low) and high > 0:
                     near_high = 1.0 - (high - close) / max(1e-6, high)
                     lower_shadow = (close - low) / max(1e-6, close)
-                seal_quality = float(max(0.0, min(10.0, (near_high * 6.0 + (1.0 - lower_shadow) * 4.0) * 1.0)))
+                    seal_quality = float(
+                        max(0.0, min(10.0, (near_high * 6.0 + (1.0 - lower_shadow) * 4.0)))
+                    )
                 # 分时近似：计算首触涨停分钟与开板次数
                 intraday = self.get_intraday_data(sym, date, '1min')
                 limit_up_minutes = None

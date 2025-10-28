@@ -149,6 +149,7 @@ class ChatSystem:
             type=MessageType.USER_QUERY,
             timestamp=datetime.now(),
             sender=user_id
+        )
         context.messages.append(user_msg)
         
         try:
@@ -167,6 +168,7 @@ class ChatSystem:
             response = await self.response_generator.generate(
                 response_data,
                 context
+            )
             
             # 添加系统响应
             sys_msg = Message(
@@ -175,6 +177,7 @@ class ChatSystem:
                 timestamp=datetime.now(),
                 sender="system",
                 metadata={"action": action, "data": response_data}
+            )
             context.messages.append(sys_msg)
             
             return response
@@ -380,6 +383,7 @@ class ChatSystem:
             strategy=strategy,
             start_date=start_date,
             end_date=end_date
+        )
         
         return {
             "strategy": strategy,
@@ -431,6 +435,7 @@ class ChatSystem:
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=500
+            )
             return response.choices[0].message.content
         
         else:
@@ -458,6 +463,7 @@ class ChatSystem:
             self.sessions[session_id] = DialogueContext(
                 session_id=session_id,
                 user_id=user_id
+            )
         return self.sessions[session_id]
     
     def _create_session_id(self) -> str:
@@ -845,7 +851,7 @@ class KnowledgeBase:
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500,
             chunk_overlap=50
-        
+        )
         texts = []
         for doc in self.documents:
             chunks = text_splitter.split_text(doc["content"])

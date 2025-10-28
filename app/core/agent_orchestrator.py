@@ -203,6 +203,7 @@ class ConflictResolver:
                 'weighted_sum': weighted_sum,
                 'total_weight': total_weight
             }
+        )
         
         # 记录解决历史
         self.resolution_history.append({
@@ -298,6 +299,7 @@ class AgentOrchestrator:
                 reasoning=result.get('reasoning', ''),
                 timestamp=datetime.now(),
                 metadata=result.get('metadata', {})
+            )
             
             return signal
             
@@ -365,6 +367,7 @@ class AgentOrchestrator:
                     signal_distribution={SignalStrength.NEUTRAL: len(signals)},
                     timestamp=datetime.now(),
                     metadata={'veto': True, 'veto_agent': veto_signal.agent_id}
+                )
         
         # 解决冲突，生成共识
         consensus = self.conflict_resolver.resolve_conflicts(signals, weights)
@@ -438,6 +441,7 @@ class AgentOrchestrator:
                     # 记录性能
                     self.performance_tracker.record_prediction(
                         agent_id, predicted, actual, confidence
+                    )
                     break
     
     def get_orchestration_report(self) -> Dict:

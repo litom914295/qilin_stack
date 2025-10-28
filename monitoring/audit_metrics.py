@@ -19,60 +19,60 @@ class AuditMetrics:
             'audit_events_total',
             'Total number of audit events',
             ['event_type', 'result', 'user_role']
-        
+        )
         # PII检测事件数
         self.pii_detected_total = Counter(
             'audit_pii_detected_total',
             'Total number of events with PII detected',
             ['pii_type', 'masked']
-        
+        )
         # 用户行为统计
         self.user_actions_total = Counter(
             'audit_user_actions_total',
             'Total user actions by type',
             ['user_id', 'action', 'result']
-        
+        )
         # 失败事件统计
         self.audit_failures_total = Counter(
             'audit_failures_total',
             'Total number of failed audit events',
             ['event_type', 'user_role']
-        
+        )
         # 数据导出统计
         self.data_exports_total = Counter(
             'audit_data_exports_total',
             'Total number of data export events',
             ['user_id', 'export_type', 'contains_pii']
-        
+        )
         # 安全事件统计
         self.security_events_total = Counter(
             'audit_security_events_total',
             'Total number of security events',
             ['event_subtype', 'severity']
-        
+        )
         # 当前活跃用户数
         self.active_users = Gauge(
             'audit_active_users',
             'Number of currently active users'
-        
+        )
         # 审计事件处理延迟
         self.event_processing_duration = Histogram(
             'audit_event_processing_duration_seconds',
             'Time spent processing audit events',
             ['event_type'],
             buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0]
-        
+        )
         # 日志文件大小
         self.log_file_size_bytes = Gauge(
             'audit_log_file_size_bytes',
             'Current audit log file size in bytes',
             ['log_date']
-        
+        )
         # PII脱敏成功率
         self.pii_masking_success_rate = Gauge(
             'audit_pii_masking_success_rate',
             'Success rate of PII masking operations'
-        
+        )
         logger.info("Audit metrics initialized")
     
     def record_event(

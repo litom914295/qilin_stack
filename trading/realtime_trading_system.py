@@ -138,6 +138,7 @@ class RealtimeTradingSystem:
             host=config.get("redis_host", "localhost"),
             port=config.get("redis_port", 6379),
             db=config.get("redis_db", 2)
+        )
         
     async def start(self):
         """启动交易系统"""
@@ -238,7 +239,9 @@ class RealtimeTradingSystem:
                 # 从信号队列获取信号
                 signal = await asyncio.wait_for(
                     self.signal_queue.get(),
-
+                    timeout=self.config.get("signal_wait_timeout", 2)
+                )
+                
                 # 风险检查
                 if not await self.risk_manager.check_signal(signal):
                     logger.warning(f"Signal rejected by risk manager: {signal.symbol}")
@@ -303,6 +306,7 @@ class RealtimeTradingSystem:
                 metrics = await self.performance_monitor.calculate_metrics(
                     self.position_manager,
                     self.order_manager
+                )
                 
                 # 记录指标
                 logger.info(f"Performance metrics: {metrics}")
@@ -516,6 +520,7 @@ class SignalGenerator:
                     confidence=0.7,
                     reason="MA5 > MA20",
                     timestamp=datetime.now()
+                )
                 signals.append(signal)
             
             elif ma5 < ma20 * 0.98:  # 死叉
@@ -525,6 +530,7 @@ class SignalGenerator:
                     confidence=0.7,
                     reason="MA5 < MA20",
                     timestamp=datetime.now()
+                )
                 signals.append(signal)
         
         return signals
@@ -555,6 +561,7 @@ class OrderManager:
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
                 metadata=params.get("metadata", {})
+            )
             
             self.orders[order_id] = order
             
@@ -688,6 +695,7 @@ class PositionManager:
                 realized_pnl=0,
                 created_at=datetime.now(),
                 updated_at=datetime.now()
+            )
             
             self.positions[symbol] = position
             logger.info(f"Position opened: {symbol} {side.value} {quantity}@{price}")

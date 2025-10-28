@@ -147,6 +147,7 @@ class TrendFollowingStrategy(BaseStrategy):
             updated_at=datetime.now(),
             description="基于移动平均线的趋势跟踪策略",
             tags=["MA", "Trend", "Classic"]
+        )
         
         parameters = {
             'fast_ma': StrategyParameter(
@@ -180,6 +181,7 @@ class TrendFollowingStrategy(BaseStrategy):
                 min_value=0.05,
                 max_value=0.5,
                 description='止盈比例'
+            )
         }
         
         super().__init__(metadata, parameters)
@@ -250,6 +252,7 @@ class MeanReversionStrategy(BaseStrategy):
             updated_at=datetime.now(),
             description="基于布林带的均值回归策略",
             tags=["Bollinger", "MeanReversion", "Volatility"]
+        )
         
         parameters = {
             'lookback': StrategyParameter(
@@ -276,13 +279,14 @@ class MeanReversionStrategy(BaseStrategy):
                 max_value=1.0,
                 description='入场阈值'
             ),
-            'exit_threshold': StrategyParameter(
+'exit_threshold': StrategyParameter(
                 name='exit_threshold',
                 value=0.5,
                 type='float',
                 min_value=0.3,
                 max_value=0.7,
                 description='出场阈值'
+            )
         }
         
         super().__init__(metadata, parameters)
@@ -535,6 +539,7 @@ class StrategyManager:
             new_strategy.set_parameter(
                 param_name,
                 original.get_parameter(param_name)
+            )
         
         # 更新元数据
         new_strategy.metadata.name = new_name
@@ -575,11 +580,13 @@ class StrategyOptimizer:
                         name,
                         param.min_value,
                         param.max_value
+                    )
                 elif param.type == 'float':
                     value = trial.suggest_float(
                         name,
                         param.min_value,
                         param.max_value
+                    )
                 else:
                     continue
                 
@@ -848,6 +855,7 @@ if __name__ == "__main__":
                 'stop_loss': 0.03,
                 'take_profit': 0.1
             }
+        )
         
         print(f"Created strategy: {strategy_id}")
         

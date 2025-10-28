@@ -63,6 +63,23 @@ def sample_symbols():
     """生成示例股票代码列表"""
     return ['000001', '000002', '000858', '002142', '300750', '600519']
 
+# 追加通用fixtures
+@pytest.fixture
+def sample_date():
+    return '2024-06-30'
+
+@pytest.fixture
+def date_range():
+    return {'start_date': '2024-01-01', 'end_date': '2024-06-30'}
+
+@pytest.fixture
+def sample_market_data():
+    dates = pd.date_range('2024-01-01', periods=200, freq='D')
+    return pd.DataFrame({
+        'close': 100 + np.cumsum(np.random.randn(200)),
+        'volume': np.random.randint(1_000_000, 2_000_000, 200)
+    }, index=dates)
+
 @pytest.fixture
 def mock_market_data():
     """模拟市场数据"""

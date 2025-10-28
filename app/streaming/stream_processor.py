@@ -149,6 +149,7 @@ class KafkaConsumer:
             partition=kafka_msg.partition,
             offset=kafka_msg.offset,
             headers={k: v.decode() for k, v in kafka_msg.headers}
+        )
 
 
 class WindowAggregator:
@@ -381,7 +382,7 @@ class StreamPipeline:
                 processed_data=result.processed_data if result else {},
                 processing_time=processing_time,
                 status="success"
-            
+            )
         except Exception as e:
             self.stats['errors'] += 1
             logger.error(f"Error processing message: {e}")
@@ -392,7 +393,8 @@ class StreamPipeline:
                 processing_time=(datetime.now() - start_time).total_seconds(),
                 status="error",
                 error=str(e)
-    
+            )
+            
     def get_stats(self) -> Dict[str, Any]:
         """获取管道统计信息"""
         return {
@@ -439,6 +441,7 @@ class RealTimeDataValidator(StreamProcessor):
             processing_time=(datetime.now() - start_time).total_seconds(),
             status=status,
             error="; ".join(errors) if errors else None
+        )
     
     async def process_batch(self, messages: List[StreamMessage]) -> List[ProcessedMessage]:
         """批量验证"""

@@ -156,9 +156,9 @@ class FailoverController:
                             endpoint=endpoint,
                             status=response.status == 200,
                             response_time=response_time
+                        )
             
             elif service == "database":
-                # 模拟数据库健康检查
                 import asyncpg
                 conn = await asyncpg.connect(endpoint, timeout=5)
                 result = await conn.fetchval("SELECT 1")
@@ -169,9 +169,9 @@ class FailoverController:
                     endpoint=endpoint,
                     status=result == 1,
                     response_time=response_time
+                )
             
             elif service == "redis":
-                # 模拟Redis健康检查
                 import aioredis
                 redis = await aioredis.create_redis_pool(endpoint)
                 pong = await redis.ping()
@@ -183,9 +183,9 @@ class FailoverController:
                     endpoint=endpoint,
                     status=pong == b'PONG',
                     response_time=response_time
+                )
             
             elif service == "kafka":
-                # 模拟Kafka健康检查
                 from aiokafka import AIOKafkaProducer
                 producer = AIOKafkaProducer(bootstrap_servers=endpoint)
                 await producer.start()
@@ -196,6 +196,7 @@ class FailoverController:
                     endpoint=endpoint,
                     status=True,
                     response_time=response_time
+                )
             
             else:
                 return HealthCheckResult(
@@ -204,15 +205,16 @@ class FailoverController:
                     status=False,
                     response_time=0,
                     error=f"Unknown service type: {service}"
-                
+                )
+        
         except Exception as e:
-            response_time = time.time() - start_time
             return HealthCheckResult(
                 service=service,
                 endpoint=endpoint,
                 status=False,
                 response_time=response_time,
                 error=str(e)
+            )
     
     async def check_az_health(self, az: str) -> AZHealth:
         """
@@ -254,6 +256,7 @@ class FailoverController:
             health_score=health_score,
             last_check=datetime.now(),
             details=results
+        )
     
     def analyze_health_trend(self) -> Dict:
         """
@@ -356,6 +359,7 @@ class FailoverController:
             primary_az=self.primary_az,
             target_az=self.secondary_az if should_failover else self.primary_az,
             confidence=confidence
+        )
     
     async def execute_failover(self, decision: FailoverDecision) -> bool:
         """
@@ -491,6 +495,7 @@ class FailoverController:
                     decision = await self.make_failover_decision(
                         primary_health,
                         secondary_health
+                    )
                     
                     if decision.should_failover and decision.confidence >= 0.7:
                         logger.warning(f"Failover decision: {decision.reason} (confidence: {decision.confidence:.2%})")
@@ -541,6 +546,7 @@ class FailoverController:
             primary_az=self.current_az,
             target_az=target_az,
             confidence=1.0
+        )
         
         return await self.execute_failover(decision)
 
@@ -555,6 +561,7 @@ async def main():
         secondary_az="az-b",
         health_check_interval=30,
         failure_threshold=3
+    )
     
     # 测试健康检查
     primary_health = await controller.check_az_health("az-a")

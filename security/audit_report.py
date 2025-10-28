@@ -60,6 +60,7 @@ class AuditReportGenerator:
             end_date=end_date,
             report_type="日报",
             period_name=date.strftime("%Y年%m月%d日")
+        )
     
     def generate_weekly_report(
         self,
@@ -87,6 +88,7 @@ class AuditReportGenerator:
             end_date=end_date,
             report_type="周报",
             period_name=f"{start_date.strftime('%Y年%m月%d日')} - {end_date.strftime('%m月%d日')}"
+        )
     
     def generate_monthly_report(
         self,
@@ -123,6 +125,7 @@ class AuditReportGenerator:
             end_date=end_date,
             report_type="月报",
             period_name=f"{year}年{month}月"
+        )
     
     def _generate_report(
         self,
@@ -147,6 +150,7 @@ class AuditReportGenerator:
         events = self.audit_logger.query_events(
             start_date=start_date,
             end_date=end_date
+        )
         
         # 统计分析
         stats = self._analyze_events(events)

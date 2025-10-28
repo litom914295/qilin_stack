@@ -3,15 +3,12 @@
 包含具体的打分逻辑和决策规则
 """
 
-import numpy as np
 import pandas as pd
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, Any, List
+from datetime import datetime
 import logging
 from dataclasses import dataclass
 import asyncio
-import aiohttp
-import json
 
 # 配置日志
 logging.basicConfig(

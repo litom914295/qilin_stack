@@ -8,7 +8,8 @@ from .data_quality import (
     QualityReport,
     QualityIssue,
     QualityCheckType,
-    SeverityLevel
+    SeverityLevel,
+)
 
 __all__ = [
     'DataQualityChecker',

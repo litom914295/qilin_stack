@@ -29,6 +29,7 @@ try:
         create_trader,
         AgentState,
         Toolkit
+    )
     from tradingagents.tools import get_all_tools
     from tradingagents.llm import get_llm
     TRADINGAGENTS_AVAILABLE = True
@@ -83,6 +84,7 @@ class TradingAgentsNativeIntegration:
                 messages=[],
                 data={},
                 metadata={}
+            )
             
             # 创建原生智能体
             self._create_native_agents()
@@ -100,6 +102,7 @@ class TradingAgentsNativeIntegration:
             self.agents[NativeAgentRole.FUNDAMENTALS] = create_fundamentals_analyst(
                 self.llm,
                 self.toolkit
+            )
             
             # 📈 市场情绪分析师 (使用新闻和市场分析师组合)
             market_analyst = create_market_analyst(self.llm, self.toolkit)
@@ -113,11 +116,13 @@ class TradingAgentsNativeIntegration:
             self.agents[NativeAgentRole.TECHNICAL] = create_market_analyst(
                 self.llm,
                 self.toolkit
+            )
             
             # 🛡️ 风险管控师
             self.agents[NativeAgentRole.RISK] = create_risk_manager(
                 self.llm,
                 self.toolkit
+            )
             
             logger.info(f"创建了{len(self.agents)}个原生智能体")
             
@@ -203,11 +208,13 @@ class TradingAgentsNativeIntegration:
         market_result = await self._invoke_agent(
             agents["market"],
             {"symbol": symbol, "request": f"分析{symbol}的市场情绪"}
+        )
         
         # 新闻分析
         news_result = await self._invoke_agent(
             agents["news"],
             {"symbol": symbol, "request": f"分析{symbol}的新闻舆情"}
+        )
         
         return {
             "market_sentiment": market_result,
@@ -227,6 +234,7 @@ class TradingAgentsNativeIntegration:
                 "request": f"分析{symbol}的技术指标，包括MACD、RSI、支撑位压力位等",
                 "price_data": data.get("price_data", [])
             }
+        )
         
         return {
             "analysis": result,
@@ -246,6 +254,7 @@ class TradingAgentsNativeIntegration:
                 "request": f"评估{symbol}的风险，包括流动性、政策风险、黑天鹅事件等",
                 "portfolio": data.get("portfolio", {})
             }
+        )
         
         return {
             "analysis": result,
@@ -538,6 +547,7 @@ class MultiAgentDebateSystem:
         # 生成最终共识
         debate_result["final_consensus"] = self._generate_final_consensus(
             debate_result["rounds"]
+        )
         
         return debate_result
     

@@ -18,14 +18,21 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PerformanceMetrics:
     """纯指标（与测试用例兼容的结构）。"""
-    accuracy: float
-    precision: float
-    recall: float
-    f1_score: float
-    sharpe_ratio: float
-    win_rate: float
+    accuracy: float = 0.0
+    precision: float = 0.0
+    recall: float = 0.0
+    f1_score: float = 0.0
+    sharpe_ratio: float = 0.0
+    win_rate: float = 0.0
     avg_return: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
+
+    def __post_init__(self):
+        # 基础范围校验（与单测约定一致）
+        for name in ["accuracy", "precision", "recall", "f1_score", "win_rate"]:
+            val = getattr(self, name)
+            if not (0.0 <= float(val) <= 1.0):
+                raise ValueError(f"{name} must be in [0,1], got {val}")
 
 
 @dataclass
@@ -101,10 +108,13 @@ class WeightOptimizer:
             return metrics_map
 
         # 简单数组接口（兼容单测）
-        system_name: str = kwargs.get('system_name') or (args[0] if args else 'unknown')
-        predictions = kwargs.get('predictions') or (args[1] if len(args) > 1 else None)
-        actuals = kwargs.get('actuals') or (args[2] if len(args) > 2 else None)
-        returns = kwargs.get('returns') or (args[3] if len(args) > 3 else None)
+        if 'system_name' in kwargs:
+            system_name: str = kwargs['system_name']
+        else:
+            system_name = args[0] if args else 'unknown'
+        predictions = kwargs['predictions'] if 'predictions' in kwargs else (args[1] if len(args) > 1 else None)
+        actuals = kwargs['actuals'] if 'actuals' in kwargs else (args[2] if len(args) > 2 else None)
+        returns = kwargs['returns'] if 'returns' in kwargs else (args[3] if len(args) > 3 else None)
         pm = self._calculate_metrics(np.asarray(predictions), np.asarray(actuals), np.asarray(returns) if returns is not None else None)
         sp = SystemPerformance(system_name=system_name, metrics=pm, sample_size=len(predictions) if predictions is not None else 0)
         self.performance_history.append(sp)
@@ -129,9 +139,9 @@ class WeightOptimizer:
         tp = int(((predictions == 1) & (actuals == 1)).sum())
         fp = int(((predictions == 1) & (actuals == 0)).sum())
         fn = int(((predictions == 0) & (actuals == 1)).sum())
-        precision = float(tp / (tp + fp + 1e-8))
-        recall = float(tp / (tp + fn + 1e-8))
-        f1 = float(2 * precision * recall / (precision + recall + 1e-8))
+        precision = float(tp / (tp + fp)) if (tp + fp) > 0 else 0.0
+        recall = float(tp / (tp + fn)) if (tp + fn) > 0 else 0.0
+        f1 = float(2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
         sharpe = float(self._calculate_sharpe_ratio(returns))
         win_rate = float((returns > 0).mean())
         avg_return = float(returns.mean())
@@ -167,6 +177,10 @@ class WeightOptimizer:
                         break
             if not agg:
                 return dict(self.current_weights)
+
+        # 若数据不足（未覆盖全部系统），返回默认权重
+        if len(agg) < len(self.systems):
+            return dict(self.default_weights)
 
         # 计算综合评分
         scores: Dict[str, float] = {}
@@ -218,6 +232,10 @@ class WeightOptimizer:
         """判断是否应该更新权重。"""
         now = datetime.now()
         delta = now - last_update
+
+    def adaptive_update(self, strategy: str = 'daily') -> Dict[str, float]:
+        """自适应更新权重（简单代理到 optimize_weights，与单测兼容）。"""
+        return self.optimize_weights()
         if self.update_frequency == 'daily':
             return delta.days >= 1
         if self.update_frequency == 'weekly':

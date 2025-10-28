@@ -69,6 +69,7 @@ class MTLSCertificateManager:
             public_exponent=65537,
             key_size=self.config.get("key_size", 2048),
             backend=default_backend()
+        )
         
         # 构建证书
         subject = issuer = x509.Name([
@@ -87,6 +88,7 @@ class MTLSCertificateManager:
             .not_valid_before(datetime.utcnow())
             .not_valid_after(
                 datetime.utcnow() + timedelta(days=self.config.get("ca_validity_days", 3650))
+            )
             .add_extension(
                 x509.BasicConstraints(ca=True, path_length=0),
                 critical=True,
@@ -106,6 +108,7 @@ class MTLSCertificateManager:
                 critical=True,
             )
             .sign(private_key, hashes.SHA256(), default_backend())
+        )
         
         # 保存到文件
         if output_key:
@@ -117,6 +120,8 @@ class MTLSCertificateManager:
                         encoding=serialization.Encoding.PEM,
                         format=serialization.PrivateFormat.TraditionalOpenSSL,
                         encryption_algorithm=serialization.NoEncryption()
+                    )
+                )
             logger.info(f"CA private key saved to {output_key}")
         
         if output_cert:
@@ -158,6 +163,7 @@ class MTLSCertificateManager:
             public_exponent=65537,
             key_size=self.config.get("key_size", 2048),
             backend=default_backend()
+        )
         
         # 默认SAN
         if dns_names is None:
@@ -184,6 +190,7 @@ class MTLSCertificateManager:
             .not_valid_before(datetime.utcnow())
             .not_valid_after(
                 datetime.utcnow() + timedelta(days=self.config.get("cert_validity_days", 365))
+            )
             .add_extension(
                 x509.SubjectAlternativeName([x509.DNSName(name) for name in dns_names]),
                 critical=False,
@@ -214,7 +221,7 @@ class MTLSCertificateManager:
                 critical=False,
             )
             .sign(ca_key, hashes.SHA256(), default_backend())
-        
+        )
         # 保存到文件
         if output_key:
             key_path = Path(output_key)
@@ -225,6 +232,8 @@ class MTLSCertificateManager:
                         encoding=serialization.Encoding.PEM,
                         format=serialization.PrivateFormat.TraditionalOpenSSL,
                         encryption_algorithm=serialization.NoEncryption()
+                    )
+                )
             logger.info(f"Service private key saved to {output_key}")
         
         if output_cert:
@@ -279,14 +288,17 @@ class MTLSCertificateManager:
             ca_key, ca_cert = self.generate_ca(
                 output_key=str(ca_key_path),
                 output_cert=str(ca_cert_path)
+            )
         else:
             logger.info("CA already exists, loading from disk")
             with open(ca_key_path, "rb") as f:
                 ca_key = serialization.load_pem_private_key(
                     f.read(), password=None, backend=default_backend()
+                )
             with open(ca_cert_path, "rb") as f:
                 ca_cert = x509.load_pem_x509_certificate(
                     f.read(), default_backend()
+                )
         
         # 2. 为每个服务生成证书
         services = self.config.get("services", [])
@@ -308,6 +320,7 @@ class MTLSCertificateManager:
                 ca_cert=ca_cert,
                 output_key=str(service_key_path),
                 output_cert=str(service_cert_path)
+            )
         
         logger.info("All certificates provisioned successfully")
     
@@ -328,6 +341,7 @@ class MTLSCertificateManager:
                 service_name = cert_file.stem.replace("-cert", "")
                 metrics.append(
                     f'qilin_cert_expiry_days{{service="{service_name}"}} {cert_info["days_left"]}'
+                )
             except Exception as e:
                 logger.error(f"Failed to check {cert_file}: {e}")
         
@@ -349,6 +363,7 @@ def main():
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s"
+    )
     
     manager = MTLSCertificateManager(config_path=args.config)
     

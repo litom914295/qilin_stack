@@ -77,6 +77,7 @@ class LeaderAgent(BaseAgent):
                     'concept_heat': float(concept_heat),
                     'lhb_netbuy': float(lhb_netbuy)
                 }
+            )
         except Exception as e:
             return AgentResult(0.5, {'error': str(e)})
 
@@ -130,6 +131,7 @@ class ChipAgent(BaseAgent):
                 0.3 * concentration +  # 集中度权重30%
                 0.4 * profit_ratio +   # 获利盘权重40%
                 0.3 * stability        # 稳定性权重30%
+            )
             
             return AgentResult(
                 score=float(np.clip(score, 0, 1)),
@@ -139,6 +141,7 @@ class ChipAgent(BaseAgent):
                     'profit_ratio': float(profit_ratio),
                     'stability': float(stability)
                 }
+            )
         except Exception as e:
             return AgentResult(0.5, {'error': str(e)})
 
@@ -192,6 +195,7 @@ class ChanAgent(BaseAgent):
                     'position': float(position),
                     'trend': 'up' if ma5 > ma20 else 'down'
                 }
+            )
         except Exception as e:
             return AgentResult(0.5, {'error': str(e)})
 
@@ -250,6 +254,7 @@ class ElliottAgent(BaseAgent):
                     'trend': 'up' if wave_score > 0.5 else 'down',
                     'fib_support': float(fib_score)
                 }
+            )
         except Exception as e:
             return AgentResult(0.5, {'error': str(e)})
 
@@ -317,6 +322,7 @@ class FibAgent(BaseAgent):
                     'support_strength': float(support_score),
                     'price_position': float((current - low) / (high - low))
                 }
+            )
         except Exception as e:
             return AgentResult(0.5, {'error': str(e)})
 
@@ -357,6 +363,7 @@ class MarketMoodAgent(BaseAgent):
                 0.25 * volatility_sentiment +
                 0.25 * up_ratio +
                 0.25 * momentum_sentiment
+            )
             
             # 判断市场情绪类型
             if score > 0.7:
@@ -379,6 +386,7 @@ class MarketMoodAgent(BaseAgent):
                     'up_ratio': float(up_ratio),
                     'momentum': float(momentum)
                 }
+            )
         except Exception as e:
             return AgentResult(0.5, {'error': str(e)})
 
@@ -444,6 +452,7 @@ class RiskGuardAgent(BaseAgent):
                 0.15 * liquidity_risk +
                 0.2 * trend_risk +
                 0.2 * extreme_risk
+            )
             
             # 风险守护分数（反向）
             score = 1 - total_risk
@@ -467,5 +476,6 @@ class RiskGuardAgent(BaseAgent):
                     'extreme_risk': float(extreme_risk),
                     'total_risk': float(total_risk)
                 }
+            )
         except Exception as e:
             return AgentResult(0.3, {'error': str(e), 'risk': 'unknown'})

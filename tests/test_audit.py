@@ -8,9 +8,9 @@ import asyncio
 from datetime import datetime
 from security.audit_enhanced import (
     PIIMasker, AuditLogger, AuditEventType, AuditEvent
+)
 from security.anomaly_detector import AnomalyDetector, AnomalyRule
 from security.audit_report import AuditReportGenerator
-)
 
 class TestPIIMasker:
     """PII脱敏测试"""
@@ -56,7 +56,7 @@ class TestPIIMasker:
     
     def test_detect_and_mask(self):
         """测试PII检测和脱敏"""
-
+        text = "我的电话是13812345678，邮箱是user@example.com"
         masked_text, detected_types = self.masker.detect_and_mask(text)
         
         assert "138****5678" in masked_text
@@ -89,25 +89,28 @@ class TestAuditLogger:
             log_dir="tests/logs/audit",
             enable_pii_masking=True,
             enable_console=False
-    
-    @pytest.mark.asyncio
-    async def test_log_event(self):
-        """测试记录审计事件"""
-        event = await self.logger.log_event(
-            event_type=AuditEventType.USER_LOGIN,
-            user_id="test_user",
-            action="login",
-            resource="/api/auth/login",
-            result="success",
-            ip_address="192.168.1.100",
-            metadata={
-                "phone": "13812345678"
-            }
+        )
         
-        assert event.user_id == "test_user"
-        assert event.event_type == AuditEventType.USER_LOGIN
-        assert event.result == "success"
-        assert event.pii_masked is True
+        @pytest.mark.asyncio
+        async def test_log_event(self):
+            """测试记录审计事件"""
+            event = await self.logger.log_event(
+                event_type=AuditEventType.USER_LOGIN,
+                user_id="test_user",
+                action="login",
+                resource="/api/auth/login",
+                result="success",
+                ip_address="192.168.1.100",
+                user_role=None,
+                metadata={
+                    "phone": "13812345678"
+                }
+            )
+            
+            assert event.user_id == "test_user"
+            assert event.event_type == AuditEventType.USER_LOGIN
+            assert event.result == "success"
+            assert event.pii_masked is True
     
     @pytest.mark.asyncio
     async def test_log_event_with_pii(self):
@@ -119,11 +122,13 @@ class TestAuditLogger:
             resource="/api/data/export",
             result="success",
             ip_address="192.168.1.100",
+            user_role=None,
             metadata={
                 "phone": "13812345678",
                 "email": "test@example.com",
                 "bank_card": "6222021234567890123"
             }
+        )
         
         assert event.pii_detected is True
         assert event.pii_masked is True
@@ -158,6 +163,7 @@ class TestAnomalyDetector:
                 result="failure",
                 ip_address="192.168.1.100",
                 metadata={}
+            )
         
         # 第6次应该触发告警
         assert len(alerts) > 0
@@ -178,6 +184,7 @@ class TestAnomalyDetector:
                 "records": 15000,  # 超过阈值10000
                 "export_type": "csv"
             }
+        )
         
         assert len(alerts) > 0
         alert = [a for a in alerts if a.rule_id == "bulk_export"][0]
@@ -197,7 +204,8 @@ class TestAnomalyDetector:
                 result="success",
                 ip_address="192.168.1.100",
                 metadata={}
-            
+            )
+        
             off_hours_alerts = [a for a in alerts if a.rule_id == "off_hours_access"]
             assert len(off_hours_alerts) > 0
     
@@ -213,6 +221,7 @@ class TestAnomalyDetector:
                 result="success",
                 ip_address="192.168.1.100",
                 metadata={}
+            )
         
         # 应该触发频率限制告警
         assert len(alerts) > 0
@@ -236,9 +245,11 @@ class TestAuditReportGenerator:
         self.audit_logger = AuditLogger(
             log_dir="tests/logs/audit",
             enable_pii_masking=True
+        )
         self.generator = AuditReportGenerator(
             audit_logger=self.audit_logger,
             output_dir="tests/reports/audit"
+        )
     
     @pytest.mark.asyncio
     async def test_generate_daily_report(self):
@@ -252,6 +263,7 @@ class TestAuditReportGenerator:
             result="success",
             ip_address="192.168.1.100",
             metadata={}
+        )
         
         report = self.generator.generate_daily_report()
         

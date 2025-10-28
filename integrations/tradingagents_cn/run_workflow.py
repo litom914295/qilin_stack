@@ -49,6 +49,7 @@ except ImportError:
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 def _load_yaml(file_path: str, default_value: dict = None) -> dict:
@@ -242,6 +243,7 @@ def main():
                         side=og_cfg.get('account', {}).get('default_side', 'BUY'),
                         qty=validated_qty,
                         price=validated_price
+                    )
                     
                     # 下单
                     og.place(order)

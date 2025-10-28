@@ -67,7 +67,7 @@ class DataQualityGate:
         """
         suite = self.context.add_or_update_expectation_suite(
             expectation_suite_name=suite_name
-        
+        )
         # 根据数据源类型添加expectations
         if data_source == "market":
             expectations = self._create_market_data_expectations()
@@ -341,6 +341,7 @@ class DataQualityGate:
             data_asset_name=f"{data_source}_data",
             runtime_parameters={"batch_data": data},
             batch_identifiers={"default_identifier_name": datetime.now().isoformat()}
+        )
         
         # 获取expectation suite
         try:
@@ -392,6 +393,7 @@ class DataQualityGate:
                 logger.warning(
                     f"Data quality below threshold: {quality_score:.2f} < {self.quality_threshold} "
                     f"for {data_source}"
+                )
                 self._trigger_degradation(data_source, quality_score, result)
             
             return result
@@ -490,7 +492,7 @@ class DataQualityCI:
                     data,
                     suite_name=f"{source}_suite",
                     data_source=source
-                
+                )
                 if not result.get("success", False):
                     all_passed = False
                     logger.error(f"CI validation failed for {source}")

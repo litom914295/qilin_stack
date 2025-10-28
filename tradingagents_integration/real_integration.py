@@ -536,11 +536,11 @@ class AgentOrchestrator:
         """生成共识决策"""
         
         if self.config.consensus_method == "weighted_vote":
-            return self._weighted_vote_consensus(responses)
+            return _weighted_vote_consensus(self, responses)
         elif self.config.consensus_method == "confidence_based":
-            return self._confidence_based_consensus(responses)
+            return _confidence_based_consensus(self, responses)
         else:
-            return self._simple_vote_consensus(responses)
+            return _simple_vote_consensus(self, responses)
     
 from monitoring.metrics import get_monitor
 
@@ -616,39 +616,33 @@ def _weighted_vote_consensus(self, responses: List[AgentResponse]) -> Dict[str, 
             "method": "weighted_vote"
         }
     
-    def _confidence_based_consensus(self, responses: List[AgentResponse]) -> Dict[str, Any]:
-        """基于置信度的共识"""
-        
-        # 选择置信度最高的响应
-        best_response = max(responses, key=lambda r: r.confidence)
-        
-        return {
-            "signal": best_response.signal,
-            "confidence": best_response.confidence,
-            "reasoning": f"采用{best_response.agent_name}的建议(置信度最高): {best_response.reasoning}",
-            "best_agent": best_response.agent_name,
-            "method": "confidence_based"
-        }
-    
-    def _simple_vote_consensus(self, responses: List[AgentResponse]) -> Dict[str, Any]:
-        """简单投票共识"""
-        
-        signal_counts = {"BUY": 0, "SELL": 0, "HOLD": 0}
-        
-        for response in responses:
-            signal_counts[response.signal] += 1
-        
-        final_signal = max(signal_counts, key=signal_counts.get)
-        total_votes = sum(signal_counts.values())
-        final_confidence = signal_counts[final_signal] / total_votes if total_votes > 0 else 0.5
-        
-        return {
-            "signal": final_signal,
-            "confidence": final_confidence,
-            "reasoning": f"投票结果: BUY={signal_counts['BUY']}, SELL={signal_counts['SELL']}, HOLD={signal_counts['HOLD']}",
-            "vote_counts": signal_counts,
-            "method": "simple_vote"
-        }
+def _confidence_based_consensus(self, responses: List[AgentResponse]) -> Dict[str, Any]:
+    """基于置信度的共识"""
+    # 选择置信度最高的响应
+    best_response = max(responses, key=lambda r: r.confidence)
+    return {
+        "signal": best_response.signal,
+        "confidence": best_response.confidence,
+        "reasoning": f"采用{best_response.agent_name}的建议(置信度最高): {best_response.reasoning}",
+        "best_agent": best_response.agent_name,
+        "method": "confidence_based"
+    }
+
+def _simple_vote_consensus(self, responses: List[AgentResponse]) -> Dict[str, Any]:
+    """简单投票共识"""
+    signal_counts = {"BUY": 0, "SELL": 0, "HOLD": 0}
+    for response in responses:
+        signal_counts[response.signal] += 1
+    final_signal = max(signal_counts, key=signal_counts.get)
+    total_votes = sum(signal_counts.values())
+    final_confidence = signal_counts[final_signal] / total_votes if total_votes > 0 else 0.5
+    return {
+        "signal": final_signal,
+        "confidence": final_confidence,
+        "reasoning": f"投票结果: BUY={signal_counts['BUY']}, SELL={signal_counts['SELL']}, HOLD={signal_counts['HOLD']}",
+        "vote_counts": signal_counts,
+        "method": "simple_vote"
+    }
 
 
 # ============================================================================
@@ -778,7 +772,7 @@ class RDCompositeAgent(BaseAgent):
         return AgentResponse(self.name, sig, conf, f"复合={comp:.3f}", {"composite": comp})
 
 
-class RealTradingAgentsIntegration(
+class RealTradingAgentsIntegration:
     """
     真实的TradingAgents集成
     完整实现多智能体系统

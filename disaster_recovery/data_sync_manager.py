@@ -112,9 +112,9 @@ class DataSyncManager:
                 interval_seconds=5,
                 max_lag_seconds=300,
                 compression=True
+            )
         }
         
-        # 同步状态
         self.sync_status = {
             source: SyncStatus.IN_SYNC for source in DataSource
         }
@@ -258,6 +258,7 @@ class DataSyncManager:
             records_pending=records_pending,
             error_count=0 if status != SyncStatus.FAILED else random.randint(1, 10),
             throughput_mbps=throughput_mbps
+        )
         
         # 更新状态
         self.sync_status[source] = status
@@ -501,10 +502,12 @@ class DataSyncManager:
             self.metrics_history[source][-1].lag_seconds
             if self.metrics_history[source] else 0
             for source in DataSource
+        )
         
         healthy_sources = sum(
             1 for status in self.sync_status.values()
             if status == SyncStatus.IN_SYNC
+        )
         
         return {
             "primary_az": self.primary_az,
@@ -619,6 +622,7 @@ async def main():
     sync_manager = DataSyncManager(
         primary_az="az-a",
         secondary_az="az-b"
+    )
     
     # 启动同步
     await sync_manager.start_sync()

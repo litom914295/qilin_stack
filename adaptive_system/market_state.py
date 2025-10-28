@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import logging
 
@@ -32,10 +32,10 @@ class MarketState:
     """市场状态"""
     regime: MarketRegime
     confidence: float  # 置信度
-    trend_strength: float  # 趋势强度 -1到1
-    volatility: float  # 波动率
-    indicators: Dict[str, float]
-    timestamp: datetime
+    indicators: Dict[str, float] = field(default_factory=dict)
+    trend_strength: float = 0.0  # 趋势强度 -1到1
+    volatility: float = 0.0  # 波动率
+    timestamp: Optional[datetime] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """转为字典"""
@@ -45,7 +45,7 @@ class MarketState:
             'trend_strength': self.trend_strength,
             'volatility': self.volatility,
             'indicators': self.indicators,
-            'timestamp': self.timestamp.isoformat()
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None
         }
 
 
@@ -58,8 +58,8 @@ class MarketStateDetector:
     
     def __init__(self,
                  lookback_days: int = 60,
-                 ma_short: int = 5,
-                 ma_long: int = 20):
+                 ma_short: int = 20,
+                 ma_long: int = 60):
         """
         初始化检测器
         
@@ -87,6 +87,17 @@ class MarketStateDetector:
         Returns:
             当前市场状态
         """
+        # 数据长度不足时直接返回UNKNOWN
+        if market_data is None or len(market_data) < max(self.ma_long, 20):
+            return MarketState(
+                regime=MarketRegime.UNKNOWN,
+                confidence=0.3,
+                trend_strength=0.0,
+                volatility=0.0,
+                indicators={'insufficient_data': True},
+                timestamp=datetime.now()
+            )
+        
         # 计算技术指标
         indicators = self._calculate_indicators(market_data)
         
@@ -120,50 +131,55 @@ class MarketStateDetector:
         close = data['close'].values
         volume = data['volume'].values if 'volume' in data.columns else np.ones_like(close)
         
-        # 短期均线
-        ma_short = pd.Series(close).rolling(self.ma_short).mean().iloc[-1]
-        
-        # 长期均线
-        ma_long = pd.Series(close).rolling(self.ma_long).mean().iloc[-1]
+        # 短期/长期均线（末值）
+        ma_short_val = pd.Series(close).rolling(self.ma_short).mean().iloc[-1]
+        ma_long_val = pd.Series(close).rolling(self.ma_long).mean().iloc[-1]
         
         # RSI
-        rsi = self._calculate_rsi(pd.Series(close))
+        rsi_series = self._calculate_rsi(pd.Series(close))
         
         # MACD
-        macd, signal = self._calculate_macd(pd.Series(close))
+        macd_series, signal_series = self._calculate_macd(pd.Series(close))
         
-        # 成交量比
-        volume_ratio = volume[-1] / (volume[-20:].mean() + 1e-8)
+        # 成交量比/价格变化，兼容短序列
+        window = min(20, max(1, len(close) - 1))
+        volume_ratio = float(volume[-1] / (volume[-window:].mean() + 1e-8))
+        base_idx = -window
+        price_change = float((close[-1] - close[base_idx]) / (close[base_idx] + 1e-8)) if len(close) > 1 else 0.0
         
         return {
-            'ma_short': ma_short,
-            'ma_long': ma_long,
-            'ma_ratio': ma_short / (ma_long + 1e-8),
-            'rsi': rsi,
-            'macd': macd,
-            'macd_signal': signal,
+            'ma_short': float(ma_short_val),
+            'ma_long': float(ma_long_val),
+            'ma_ratio': float(ma_short_val / (ma_long_val + 1e-8)),
+            'rsi': float(rsi_series.iloc[-1]),
+            'macd': float(macd_series.iloc[-1]),
+            'macd_signal': float(signal_series.iloc[-1]),
             'volume_ratio': volume_ratio,
-            'price': close[-1],
-            'price_change_20d': (close[-1] - close[-20]) / (close[-20] + 1e-8)
+            'price': float(close[-1]),
+            'price_change_20d': price_change,
         }
     
-    def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> float:
-        """计算RSI"""
+    def _calculate_ma(self, series: pd.Series, window: int) -> pd.Series:
+        """计算移动平均线（返回完整序列）。"""
+        return series.rolling(window).mean()
+
+    def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
+        """计算RSI（返回完整序列）。"""
         delta = prices.diff()
         gain = delta.where(delta > 0, 0).rolling(period).mean()
         loss = -delta.where(delta < 0, 0).rolling(period).mean()
         rs = gain / (loss + 1e-8)
         rsi = 100 - (100 / (1 + rs))
-        return rsi.iloc[-1]
+        return rsi
     
     def _calculate_macd(self, prices: pd.Series,
-                       fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[float, float]:
-        """计算MACD"""
+                       fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[pd.Series, pd.Series]:
+        """计算MACD（返回完整序列）。"""
         exp_fast = prices.ewm(span=fast, adjust=False).mean()
         exp_slow = prices.ewm(span=slow, adjust=False).mean()
         macd = exp_fast - exp_slow
         macd_signal = macd.ewm(span=signal, adjust=False).mean()
-        return macd.iloc[-1], macd_signal.iloc[-1]
+        return macd, macd_signal
     
     def _analyze_trend(self, data: pd.DataFrame, indicators: Dict[str, float]) -> float:
         """分析趋势强度"""
@@ -237,7 +253,8 @@ class AdaptiveStrategyAdjuster:
     
     def __init__(self):
         self.detector = MarketStateDetector()
-        self.current_parameters = self._default_parameters()
+        self.default_params = self._default_parameters()
+        self.current_parameters = dict(self.default_params)
     
     def _default_parameters(self) -> Dict[str, Any]:
         """默认参数"""

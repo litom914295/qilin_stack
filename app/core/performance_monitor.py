@@ -254,6 +254,7 @@ class SystemMonitor:
             network_io=network_io,
             process_count=process_count,
             thread_count=thread_count
+        )
     
     def get_current_metrics(self) -> SystemMetrics:
         """获取当前系统指标"""
@@ -334,6 +335,7 @@ class TradingMonitor:
             commission=0,  # 需要从其他地方获取
             pnl=total_pnl,
             win_rate=win_rate
+        )
     
     def get_trade_statistics(self) -> Dict:
         """获取交易统计"""
@@ -420,6 +422,7 @@ class AgentMonitor:
             error_count=error_count,
             memory_usage=memory_usage,
             cpu_time=cpu_time
+        )
     
     def get_all_agent_metrics(self) -> List[AgentMetrics]:
         """获取所有Agent指标"""

@@ -23,6 +23,7 @@ class SystemMetrics:
             'qilin_system',
             'System information',
             registry=self.registry
+        )
         
         # 请求指标
         self.request_count = Counter(
@@ -30,47 +31,52 @@ class SystemMetrics:
             'Total number of requests',
             ['method', 'endpoint', 'status'],
             registry=self.registry
-        
+        )
         self.request_duration = Histogram(
             'qilin_request_duration_seconds',
             'Request duration in seconds',
             ['method', 'endpoint'],
             registry=self.registry
+        )
         
         # Agent相关指标
         self.active_agents = Gauge(
             'qilin_active_agents',
             'Number of active agents',
             registry=self.registry
-        
+        )
         self.agent_analysis_duration = Histogram(
             'qilin_agent_analysis_duration_seconds',
             'Agent analysis duration',
             ['agent_name'],
             registry=self.registry
+        )
         
         self.agent_errors = Counter(
             'qilin_agent_errors_total',
             'Total agent errors',
             ['agent_name', 'error_type'],
             registry=self.registry
+        )
         
         # 业务指标
         self.stocks_analyzed = Counter(
             'qilin_stocks_analyzed_total',
             'Total stocks analyzed',
             registry=self.registry
-        
+        )
         self.trading_signals = Counter(
             'qilin_trading_signals_total',
             'Total trading signals generated',
             ['signal_type'],
             registry=self.registry
+        )
         
         self.recommendations = Gauge(
             'qilin_daily_recommendations',
             'Number of daily recommendations',
             registry=self.registry
+        )
         
         # 数据质量指标
         self.data_quality_score = Gauge(
@@ -78,12 +84,13 @@ class SystemMetrics:
             'Data quality score (0-1)',
             ['data_source'],
             registry=self.registry
-        
+        )
         self.data_fetch_errors = Counter(
             'qilin_data_fetch_errors_total',
             'Total data fetch errors',
             ['data_source', 'error_type'],
             registry=self.registry
+        )
         
         # 性能指标
         self.cache_hits = Counter(
@@ -91,19 +98,21 @@ class SystemMetrics:
             'Total cache hits',
             ['cache_type'],
             registry=self.registry
-        
+        )
         self.cache_misses = Counter(
             'qilin_cache_misses_total',
             'Total cache misses',
             ['cache_type'],
             registry=self.registry
+        )
         
         # 系统健康
         self.system_health = Gauge(
             'qilin_system_health',
             'System health status (0=unhealthy, 1=healthy)',
             registry=self.registry
-        
+        )
+    
     def track_request(self, method: str, endpoint: str):
         """请求追踪装饰器"""
         def decorator(func):

@@ -64,10 +64,12 @@ class DisasterRecoveryDrill:
         self.failover_controller = FailoverController(
             primary_az=primary_az,
             secondary_az=secondary_az
+        )
         
         self.sync_manager = DataSyncManager(
             primary_az=primary_az,
             secondary_az=secondary_az
+        )
         
         self.drill_results = []
         
@@ -331,6 +333,7 @@ class DisasterRecoveryDrill:
             decision = await self.failover_controller.make_failover_decision(
                 primary_health,
                 secondary_health
+            )
             
             if decision.should_failover:
                 logger.info(f"🔄 Triggering failover: {decision.reason}")
@@ -376,7 +379,8 @@ class DisasterRecoveryDrill:
                 rpo_seconds <= 60 and   # 数据丢失少于1分钟
                 service_available and
                 data_consistent
-            
+            )
+            end_time = datetime.now()
             result = DrillResult(
                 scenario=scenario,
                 start_time=start_time,
@@ -388,7 +392,7 @@ class DisasterRecoveryDrill:
                 success=success,
                 errors=errors,
                 metrics=metrics
-            
+            )
             self.drill_results.append(result)
             
             # 打印结果摘要
@@ -411,7 +415,7 @@ class DisasterRecoveryDrill:
                 success=False,
                 errors=errors,
                 metrics={}
-    
+            )
     def _print_result_summary(self, result: DrillResult):
         """打印结果摘要"""
         logger.info(f"\n{'='*60}")
@@ -464,6 +468,7 @@ class DisasterRecoveryDrill:
             await self.failover_controller.manual_failover(
                 self.primary_az,
                 "Restore to primary after drill"
+            )
         
         # 重置故障计数
         self.failover_controller.failure_count = 0

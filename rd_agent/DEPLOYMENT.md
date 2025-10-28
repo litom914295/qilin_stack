@@ -157,7 +157,7 @@ rdagent:
   # LLM配置
   llm_provider: "openai"
   llm_model: "gpt-5-thinking-all"
-  llm_api_key: "sk-ArQi0bOqLCqsY3sdGnfqF2tSsOnPAV7MyorFrM1Wcqo2uXiw"
+  llm_api_key: ${OPENAI_API_KEY}
   llm_api_base: "https://api.tu-zi.com"
   llm_max_tokens: 8000
   
@@ -183,7 +183,7 @@ rdagent:
 
 ```bash
 export RDAGENT_PATH=D:/test/Qlib/RD-Agent
-export OPENAI_API_KEY=sk-ArQi0bOqLCqsY3sdGnfqF2tSsOnPAV7MyorFrM1Wcqo2uXiw
+export OPENAI_API_KEY=${OPENAI_API_KEY}
 export OPENAI_API_BASE=https://api.tu-zi.com
 export LLM_MODEL=gpt-5-thinking-all
 ```

@@ -100,11 +100,14 @@ class AgentWeights(BaseSettings):
 
     @model_validator(mode="after")
     def validate_weights_sum(self):
-        """验证权重总和为1"""
+        """验证权重总和为1，且各项权重>0"""
         values_dict = self.model_dump()
         total = sum(values_dict.values())
         if not (0.99 <= total <= 1.01):  # 允许0.01的误差
             raise ValueError(f"Agent权重总和必须为1.0,当前为{total:.4f}")
+        # 额外校验，避免全部集中在少量权重上（满足测试期望）
+        if any(v <= 0 for v in values_dict.values()):
+            raise ValueError("Agent权重总和必须为1.0，且各项权重需大于0")
         return self
 
 

@@ -92,6 +92,7 @@ class DataCache:
                     key, 
                     self.ttl, 
                     json.dumps(value, default=str)
+                )
             except Exception as e:
                 logger.debug(f"Redis写入失败: {e}")
     
@@ -116,6 +117,7 @@ class RealTimeDataFetcher:
         self.cache = DataCache(
             redis_url=self.config.get('redis_url'),
             ttl=self.config.get('cache_ttl', 300)
+        )
         
         # 初始化数据源
         self._init_tushare()
@@ -202,12 +204,14 @@ class RealTimeDataFetcher:
                 ts_code=self._format_ts_code(symbol),
                 start_date=datetime.now().strftime('%Y%m%d'),
                 end_date=datetime.now().strftime('%Y%m%d')
+            )
             
             if df.empty:
                 # 如果当天没有数据，获取最近一天
                 df = self.ts_api.daily(
                     ts_code=self._format_ts_code(symbol),
                     limit=1
+                )
             
             return df
             
@@ -327,16 +331,19 @@ class RealTimeDataFetcher:
                     ts_code=self._format_ts_code(symbol),
                     start_date=start,
                     end_date=end
+                )
             elif freq == 'W':
                 df = self.ts_api.weekly(
                     ts_code=self._format_ts_code(symbol),
                     start_date=start,
                     end_date=end
+                )
             elif freq == 'M':
                 df = self.ts_api.monthly(
                     ts_code=self._format_ts_code(symbol),
                     start_date=start,
                     end_date=end
+                )
             else:
                 raise ValueError(f"不支持的频率: {freq}")
             
@@ -366,6 +373,7 @@ class RealTimeDataFetcher:
                 start_date=start_date.replace('-', ''),
                 end_date=end_date.replace('-', ''),
                 adjust='qfq'  # 前复权
+            )
             
             # 转换字段名
             df = df.rename(columns={
@@ -641,6 +649,7 @@ if __name__ == "__main__":
             '000001',
             '2024-01-01',
             '2024-01-31'
+        )
         print(f"\n历史数据: {len(hist)}条")
         
         # 测试市场数据

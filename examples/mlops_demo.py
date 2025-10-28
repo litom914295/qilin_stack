@@ -59,6 +59,7 @@ def demo_model_registry():
             'purpose': 'demo'
         },
         input_example=X_train_df.iloc[:5]
+    )
     
     logger.info(f"✓ 模型已注册，run_id: {run_id}")
     
@@ -95,6 +96,7 @@ def demo_experiment_tracking():
         experiment_name="hyperparameter_tuning",
         run_name="rf_n_estimators_test",
         tags={'optimizer': 'grid_search'}
+    )
     
     # 测试不同参数
     for n_estimators in [50, 100, 150]:
@@ -157,6 +159,7 @@ def demo_ab_testing():
             }
         ],
         min_sample_size=100
+    )
     
     logger.info(f"✓ 已创建A/B测试: {test.test_id}")
     
@@ -184,6 +187,7 @@ def demo_ab_testing():
             variant_name=variant.name,
             prediction=prediction,
             actual=test_labels.iloc[i]
+        )
     
     logger.info(f"✓ 已处理 {len(test_data)} 个请求")
     
@@ -224,6 +228,7 @@ def demo_online_learning():
         buffer_size=1000,
         update_interval=300,  # 5分钟
         min_samples_for_update=100
+    )
     
     # 创建初始模型和数据
     X, y = make_classification(n_samples=500, n_features=20, random_state=42)
