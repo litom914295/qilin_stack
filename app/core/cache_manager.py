@@ -86,8 +86,8 @@ class CacheManager:
                     else:
                         # 已过期,删除
                         cache_file.unlink()
-                except Exception:
-                    pass
+                except (IOError, pickle.PickleError) as e:
+                    logger.debug(f"读取磁盘缓存失败: {e}")
         
         return None
     
@@ -128,8 +128,8 @@ class CacheManager:
                         'value': value,
                         'expire_time': expire_time
                     }, f)
-            except Exception:
-                pass
+            except (IOError, pickle.PickleError) as e:
+                logger.debug(f"保存磁盘缓存失败: {e}")
     
     def delete(self, key: str) -> None:
         """删除缓存"""
@@ -179,8 +179,8 @@ class CacheManager:
                 if expire_time and now >= expire_time:
                     cache_file.unlink()
                     count += 1
-            except Exception:
-                pass
+            except (IOError, pickle.PickleError) as e:
+                logger.debug(f"清理缓存文件失败: {e}")
         
         return count
 
