@@ -22,7 +22,7 @@ class TradingAgentsConfig:
     tradingagents_path: str = field(
         default_factory=lambda: os.getenv(
             "TRADINGAGENTS_PATH",
-            "D:/test/Qlib/tradingagents"
+            "G:/test/tradingagents-cn-plus"
         )
     )
     

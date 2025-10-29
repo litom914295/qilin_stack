@@ -1,84 +1,65 @@
----
-description: Warp Code 开发配置与工作流（Qilin 量化栈：Python + FastAPI + asyncio + Qlib）
-globs: **/*
-alwaysApply: true
----
+# WARP Rules — 麒麟（Qilin）一进二量化作战平台（定制版）
+_Last updated: 2025-10-29 04:36:56_
 
-# Qilin Stack 开发 Profile（Warp Code）
+> 本规则文件**专为**仓库 `qilin_stack` 设计，对齐现有目录、脚本与运行方式：
+> - 入口：`main.py`（`--mode replay/simulation`，`--action prepare_data`）
+> - Web：`web/unified_dashboard.py`（或 `start_web.py`）
+> - 数据：`scripts/get_data.py`（Qlib cn_data 下载/校验）
+> - 配置：`config/default.yaml`（含 `market_regimes` 权重/风控）
+> - 可观测：`docker compose --profile observability up -d`（Prometheus/Grafana）
+> - 研究/多智能体：`rd_agent/`、`integrations/tradingagents_cn/`、`tradingagents_integration/`
+> - 因子/策略：`factors/`、`strategy/`
+> - 执行/网关：`executors/order_gateway/`（仅模拟）
 
-- 语言与运行时
-  - Python >= 3.8，优先使用类型注解与 dataclass/TypedDict，保持类型友好
-  - 异步优先（asyncio/aiohttp/uvicorn），IO 密集场景尽量并发
-  - 配置统一用 pydantic-settings + YAML/ENV，严禁在代码中硬编码密钥
+## 规则加载
+- 根目录 `WARP.md` 为**项目规则**；如子目录存在 `WARP.md`，**子目录优先**。
+- 需要特化 Agent 行为时，可在 `web/`、`docs/` 等目录放置轻量规则。
 
-- 主要依赖（参考 requirements.txt）
-  - 量化/数值：numpy, pandas, scipy, qlib, ta-lib, empyrical, pyfolio
-  - ML/MLOps：scikit-learn, lightgbm, xgboost, torch, tensorflow, mlflow
-  - Web/异步：fastapi, uvicorn, aiohttp, aiofiles
-  - 数据与消息：sqlalchemy, asyncpg, pymongo, redis, clickhouse-driver, aiokafka, celery
-  - 监控与日志：prometheus-client, python-json-logger, loguru, sentry-sdk
-  - 质量工具：pytest(+plugins), black, flake8, isort, mypy
+## 工程规范
+- Python 3.10/3.11；使用 `ruff`/`black`/`isort`，类型检查 `pyright`。
+- 目录职责：
+  - `data_pipeline/`：数据落地、校验、缓存（含 `qlib_enhanced/`）
+  - `factors/`：一进二特征（涨停强度/竞价/扩散/情绪/生态位）
+  - `strategy/`：信号→仓位→风控（**双阈值门锁：score & confidence**）
+  - `rd_agent/`：因子研发循环（RD-Agent）
+  - `tradingagents_*`：多智能体协作（TradingAgents）
+  - `executors/order_gateway/`：撮合与订单模拟（**严禁实盘**）
+- 提交前：`ruff check && ruff format && pyright` + 最小回测单测。
 
-- 目录约定（只列关键）
-  - app/core：交易/风控/回测/执行等核心模块
-  - app/agents：多智能体（集成决策、市场生态、风控等）与上下文建模
-  - app/web/unified_agent_dashboard.py：Streamlit 统一分析面板
-  - tests：pytest 测试与集成脚本（pytest.ini 设定覆盖率≥80%，并行、标记、报告）
-  - scripts、deploy、k8s、docker-compose.yml：运维与部署
-  - .taskmaster、.mcp.json：任务编排与 MCP 集成
+## Agent 执行蓝图（Checklist）
+### A. 数据准备与验证
+1. `python scripts/get_data.py --source qlib`（首次）或 `python main.py --action prepare_data`
+2. 校验 `~/.qlib/qlib_data/cn_data` 覆盖范围
+3. `docker compose --profile observability up -d` 启动监控栈
 
-- 代码风格与约束
-  - 函数式优先，小而清晰的模块边界；长函数拆分，复用公共工具
-  - 数据处理尽量向量化（pandas/numba），避免 Python 级别大循环
-  - 异步边界清晰：CPU 密集放线程/进程池；IO 密集用 await 并发
-  - 错误处理：显式异常类型 + 结构化日志；对外 API 返回标准错误模型
-  - 日志：统一 logger（logging/loguru），关键路径埋点（时延、吞吐、错误）
-  - 配置：所有密钥/端点走环境变量或配置文件；禁止泄露到客户端或日志
+### B. 一进二因子（factors/）
+- 标签：`next_day_second_limit`（T+1 是否二板）或事件收益
+- 特征族：涨停强度、竞价换手、板块扩散/生态位、情绪、前日行为
+- 产物：`factors/onein2.py`、`config/factor_onein2.yaml`
 
-- 常用命令（Warp 内一键执行）
-  - 安装依赖（本地）：
-    - Windows: `python -m venv .venv && .venv\\Scripts\\python -m pip install -U pip && .venv\\Scripts\\pip install -r requirements.txt`
-    - Unix: `python -m venv .venv && source .venv/bin/activate && pip install -U pip && pip install -r requirements.txt`
-  - 运行快速演示：`python quickstart.py`
-  - 启动主系统（模拟/纸面/实盘）：`python main.py --mode simulation|paper|live`
-  - 启动统一仪表板：`python -m streamlit run app/web/unified_agent_dashboard.py`
-  - 运行测试（pytest.ini 已配置并行与覆盖率）：`pytest`
-  - 质量检查：
-    - 格式化：`black . && isort .`
-    - 静态检查：`flake8 .`
-    - 类型检查：`mypy app`
+### C. 回测与报告（simulation/replay）
+- 训练/验证/测试：示例 2019–2022 / 2023 / 2024–2025
+- 命令：
+  - 复盘：`python main.py --mode replay --date YYYY-MM-DD`
+  - 区间：`python main.py --mode simulation --start 2024-01-01 --end 2024-06-30`
+- 指标：TopK 命中/收益、IC/IR、年化/回撤/胜率/盈亏比、稳定性（月度）
 
-- 测试与质量门槛（pytest.ini 已设定）
-  - 覆盖率门槛 80%（--cov-fail-under=80）
-  - 并行执行（-n auto），最慢用例统计与严格标记
-  - 推荐为新增功能补齐：单元 + 集成 + 性能标记用例
+### D. RD-Agent 循环（rd_agent/）
+- 候选因子→实现与单测→对比实验→归档复现
 
-- Web/API 规范
-  - FastAPI 路由：输入输出模型均用 Pydantic v2；参数校验与错误响应一致化
-  - Uvicorn 启动参数：`--workers` 按 CPU 与 IO 模型权衡；生产接入反向代理/网关
+### E. TradingAgents 协作（integrations/tradingagents_cn/ 等）
+- 典型角色：市场生态、竞价、仓位、量能、TA、情绪、风险、形态、宏观、套利
+- 由 `market_regimes` 动态调权与风控
 
-- 数据与性能
-  - 优先批量/向量化处理；必要时引入缓存（内存/Redis），控制 TTL 与一致性校验
-  - 大型回测/训练任务标注为离线任务，Celery/Kafka 编排，监控指标上报 Prometheus
+### F. 执行与风险（executors/order_gateway/）
+- 仅模拟：涨跌停不可交易、滑点/手续费、板块 20% 限制、单票/单日资金上限
 
-- 监控与可观测
-  - Prometheus 指标在关键模块打点（交易数、活跃仓位、系统健康等），Grafana 看板
-  - 日志按模块/请求/任务关联 trace_id，便于归因
+## 常用命令
+- 准备数据：`python main.py --action prepare_data`
+- 复盘一天：`python main.py --mode replay --date 2025-10-22`
+- 区间模拟：`python main.py --mode simulation --start 2024-01-01 --end 2024-06-30`
+- Web 面板：`streamlit run web/unified_dashboard.py`
+- 监控：`cd docker && docker compose --profile observability up -d`
 
-- 安全
-  - 密钥统一放 .env 或外部 Secret 管理；禁入仓、禁打印
-  - 交易/下单相关模块引入签名与审计；对外接口限流与鉴权
-
-- 任务编排（Task Master + MCP）
-  - 建议在 Warp 中直接使用 MCP 工具：列任务（get_tasks）、next、expand、set-status 等
-  - 大型需求建议先写 PRD（.taskmaster/docs），用 `parse_prd` 生成任务，再 `analyze/expand`
-
-- 提交与变更
-  - 小步提交，附带任务/子任务 ID 与变更要点；与规则文档同步更新
-
-附：路径速查
-- 快速演示：`quickstart.py`
-- 主入口：`main.py`
-- 仪表板：`app/web/unified_agent_dashboard.py`
-- 测试脚本：`run_tests.py`
-- 任务系统：`.taskmaster/`，MCP：`.mcp.json`
+## 约束
+- 禁止实盘下单；严格时间切分避免未来数据；支持一键复现实验。

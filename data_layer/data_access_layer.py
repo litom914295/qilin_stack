@@ -559,6 +559,11 @@ class DataStorage:
         self.client = None
         self.enabled = False
         
+        # 允许通过配置显式禁用存储（默认禁用以避免本地依赖未启动时的报错）
+        if not config.get('enabled', False):
+            logger.info("Storage disabled by config")
+            return
+        
         try:
             if self.storage_type == 'clickhouse':
                 self.client = clickhouse_driver.Client(
@@ -637,6 +642,13 @@ class StreamProcessor:
         self.config = config
         self.producer = None
         self.enabled = False
+        
+        # 允许通过配置显式禁用Kafka（默认禁用，避免反复连接报错）
+        if not config.get('enabled', False):
+            logger.info("Kafka StreamProcessor disabled by config")
+            self.topic = config.get('topic', 'market_data')
+            return
+        
         try:
             self.producer = KafkaProducer(
                 bootstrap_servers=config.get('brokers', ['localhost:9092']),

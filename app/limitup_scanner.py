@@ -30,15 +30,39 @@ class LimitUpScanner:
             date = datetime.now().strftime('%Y-%m-%d')
         
         try:
+            # # 禁用代理（避免Clash拦截）
+            # import os
+            # # 清除所有代理环境变量
+            # for proxy_var in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']:
+            #     os.environ.pop(proxy_var, None)
+            # os.environ['NO_PROXY'] = '*'
+            # os.environ['no_proxy'] = '*'
+            
             # 尝试使用AKShare获取涨停股
-            import akshare as ak
+
+            # 因此，我们在这里临时禁用代理，并在请求后恢复，以确保连接成功且不影响其他网络功能。
+            import os
+            original_http_proxy = os.environ.get('HTTP_PROXY')
+            original_https_proxy = os.environ.get('HTTPS_PROXY')
+
+            # 在导入和调用 akshare 之前，移除代理环境变量
+            if 'HTTP_PROXY' in os.environ: del os.environ['HTTP_PROXY']
+            if 'HTTPS_PROXY' in os.environ: del os.environ['HTTPS_PROXY']
             
-            logger.info(f"正在扫描 {date} 的涨停股...")
-            
-            # 获取A股实时行情
-            df = ak.stock_zh_a_spot_em()
-            
-            # 筛选涨停股
+            df = pd.DataFrame() # 初始化以防出错
+            try:
+                # 导入 akshare
+                import akshare as ak
+                
+                logger.info(f"正在扫描 {date} 的涨停股...")
+                # 使用新浪数据源
+                df = ak.stock_zh_a_spot()  # 新浪实时行情
+            finally:
+                # 无论成功或失败，都恢复原始的代理设置
+                if original_http_proxy:
+                    os.environ['HTTP_PROXY'] = original_http_proxy
+                if original_https_proxy:
+                    os.environ['HTTPS_PROXY'] = original_https_proxy
             # 涨跌幅 >= 9.5%
             limitup_stocks = df[df['涨跌幅'] >= 9.5].copy()
             
@@ -77,15 +101,16 @@ class LimitUpScanner:
             logger.info(f"找到 {len(results)} 只涨停股")
             return results
             
-        except ImportError:
-            logger.warning("AKShare未安装，使用模拟数据")
+        except ImportError as e:
+            logger.warning("AKShare未安装")
             logger.info("安装命令: pip install akshare")
-            return self._get_mock_limitup_data()
+            # 抛出异常，让调用方知道执行失败了
+            raise Exception(f"AKSHARE_IMPORT_ERROR: {e}") from e
         except Exception as e:
-            logger.warning(f"无法获取真实数据: {str(e)[:100]}")
-            logger.info("原因可能是: 网络连接失败/代理设置/数据源不可用")
-            logger.info("正在使用模拟数据演示...")
-            return self._get_mock_limitup_data()
+            logger.warning(f"无法获取真实数据: {str(e)[:200]}")
+            logger.info("原因可能是: 网络连接失败/数据源不可用/代理设置问题")
+            # 抛出异常，让调用方知道执行失败了
+            raise Exception(f"AKSHARE_NETWORK_FAILURE: {e}") from e
     
     def _get_mock_limitup_data(self) -> List[Dict[str, Any]]:
         """获取模拟涨停股数据（演示用）"""
@@ -310,5 +335,6 @@ if __name__ == "__main__":
     
     df = scan_and_analyze_today()
     
-    print("\n分析结果:")
-    print(df[['name', 'total_score', 'rating', 'recommendation']].to_string(index=False))
+    if not df.empty:
+        # 输出JSON格式，方便其他程序调用
+        print(df.to_json(orient='records', force_ascii=False))

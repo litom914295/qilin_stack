@@ -73,6 +73,10 @@ class LLMAdapter:
         """初始化LLM客户端"""
         try:
             if self.config.llm_provider == "openai":
+                # 无API Key则跳过初始化，避免报错
+                if not self.config.llm_api_key:
+                    logger.warning("OpenAI API Key 未配置，跳过LLM初始化")
+                    return
                 import openai
                 self.client = openai.OpenAI(
                     api_key=self.config.llm_api_key,
@@ -81,6 +85,9 @@ class LLMAdapter:
                 logger.info(f"OpenAI客户端已初始化: {self.config.llm_model}")
             
             elif self.config.llm_provider == "anthropic":
+                if not self.config.llm_api_key:
+                    logger.warning("Anthropic API Key 未配置，跳过LLM初始化")
+                    return
                 import anthropic
                 self.client = anthropic.Anthropic(
                     api_key=self.config.llm_api_key
@@ -655,6 +662,8 @@ def _simple_vote_consensus(self, responses: List[AgentResponse]) -> Dict[str, An
 
 class LimitUpValidatorAgent(BaseAgent):
     """首板校验：昨日是否涨停、是否满足入选条件（价格/新股/ST等）。"""
+    def __init__(self, llm: LLMAdapter, config: TradingAgentsConfig):
+        super().__init__("limitup_validator", llm, config)
     async def analyze(self, symbol: str, market_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> AgentResponse:
         from rd_agent.limit_up_data import LimitUpDataInterface
         import pandas as pd
@@ -687,6 +696,8 @@ class LimitUpValidatorAgent(BaseAgent):
 
 class SealQualityAgent(BaseAgent):
     """封板质量：收盘贴近最高、下影线短。"""
+    def __init__(self, llm: LLMAdapter, config: TradingAgentsConfig):
+        super().__init__("seal_quality", llm, config)
     async def analyze(self, symbol: str, market_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> AgentResponse:
         from rd_agent.limit_up_data import LimitUpDataInterface
         date = (context or {}).get('date') or datetime.now().strftime('%Y-%m-%d')
@@ -701,6 +712,8 @@ class SealQualityAgent(BaseAgent):
 
 class VolumeSurgeAgent(BaseAgent):
     """量能突增：当日/20日均量。"""
+    def __init__(self, llm: LLMAdapter, config: TradingAgentsConfig):
+        super().__init__("volume_surge", llm, config)
     async def analyze(self, symbol: str, market_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> AgentResponse:
         from rd_agent.limit_up_data import LimitUpDataInterface
         date = (context or {}).get('date') or datetime.now().strftime('%Y-%m-%d')
@@ -715,6 +728,8 @@ class VolumeSurgeAgent(BaseAgent):
 
 class BoardContinuityAgent(BaseAgent):
     """连板约束：一进二偏好低连板（<=2）。"""
+    def __init__(self, llm: LLMAdapter, config: TradingAgentsConfig):
+        super().__init__("board_continuity", llm, config)
     async def analyze(self, symbol: str, market_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> AgentResponse:
         from rd_agent.limit_up_data import LimitUpDataInterface
         date = (context or {}).get('date') or datetime.now().strftime('%Y-%m-%d')
@@ -729,6 +744,8 @@ class BoardContinuityAgent(BaseAgent):
 
 class QlibMomentumAgent(BaseAgent):
     """Qlib动量：5日/1日动量加权。"""
+    def __init__(self, llm: LLMAdapter, config: TradingAgentsConfig):
+        super().__init__("qlib_momentum", llm, config)
     async def analyze(self, symbol: str, market_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> AgentResponse:
         try:
             from qlib.data import D
@@ -753,6 +770,8 @@ class QlibMomentumAgent(BaseAgent):
 
 class RDCompositeAgent(BaseAgent):
     """RD组合评分：综合强度/封板/量能/连板（与决策引擎一致）。"""
+    def __init__(self, llm: LLMAdapter, config: TradingAgentsConfig):
+        super().__init__("rd_composite", llm, config)
     async def analyze(self, symbol: str, market_data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> AgentResponse:
         from rd_agent.limit_up_data import LimitUpDataInterface
         date = (context or {}).get('date') or datetime.now().strftime('%Y-%m-%d')

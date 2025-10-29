@@ -51,6 +51,7 @@ venv/
 ENV/
 env/
 .venv
+.qilin/
 
 # Data files
 *.csv

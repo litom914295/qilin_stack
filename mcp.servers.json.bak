@@ -1,0 +1,49 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/ABSOLUTE/PATH/TO/your/qilin_stack"
+      ]
+    },
+    "notes": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-notes",
+        "--notes-dir",
+        "/ABSOLUTE/PATH/TO/your/notes"
+      ]
+    },
+    "GitHub": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<your_github_token>"
+      }
+    },
+    "Slack": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-slack"
+      ],
+      "env": {
+        "SLACK_BOT_TOKEN": "xoxb-<your-bot-token>",
+        "SLACK_APP_TOKEN": "xapp-<your-app-token>",
+        "SLACK_TEAM_ID": "T<your_workspace_id>",
+        "SLACK_CHANNEL_IDS": "<your_channel_id-1>,<your_channel_id-2>",
+        "MCP_MODE": "stdio"
+      }
+    }
+  }
+}

@@ -38,7 +38,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import roc_auc_score
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.model_selection import TimeSeriesSplit, StratifiedKFold
+from sklearn.dummy import DummyClassifier
 
 from datetime import datetime, timedelta
 
@@ -136,8 +137,26 @@ def _base_estimators() -> List[Tuple[str, BaseEstimator]]:
     ests: List[Tuple[str, BaseEstimator]] = []
     if lgb is not None:
         ests.append(("lgb", lgb.LGBMClassifier(n_estimators=200, max_depth=-1, learning_rate=0.05)))
-    if xgb is not None:
-        ests.append(("xgb", xgb.XGBClassifier(n_estimators=300, max_depth=5, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, eval_metric='logloss')))
+    # XGBoost is optional; disable by env to avoid platform-specific issues
+    use_xgb = (xgb is not None) and (os.getenv("OIT_DISABLE_XGB", "0").lower() not in ("1", "true", "yes"))
+    if use_xgb:
+        try:
+            ests.append((
+                "xgb",
+                xgb.XGBClassifier(
+                    n_estimators=300,
+                    max_depth=5,
+                    learning_rate=0.05,
+                    subsample=0.8,
+                    colsample_bytree=0.8,
+                    eval_metric='logloss',
+                    objective='binary:logistic',
+                    base_score=0.5,
+                    tree_method='hist'
+                )
+            ))
+        except Exception:
+            pass
     if CatBoostClassifier is not None:
         ests.append(("cat", CatBoostClassifier(iterations=300, depth=6, learning_rate=0.05, loss_function='Logloss', verbose=False)))
     if not ests:
@@ -169,7 +188,9 @@ class OneIntoTwoTrainer:
 
     def _build_pipeline(self) -> Pipeline:
         stack = _stacking_classifier()
-        calib = CalibratedClassifierCV(stack, cv=3, method='isotonic')
+        # Use sigmoid calibration and stratified CV to avoid degenerate folds
+        skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+        calib = CalibratedClassifierCV(stack, cv=skf, method='sigmoid')
         return Pipeline([
             ("scaler", self.scaler),
             ("clf", calib),
@@ -187,14 +208,29 @@ class OneIntoTwoTrainer:
         tscv = TimeSeriesSplit(n_splits=min(5, max(2, len(dates)//20)))
 
         # Train pool
-        pipe_pool = self._build_pipeline()
-        pipe_pool.fit(X, y_pool)
+        if len(np.unique(y_pool)) < 2:
+            # Fallback to a prior-based dummy when only one class present
+            pipe_pool = Pipeline([
+                ("scaler", self.scaler),
+                ("clf", DummyClassifier(strategy='prior')),
+            ])
+            pipe_pool.fit(X, y_pool)
+        else:
+            pipe_pool = self._build_pipeline()
+            pipe_pool.fit(X, y_pool)
         # Train board on positive pool candidates only to focus learning
         idx_pool = np.where(y_pool == 1)[0]
         X2 = X[idx_pool] if len(idx_pool)>0 else X
         y2 = y_board[idx_pool] if len(idx_pool)>0 else y_board
-        pipe_board = self._build_pipeline()
-        pipe_board.fit(X2, y2)
+        if len(np.unique(y2)) < 2:
+            pipe_board = Pipeline([
+                ("scaler", self.scaler),
+                ("clf", DummyClassifier(strategy='prior')),
+            ])
+            pipe_board.fit(X2, y2)
+        else:
+            pipe_board = self._build_pipeline()
+            pipe_board.fit(X2, y2)
 
         # Metrics
         try:

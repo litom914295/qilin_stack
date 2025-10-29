@@ -59,7 +59,7 @@ try:
 except ImportError as e:
     logger.error(f"❌ 无法导入完整智能体: {e}")
     FULL_AGENTS_AVAILABLE = False
-    raise
+    # 不再抛出异常，回退到基础集成
 
 
 # ============================================================================

@@ -29,6 +29,36 @@ from urllib.parse import urljoin
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Load .env if available (optional)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
+# --- Compat patch: map deprecated use_container_width -> width ---
+def _patch_streamlit_use_container_width():
+    import inspect
+    def _wrap(func):
+        def inner(*args, **kwargs):
+            if 'use_container_width' in kwargs:
+                ucw = kwargs.pop('use_container_width')
+                # map to new width API
+                kwargs.setdefault('width', 'stretch' if ucw else 'content')
+            return func(*args, **kwargs)
+        return inner
+    # patch common APIs
+    try:
+        st.button = _wrap(st.button)
+        st.dataframe = _wrap(st.dataframe)
+        st.download_button = _wrap(st.download_button)
+        st.plotly_chart = _wrap(st.plotly_chart)
+        st.table = _wrap(st.table)
+    except Exception:
+        pass
+
+_patch_streamlit_use_container_width()
+
 # 添加项目路径
 sys.path.append(str(Path(__file__).parent.parent))
 # TradingAgents路径采用环境变量 TRADINGAGENTS_PATH（可选）
@@ -101,8 +131,19 @@ st.set_page_config(
 # 自定义CSS
 st.markdown("""
 <style>
-    .main { padding-top: 0rem; }
-    .block-container { padding: 1rem; }
+    .main { 
+        padding-top: 3rem !important; 
+    }
+    .block-container { 
+        padding-top: 2rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+    /* 确保顶部标题区域有足够的上边距 */
+    [data-testid="stAppViewContainer"] {
+        padding-top: 1rem !important;
+    }
     .stMetric {
         background-color: #f0f2f6;
         padding: 10px;
@@ -167,6 +208,8 @@ class UnifiedDashboard:
             st.session_state.signals_queue = []
             
         # 配置
+        if 'system_running' not in st.session_state:
+            st.session_state.system_running = False
         if 'selected_stocks' not in st.session_state:
             st.session_state.selected_stocks = ["000001", "000002", "600000"]
         if 'refresh_interval' not in st.session_state:
@@ -277,13 +320,19 @@ class UnifiedDashboard:
         # 系统控制
         st.subheader("🎮 系统控制")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("▶️ 启动", use_container_width=True):
-                self.start_system()
-        with col2:
-            if st.button("⏸️ 停止", use_container_width=True):
-                self.stop_system()
+        # 显示当前系统状态
+        if st.session_state.system_running:
+            st.success("✅ 系统运行中")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("⏸️ 停止", use_container_width=True, type="primary"):
+                    self.stop_system()
+        else:
+            st.error("❌ 系统已停止")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("▶️ 启动", use_container_width=True, type="primary"):
+                    self.start_system()
                 
         if st.button("🔄 刷新数据", use_container_width=True):
             self.refresh_data()
@@ -532,19 +581,26 @@ class UnifiedDashboard:
             self._safe("强化学习", self.render_rl_trading)
         with sub3:
             self._safe("一进二策略", self.render_one_into_two_strategy)
-
     def render_qlib_data_management_tab(self):
-        """Qlib/数据管理：多数据源、涨停板分析、特征/因子"""
-        sub1, sub2, sub3 = st.tabs(["🔌 多数据源", "🔥 涨停板分析", "🧮 因子/特征"])
+        """Qlib/数据管理:多数据源、涨停板分析、特征/因子"""
+        sub1, sub2, sub3, sub4 = st.tabs(["🔌 多数据源", "🔥 涨停板分析", "🎯 涨停板监控", "🧮 因子/特征"])
         with sub1:
             self._safe("多数据源", self.render_multi_source_data)
         with sub2:
             self._safe("涨停板分析", self.render_limitup_analysis)
         with sub3:
             try:
+                from tabs.rdagent import limitup_monitor
+                limitup_monitor.render()
+            except Exception as e:
+                st.error(f"涨停板监控模块加载失败: {e}")
+                st.info("请确保已正确安装依赖: matplotlib")
+        with sub4:
+            try:
                 from tabs.rdagent import factor_mining
                 factor_mining.render()
             except Exception:
+                st.info("可在 RD-Agent → 因子挖掘 中使用完整功能；此处仅做入口。")
                 st.info("可在 RD-Agent → 因子挖掘 中使用完整功能；此处仅做入口。")
 
     def render_qlib_portfolio_tab(self):
@@ -687,35 +743,388 @@ class UnifiedDashboard:
         
     def render_one_into_two_strategy(self):
         """一进二策略：数据→训练→预测（示例可跑）"""
-        st.header("🚀 一进二涨停板选股 (示例版)")
-        st.caption("使用示例1min数据与Stacking+校准快速跑通链路；接入真实数据后可直接替换数据构建部分。")
+        st.header("🚀 一进二涨停板选股")
+        
+        # 添加一个切换选项
+        mode = st.radio(
+            "🔧 数据模式",
+            options=[
+                "🧪 示例模式（快速演示）", 
+                "📡 AKShare在线模式（推荐）",
+                "🔥 Qlib离线模式"
+            ],
+            index=1,  # 默认选择AKShare
+            horizontal=True,
+            help="示例模式=模拟数据 | AKShare=在线真实数据(无需下载) | Qlib=离线数据(需提前下载)"
+        )
+        
+        if "示例" in mode:
+            st.info("💡 示例模式：使用随机生成的模拟数据快速演示功能")
+        elif "AKShare" in mode:
+            st.success("✅ AKShare在线模式：直接从网络获取真实市场数据，无需提前下载！")
+            st.caption("📊 数据来源：AKShare (akshare.akfamily.xyz) - 免费开源的财经数据接口")
+        else:
+            st.warning("⚠️ Qlib离线模式需要：1) 已配置Qlib  2) 设置数据目录  3) 已下载数据")
         # 参数
-        colA, colB, colC = st.columns(3)
-        with colA:
-            symbols = st.multiselect("股票池", ["000001.SZ", "000002.SZ", "600000.SH", "600519.SH", "000858.SZ"], ["000001.SZ", "600519.SH"]) 
-        with colB:
-            start = st.date_input("开始", value=(datetime.now()-timedelta(days=90)).date(), key="qlib_dataset_start")
-        with colC:
-            end = st.date_input("结束", value=datetime.now().date(), key="qlib_dataset_end")
+        st.subheader("🎯 股票池选择")
+        
+        col_mode1, col_mode2 = st.columns([3, 1])
+        with col_mode1:
+            pool_mode = st.radio(
+                "选股方式",
+                options=["👉 手动选择", "🤖 智能选择（自动获取今日涨停板）"],
+                index=0,
+                horizontal=True,
+                key="stock_pool_mode"
+            )
+        with col_mode2:
+            if "智能" in pool_mode:
+                if st.button("🔄 刷新涨停板", type="primary", use_container_width=True):
+                    st.session_state['refresh_limitup'] = True
+        
+        # 涨停板类型筛选
+        if "智能" in pool_mode:
+            limitup_filter = st.radio(
+                "🎯 涨停板类型",
+                options=["🆕 所有涨停板", "🆕 仅首板", "🔥 仅连板(2连及以上)"],
+                index=0,
+                horizontal=True,
+                help="首板=首次涨停 | 连板=连续多日涨停",
+                key="limitup_filter_type"
+            )
+        else:
+            limitup_filter = "🆕 所有涨停板"
+        
+        # 根据模式显示不同的选项
+        if "手动" in pool_mode:
+            # 手动模式：使用multiselect
+            st.caption("💡 手动选择股票：适合测试和特定股票分析")
+            colA, colB, colC = st.columns(3)
+            with colA:
+                symbols = st.multiselect(
+                    "选择股票",
+                    ["000001.SZ", "000002.SZ", "000333.SZ", "000858.SZ", 
+                     "600000.SH", "600036.SH", "600519.SH", "601318.SH"],
+                    default=["000001.SZ", "600519.SH"],
+                    key="manual_stock_selection"
+                )
+            with colB:
+                start = st.date_input("开始", value=(datetime.now()-timedelta(days=90)).date(), key="qlib_dataset_start")
+            with colC:
+                end = st.date_input("结束", value=datetime.now().date(), key="qlib_dataset_end")
+        else:
+            # 智能模式：自动获取今日涨停板
+            st.caption("🤖 智能选股：自动获取今日涨停板股票，用于一进二策略分析")
+            
+            # 检查筛选类型是否改变
+            current_filter = st.session_state.get('limitup_filter_type', '🆕 所有涨停板')
+            last_filter = st.session_state.get('last_limitup_filter', '')
+            filter_changed = (current_filter != last_filter)
+            
+            # 自动获取涨停板
+            if ('limitup_stocks' not in st.session_state or 
+                st.session_state.get('refresh_limitup', False) or 
+                filter_changed):
+                
+                with st.spinner("🔍 正在获取今日涨停板数据..."):
+                    try:
+                        import akshare as ak
+                        # 获取今日涨停板 (仅在首次或刷新时获取)
+                        if 'limitup_raw_data' not in st.session_state or st.session_state.get('refresh_limitup', False):
+                            today = datetime.now().strftime('%Y%m%d')
+                            df_zt = ak.stock_zt_pool_em(date=today)
+                            st.session_state['limitup_raw_data'] = df_zt
+                        else:
+                            df_zt = st.session_state.get('limitup_raw_data')
+                        
+                        if df_zt is not None and not df_zt.empty:
+                            # 保存真实总数
+                            total_limitup_count = len(df_zt)
+                            st.session_state['limitup_total_count'] = total_limitup_count
+                            
+                            # 调试: 显示列名
+                            with st.expander("🔍 调试信息", expanded=False):
+                                st.write("列名:", df_zt.columns.tolist())
+                                if '连板数' in df_zt.columns:
+                                    st.write("连板数分布:")
+                                    conn_dist = df_zt['连板数'].value_counts().sort_index()
+                                    st.write(conn_dist)
+                                st.write("样例数据:")
+                                st.dataframe(df_zt[['代码', '名称', '连板数', '涨跌幅']].head(20) if '连板数' in df_zt.columns else df_zt.head(10))
+                            
+                            # 根据类型筛选
+                            limitup_filter = current_filter
+                            st.session_state['last_limitup_filter'] = current_filter
+                            
+                            if '仅首板' in limitup_filter:
+                                # 筛选首板: 连板数=1 (注意: 首板的连板数为1)
+                                if '连板数' in df_zt.columns:
+                                    try:
+                                        # 首板的连板数为1
+                                        df_filtered = df_zt[df_zt['连板数'] == 1]
+                                        filter_desc = f"首板 ({len(df_filtered)}只)"
+                                    except Exception as e:
+                                        st.warning(f"⚠️ 筛选错误: {e}")
+                                        df_filtered = df_zt
+                                        filter_desc = "首板(筛选失败)"
+                                else:
+                                    st.warning("⚠️ 未找到'连板数'字段，无法筛选首板")
+                                    df_filtered = df_zt
+                                    filter_desc = "首板(未筛选)"
+                            elif '仅连板' in limitup_filter:
+                                # 筛选连板: 连板数>=2
+                                if '连板数' in df_zt.columns:
+                                    try:
+                                        df_filtered = df_zt[df_zt['连板数'] >= 2]
+                                        filter_desc = f"2连及以上 ({len(df_filtered)}只)"
+                                    except Exception as e:
+                                        st.warning(f"⚠️ 筛选错误: {e}")
+                                        df_filtered = df_zt
+                                        filter_desc = "2连及以上(筛选失败)"
+                                else:
+                                    st.warning("⚠️ 未找到'连板数'字段，无法筛选连板")
+                                    df_filtered = df_zt
+                                    filter_desc = "2连及以上(未筛选)"
+                            else:
+                                # 所有涨停板
+                                df_filtered = df_zt
+                                filter_desc = "所有类型"
+                            
+                            filtered_count = len(df_filtered)
+                            
+                            # 提取股票代码并转换格式 (最多100只供选择)
+                            limitup_codes = []
+                            for code in df_filtered['代码'].head(100):
+                                if code.startswith('6'):
+                                    limitup_codes.append(f"{code}.SH")
+                                else:
+                                    limitup_codes.append(f"{code}.SZ")
+                            
+                            st.session_state['limitup_stocks'] = limitup_codes
+                            st.session_state['limitup_count'] = len(limitup_codes)
+                            st.session_state['limitup_filtered_count'] = filtered_count
+                            
+                            # 显示提示信息
+                            if st.session_state.get('refresh_limitup', False):
+                                st.success(f"✅ 刷新成功！总计 {total_limitup_count} 只涨停板 | {filter_desc}: {filtered_count} 只 | 已加载: {len(limitup_codes)} 只")
+                            elif filter_changed:
+                                st.info(f"🎯 筛选已更新！{filter_desc}: {filtered_count} 只 | 已加载: {len(limitup_codes)} 只")
+                            else:
+                                st.success(f"✅ 数据已加载！总计 {total_limitup_count} 只涨停板 | {filter_desc}: {filtered_count} 只")
+                        else:
+                            st.warning("⚠️ 今日暂无涨停板数据，使用默认股票池")
+                            st.session_state['limitup_stocks'] = ["000001.SZ", "600519.SH"]
+                            st.session_state['limitup_count'] = 2
+                    except ImportError:
+                        st.error("❌ 未安装 akshare，请先运行: pip install akshare")
+                        st.session_state['limitup_stocks'] = ["000001.SZ", "600519.SH"]
+                        st.session_state['limitup_count'] = 2
+                    except Exception as e:
+                        st.warning(f"⚠️ 获取涨停板失败: {e}，使用默认股票池")
+                        st.session_state['limitup_stocks'] = ["000001.SZ", "600519.SH"]
+                        st.session_state['limitup_count'] = 2
+                    
+                    st.session_state['refresh_limitup'] = False
+            
+            # 显示自动选择的股票
+            symbols = st.session_state.get('limitup_stocks', ["000001.SZ", "600519.SH"])
+            limitup_count = st.session_state.get('limitup_count', len(symbols))
+            total_limitup = st.session_state.get('limitup_total_count', limitup_count)
+            filtered_limitup = st.session_state.get('limitup_filtered_count', limitup_count)
+            
+            col_info1, col_info2, col_info3 = st.columns(3)
+            with col_info1:
+                # 显示筛选后的数量
+                st.metric("📈 筛选后涨停板", f"{filtered_limitup}只", 
+                         delta=f"总计{total_limitup}只" if total_limitup != filtered_limitup else None)
+            with col_info2:
+                st.metric("🎯 已选择股票", f"{len(symbols)}只")
+            with col_info3:
+                filter_count = st.slider("限制数量", 5, 100, min(30, len(symbols)), 5, key="limit_stock_count")
+            
+            # 可以限制数量
+            symbols = symbols[:filter_count]
+            
+            # 显示选中的股票
+            with st.expander(f"👁️ 查看已选择的 {len(symbols)} 只股票", expanded=False):
+                st.write(", ".join(symbols[:20]))
+                if len(symbols) > 20:
+                    st.caption(f"...和其他 {len(symbols)-20} 只")
+            
+            # 时间选择
+            colT1, colT2 = st.columns(2)
+            with colT1:
+                start = st.date_input("开始", value=(datetime.now()-timedelta(days=90)).date(), key="qlib_dataset_start_auto")
+            with colT2:
+                end = st.date_input("结束", value=datetime.now().date(), key="qlib_dataset_end_auto")
+        
+        # Qlib模式下显示配置
+        if "Qlib" in mode:
+            qlib_dir = st.text_input(
+                "Qlib数据目录",
+                value=str(Path("G:/test/qlib/qlib_data/cn_data")),
+                help="设置你的Qlib数据存储路径",
+                key="qlib_real_data_dir"
+            )
+            st.caption("💡 提示：如果未配置Qlib或数据不存在，将自动回退到示例模式")
+        
         if st.button("📦 构建数据集"):
-            with st.spinner("正在生成示例数据…"):
-                df = build_sample_dataset(symbols, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
-                st.session_state['oit_dataset'] = df
-                st.success(f"数据集已就绪：{df.shape}")
-                st.dataframe(df.head(5), use_container_width=True)
+            if "示例" in mode:
+                # 示例模式
+                with st.spinner("正在生成示例数据…"):
+                    df = build_sample_dataset(symbols, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
+                    st.session_state['oit_dataset'] = df
+                    st.session_state['oit_data_mode'] = 'sample'
+                    st.success(f"✅ 示例数据集已就绪：{df.shape}")
+                    st.dataframe(df.head(5), use_container_width=True)
+                    
+            elif "AKShare" in mode:
+                # AKShare在线模式
+                try:
+                    with st.spinner("📡 正在从FKShare获取实时数据…"):
+                        try:
+                            import akshare as ak
+                            import pandas as pd
+                        except ImportError as ie:
+                            st.error(f"❌ 未安装必要包: {ie}")
+                            st.info("请运行: pip install akshare pandas")
+                            st.info("🔄 回退到示例模式")
+                            df = build_sample_dataset(symbols, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
+                            st.session_state['oit_dataset'] = df
+                            st.session_state['oit_data_mode'] = 'sample'
+                            st.dataframe(df.head(5), use_container_width=True)
+                            return
+                        
+                        # 使用AKShare获取数据
+                        all_data = []
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        for idx, symbol in enumerate(symbols):
+                            status_text.text(f"正在获取 {symbol} 的数据... ({idx+1}/{len(symbols)})")
+                            try:
+                                # AKShare的股票代码格式是 000001 或 600000
+                                code = symbol.split('.')[0]
+                                
+                                # 获取日线数据
+                                df_stock = ak.stock_zh_a_hist(
+                                    symbol=code,
+                                    start_date=start.strftime('%Y%m%d'),
+                                    end_date=end.strftime('%Y%m%d'),
+                                    adjust="qfq"  # 前复权
+                                )
+                                
+                                if df_stock is not None and not df_stock.empty:
+                                    # 重命名列
+                                    df_stock = df_stock.rename(columns={
+                                        '日期': 'date',
+                                        '开盘': 'open',
+                                        '收盘': 'close',
+                                        '最高': 'high',
+                                        '最低': 'low',
+                                        '成交量': 'volume',
+                                        '成交额': 'amount',
+                                        '换手率': 'turnover'
+                                    })
+                                    df_stock['symbol'] = symbol
+                                    df_stock['date'] = pd.to_datetime(df_stock['date'])
+                                    all_data.append(df_stock)
+                                    
+                            except Exception as e:
+                                st.warning(f"⚠️ 获取 {symbol} 数据失败: {e}")
+                                continue
+                            
+                            progress_bar.progress((idx + 1) / len(symbols))
+                        
+                        progress_bar.empty()
+                        status_text.empty()
+                        
+                        if not all_data:
+                            st.error("❌ 所有股票数据获取失败")
+                            st.info("🔄 回退到示例模式")
+                            df = build_sample_dataset(symbols, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
+                            st.session_state['oit_dataset'] = df
+                            st.session_state['oit_data_mode'] = 'sample'
+                            st.dataframe(df.head(5), use_container_width=True)
+                            return
+                        
+                        # 合并数据
+                        df = pd.concat(all_data, ignore_index=True)
+                        
+                        # 添加一些基本特征
+                        df['returns'] = df.groupby('symbol')['close'].pct_change()
+                        df['label'] = 0  # 需要根据实际策略打标签
+                        
+                        st.session_state['oit_dataset'] = df
+                        st.session_state['oit_data_mode'] = 'akshare'
+                        st.success(f"✅ 成功从 AKShare 获取数据：{df.shape} | 股票数: {len(all_data)}")
+                        st.dataframe(df.head(10), use_container_width=True)
+                        
+                except Exception as e:
+                    st.error(f"❌ AKShare数据获取失败: {e}")
+                    import traceback
+                    with st.expander("🔍 查看详细错误"):
+                        st.code(traceback.format_exc())
+                    st.info("🔄 回退到示例模式")
+                    df = build_sample_dataset(symbols, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
+                    st.session_state['oit_dataset'] = df
+                    st.session_state['oit_data_mode'] = 'sample'
+                    st.dataframe(df.head(5), use_container_width=True)
+                    
+            else:
+                # Qlib离线模式
+                try:
+                    with st.spinner("正在从Qlib加载离线数据…"):
+                        import qlib
+                        from qlib.data import D
+                        
+                        # 初始化Qlib
+                        qlib.init(provider_uri=qlib_dir, region="cn")
+                        
+                        # 加载真实数据
+                        # TODO: 这里需要实现从 Qlib 加载数据的逻辑
+                        st.warning("⚠️ Qlib数据加载功能开发中，当前使用示例数据")
+                        df = build_sample_dataset(symbols, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
+                        st.session_state['oit_dataset'] = df
+                        st.session_state['oit_data_mode'] = 'qlib'
+                        st.success(f"✅ 数据集已就绪：{df.shape}")
+                        st.dataframe(df.head(5), use_container_width=True)
+                except Exception as e:
+                    st.error(f"❌ 加载Qlib数据失败: {e}")
+                    st.info("🔄 回退到示例模式")
+                    df = build_sample_dataset(symbols, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
+                    st.session_state['oit_dataset'] = df
+                    st.session_state['oit_data_mode'] = 'sample'
+                    st.dataframe(df.head(5), use_container_width=True)
         st.divider()
         # 训练
         top_n = st.slider("TopN", 5, 50, 20)
         if st.button("🧠 训练模型"):
             df = st.session_state.get('oit_dataset')
+            data_mode = st.session_state.get('oit_data_mode', 'sample')
+            
             if df is None or df.empty:
                 st.error("请先构建数据集")
+            elif data_mode == 'akshare':
+                st.error("❌ AKShare模式仅提供价格数据，不包含训练所需的标签(pool_label/board_label)")
+                st.info("💡 请使用以下方式之一:")
+                st.write("- ✅ 选择 **示例模式** 构建数据集，然后训练")
+                st.write("- ✅ 或者使用 **历史训练管道**（下方）生成完整的训练数据")
+                st.warning("👉 AKShare数据适合用于预测，不适合直接训练模型")
             else:
-                trainer = OneIntoTwoTrainer(top_n=top_n)
-                with st.spinner("训练中…"):
-                    res = trainer.fit(df)
-                st.session_state['oit_result'] = res
-                st.success(f"AUC(pool)={res.auc_pool:.3f} | AUC(board)={res.auc_board:.3f} | 阈值≈{res.threshold_topn:.3f}")
+                # 检查是否有必要的列
+                required_cols = ['pool_label', 'board_label']
+                missing_cols = [c for c in required_cols if c not in df.columns]
+                
+                if missing_cols:
+                    st.error(f"❌ 数据集缺少必要字段: {missing_cols}")
+                    st.info("请使用示例模式构建数据集")
+                else:
+                    trainer = OneIntoTwoTrainer(top_n=top_n)
+                    with st.spinner("训练中…"):
+                        res = trainer.fit(df)
+                    st.session_state['oit_result'] = res
+                    st.success(f"AUC(pool)={res.auc_pool:.3f} | AUC(board)={res.auc_board:.3f} | 阈值≈{res.threshold_topn:.3f}")
         st.divider()
         # 预测&选股（当天示例）
         if st.button("🎯 生成T+1候选"):
@@ -736,6 +1145,174 @@ class UnifiedDashboard:
                 st.subheader("入选列表")
                 st.dataframe(ranked, use_container_width=True, hide_index=True)
                 st.info("可在‘风险管理’中进一步做流动性门控与排队评估。")
+
+        # ===== 集成研究训练管道（scripts/pipeline_limitup_research.py）=====
+        st.divider()
+        st.subheader("🧪 历史训练管道（一进二）")
+        
+        # 显示提示信息
+        st.info("""
+        🎯 **与上方选股功能的关系**：
+        - 上方的“智能选择”适合快速训练（用于 T+1 预测）
+        - 这里的“历史训练管道”适合完整研究（生成智能体权重）
+        - **推荐流程**：先用智能选择快速验证 → 再用历史管道全量训练
+        """)
+        
+        # 选项卡：两种模式
+        pipeline_mode = st.radio(
+            "🔧 训练模式",
+            options=[
+                "👉 使用全市场股票（完整研究）",
+                "🎯 使用上方选中的股票池（快速训练）"
+            ],
+            index=0,
+            horizontal=True,
+            key="pipeline_mode_select"
+        )
+        
+        colp1, colp2, colp3 = st.columns(3)
+        with colp1:
+            p_start = st.date_input("开始", value=(datetime.now()-timedelta(days=365)).date(), key="oit_pipe_start")
+        with colp2:
+            p_end = st.date_input("结束", value=datetime.now().date(), key="oit_pipe_end")
+        with colp3:
+            provider_uri = st.text_input("Qlib数据目录", value=str(Path("G:/test/qlib/qlib_data/cn_data")), key="oit_pipe_provider")
+        
+        # 根据模式显示信息
+        if "股票池" in pipeline_mode:
+            selected_symbols = symbols if 'symbols' in locals() else st.session_state.get('limitup_stocks', [])
+            if selected_symbols:
+                st.success(f"✅ 将使用上方选中的 {len(selected_symbols)} 只股票进行训练")
+                with st.expander("👁️ 查看将使用的股票", expanded=False):
+                    st.write(", ".join(selected_symbols[:30]))
+                    if len(selected_symbols) > 30:
+                        st.caption(f"...和其他 {len(selected_symbols)-30} 只")
+            else:
+                st.warning("⚠️ 上方未选择股票，将使用默认股票池")
+        else:
+            st.info("📊 将使用全市场所有股票（可能需要较长时间）")
+        
+        apply_weights = st.checkbox("训练后写入建议权重到 config/tradingagents.yaml", value=False, key="oit_pipe_apply")
+        
+        if st.button("🚀 运行研究训练管道", key="oit_run_pipeline", type="primary"):
+            try:
+                with st.spinner("正在运行历史训练管道…（请耐心等待）"):
+                    from scripts.pipeline_limitup_research import run_pipeline
+                    
+                    # 判断是否使用选中的股票池
+                    if "股票池" in pipeline_mode:
+                        selected_symbols = symbols if 'symbols' in locals() else st.session_state.get('limitup_stocks', [])
+                        if selected_symbols:
+                            # 转换股票代码格式：000001.SZ → SZ000001
+                            converted_symbols = []
+                            for sym in selected_symbols:
+                                if '.SH' in sym:
+                                    converted_symbols.append('SH' + sym.split('.')[0])
+                                elif '.SZ' in sym:
+                                    converted_symbols.append('SZ' + sym.split('.')[0])
+                                else:
+                                    converted_symbols.append(sym)
+                            
+                            st.info(f"🎯 使用选中的 {len(converted_symbols)} 只股票进行训练")
+                            
+                            # 修改 run_pipeline 函数以接受 universe 参数
+                            # 这里我们需要修改调用方式
+                            import sys
+                            sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+                            from pipeline_limitup_research import (
+                                init_qlib, fetch_panel, engineer_features,
+                                build_labeled_samples, train_and_explain,
+                                suggest_agent_weights, write_weight_suggestions,
+                                apply_weights_to_yaml, OUT_DIR
+                            )
+                            
+                            init_qlib(provider_uri or None)
+                            panel = fetch_panel(converted_symbols, str(p_start), str(p_end))
+                            feat = engineer_features(panel)
+                            samples = build_labeled_samples(feat)
+                            
+                            if samples.empty:
+                                st.error("❌ 未生成任何样本，请检查日期范围和数据可用性")
+                                return
+                            
+                            # 保存数据集
+                            ds_path = OUT_DIR / f"limitup_samples_{p_start}_{p_end}_custom.parquet"
+                            samples.to_parquet(ds_path)
+                            st.info(f"💾 样本已保存：{ds_path} (行数={len(samples)})")
+                            
+                            # 训练
+                            res = train_and_explain(samples)
+                            
+                            # 生成权重建议
+                            imp_path = res.shap_path or res.perm_path
+                            if imp_path and imp_path.exists():
+                                imp = pd.read_csv(imp_path)
+                                if imp.columns[1] != "importance":
+                                    imp = imp.rename(columns={imp.columns[1]: "importance"})
+                                weights = suggest_agent_weights(imp[["feature", "importance"]])
+                                write_weight_suggestions(weights)
+                                
+                                if apply_weights:
+                                    apply_weights_to_yaml(weights)
+                                
+                                # 保存训练总结
+                                import json as _json
+                                import time
+                                summary = {
+                                    "start": str(p_start),
+                                    "end": str(p_end),
+                                    "auc": res.auc,
+                                    "ap": res.ap,
+                                    "model_path": str(res.model_path),
+                                    "importance_path": str(imp_path),
+                                    "samples_path": str(ds_path),
+                                    "weights": weights,
+                                    "timestamp": int(time.time()),
+                                    "mode": "custom_pool",
+                                    "symbols_count": len(converted_symbols)
+                                }
+                                summary_path = OUT_DIR / f"training_summary_{p_start}_{p_end}_custom.json"
+                                with open(summary_path, "w", encoding="utf-8") as f:
+                                    _json.dump(summary, f, ensure_ascii=False, indent=2)
+                        else:
+                            st.warning("⚠️ 上方未选择股票，使用全市场模式")
+                            run_pipeline(start=str(p_start), end=str(p_end), provider_uri=provider_uri or None, apply=apply_weights)
+                    else:
+                        # 全市场模式
+                        run_pipeline(start=str(p_start), end=str(p_end), provider_uri=provider_uri or None, apply=apply_weights)
+                # 展示输出
+                out_dir = Path(__file__).parent.parent / "output" / "limitup_research"
+                st.success("训练完成")
+                st.caption(str(out_dir))
+                # 展示Summary
+                import json as _json
+                summaries = sorted(out_dir.glob("training_summary*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if summaries:
+                    summary = _json.loads(summaries[0].read_text(encoding='utf-8'))
+                    st.markdown("**结果摘要**")
+                    try:
+                        st.metric("AUC", f"{summary.get('auc', 0):.4f}")
+                        st.metric("AP", f"{summary.get('ap', 0):.4f}")
+                    except Exception:
+                        pass
+                    st.json(summary)
+                # 展示权重建议
+                sug = out_dir / "agent_weight_suggestions.json"
+                if sug.exists():
+                    st.markdown("**建议权重**")
+                    st.code(sug.read_text(encoding='utf-8'), language="json")
+                # 列出最近产物
+                files = sorted(out_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)[:12]
+                if files:
+                    st.markdown("**最近生成文件**")
+                    df_files = pd.DataFrame([
+                        {"文件": f.name, "大小(KB)": round(f.stat().st_size/1024,1), "修改时间": datetime.fromtimestamp(f.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
+                        for f in files
+                    ])
+                    st.dataframe(df_files, use_container_width=True, hide_index=True)
+            except Exception as e:
+                st.error(f"训练管道运行失败: {e}")
+                st.exception(e)
         
     def render_rdagent_tabs(self):
         """渲染RD-Agent的6个子tabs"""
@@ -1541,7 +2118,9 @@ class UnifiedDashboard:
             try:
                 # 启动统一交易系统
                 # asyncio.run(st.session_state.unified_system.start())
+                st.session_state.system_running = True
                 st.success("✅ 系统已启动")
+                st.rerun()
             except Exception as e:
                 st.error(f"❌ 启动失败: {e}")
     
@@ -1550,7 +2129,9 @@ class UnifiedDashboard:
         with st.spinner("正在停止系统..."):
             try:
                 # asyncio.run(st.session_state.unified_system.stop())
+                st.session_state.system_running = False
                 st.warning("⏸️ 系统已停止")
+                st.rerun()
             except Exception as e:
                 st.error(f"❌ 停止失败: {e}")
     
@@ -1745,100 +2326,120 @@ class UnifiedDashboard:
             )
         
         if auto_scan_btn:
-            with st.spinner("🔍 正在扫描涨停股..."):
+            df_results = pd.DataFrame()
+            with st.spinner("🔍 正在通过独立进程扫描..."):
                 try:
-                    # 导入扫描器
-                    import sys
+                    import subprocess, json, sys, os
                     from pathlib import Path
-                    sys.path.insert(0, str(Path(__file__).parent.parent))
-                    from app.limitup_scanner import scan_and_analyze_today
+
+                    python_executable = sys.executable
+                    scanner_script = str(Path(__file__).parent.parent / "app" / "limitup_scanner_simple.py")
                     
-                    # 执行扫描
-                    df_results = scan_and_analyze_today()
-                    
-                    if df_results.empty:
-                        st.warning("⚠️ 今日暂无涨停股或数据获取失败")
-                    else:
-                        # 检查是否为模拟数据
-                        is_mock = len(df_results) == 3 and df_results.iloc[0]['name'] == '浦发银行'
-                        
-                        if is_mock:
-                            st.warning(f"⚠️ 网络连接失败，当前显示的是模拟数据（非实时行情）")
-                            st.info("🔧 解决方法: 检查网络连接或关闭代理后重试")
-                        else:
-                            st.success(f"✅ 扫描完成！找到 {len(df_results)} 只真实涨停股")
-                        
-                        st.divider()
-                        
-                        # 显示统计信息
-                        col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
-                        
-                        strong_count = len(df_results[df_results['total_score'] >= 85])
-                        medium_count = len(df_results[(df_results['total_score'] >= 70) & (df_results['total_score'] < 85)])
-                        weak_count = len(df_results[df_results['total_score'] < 70])
-                        
-                        with col_stat1:
-                            st.metric("🔥 强势涨停", f"{strong_count}只")
-                        with col_stat2:
-                            st.metric("⚠️ 一般涨停", f"{medium_count}只")
-                        with col_stat3:
-                            st.metric("❌ 弱势涨停", f"{weak_count}只")
-                        with col_stat4:
-                            avg_score = df_results['total_score'].mean()
-                            st.metric("📊 平均得分", f"{avg_score:.1f}")
-                        
-                        st.divider()
-                        
-                        # 显示分析结果表格
-                        st.subheader("📊 分析结果（按得分排序）")
-                        
-                        # 准备显示数据
-                        display_df = df_results[['name', 'symbol', 'total_score', 'rating', 'recommendation']].copy()
-                        display_df.columns = ['股票名称', '代码', '综合得分', '评级', '操作建议']
-                        
-                        # 显示表格
-                        st.dataframe(
-                            display_df,
-                            use_container_width=True,
-                            hide_index=True,
-                            height=400
-                        )
-                        
-                        # 重点关注提示
-                        if strong_count > 0:
-                            st.divider()
-                            st.subheader("🎯 重点关注股票")
-                            strong_stocks = df_results[df_results['total_score'] >= 85]
-                            
-                            for idx, row in strong_stocks.iterrows():
-                                with st.expander(f"🔥 {row['name']} ({row['symbol']}) - 得分: {row['total_score']}"):
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        st.metric("🕒 涨停时间得分", f"{row['scores']['time_score']}")
-                                        st.metric("💪 封单强度得分", f"{row['scores']['seal_score']}")
-                                    with col2:
-                                        st.metric("🔓 开板次数得分", f"{row['scores']['open_score']}")
-                                        st.metric("📊 量能得分", f"{row['scores']['volume_score']}")
-                                    
-                                    st.success(f"📌 **建议**: {row['recommendation']}")
-                        
-                        # 下载按钮
-                        st.divider()
-                        csv = df_results.to_csv(index=False, encoding='utf-8-sig')
-                        st.download_button(
-                            label="💾 下载分析结果 (CSV)",
-                            data=csv,
-                            file_name=f"limitup_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
-                            mime="text/csv"
-                        )
-                        
-                except ImportError as e:
-                    st.error(f"❌ 缺少依赖: {e}\n\n请确保已安装 akshare: pip install akshare")
+                    # 运行脚本作为子进程，并显式传递当前环境变量
+                    process_env = os.environ.copy()
+                    result = subprocess.run(
+                        [python_executable, scanner_script],
+                        capture_output=True, text=True, encoding='utf-8', env=process_env
+                    )
+
+                    # 如果子进程执行出错，显示详细的错误报告
+                    if result.returncode != 0:
+                        st.error(f"❌ 扫描脚本执行失败 (Exit Code: {result.returncode})")
+                        with st.expander("🔍 **重要：点击查看脚本错误详情 (stderr)**"):
+                            st.code(result.stderr or "无错误输出。")
+                        with st.expander("🔍 点击查看脚本常规输出 (stdout)"):
+                            st.code(result.stdout or "无常规输出。")
+                        st.info("--- 请将以上错误详情截图给我，以便进一步分析 ---")
+                        return
+
+                    # 解析脚本的JSON输出
+                    if result.stdout:
+                        json_start_index = result.stdout.find('[')
+                        if json_start_index != -1:
+                            clean_stdout = result.stdout[json_start_index:]
+                            df_results = pd.DataFrame(json.loads(clean_stdout))
+
                 except Exception as e:
-                    st.error(f"❌ 扫描失败: {e}")
+                    st.error(f"❌ 调用扫描脚本时发生未知错误: {e}")
                     import traceback
                     with st.expander("🔍 查看详细错误"):
                         st.code(traceback.format_exc())
+                    return
+            
+            # --- 结果处理 ---
+            if df_results.empty:
+                st.warning("⚠️ 扫描成功，但未返回任何涨停股数据。请检查 `app/limitup_scanner.py` 的输出。")
+            else:
+                # 检查是否为模拟数据
+                is_mock = len(df_results) == 3 and df_results.iloc[0]['name'] == '浦发银行'
+                
+                if is_mock:
+                    st.warning(f"⚠️ 网络连接失败，当前显示的是模拟数据（非实时行情）")
+                    st.info("🔧 子进程未能成功联网。请检查代理设置并重试。")
+                else:
+                    st.success(f"✅ 扫描完成！找到 {len(df_results)} 只真实涨停股")
+                
+                st.divider()
+                
+                # 显示统计信息
+                col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+                
+                strong_count = len(df_results[df_results['total_score'] >= 85])
+                medium_count = len(df_results[(df_results['total_score'] >= 70) & (df_results['total_score'] < 85)])
+                weak_count = len(df_results[df_results['total_score'] < 70])
+                
+                with col_stat1:
+                    st.metric("🔥 强势涨停", f"{strong_count}只")
+                with col_stat2:
+                    st.metric("⚠️ 一般涨停", f"{medium_count}只")
+                with col_stat3:
+                    st.metric("❌ 弱势涨停", f"{weak_count}只")
+                with col_stat4:
+                    avg_score = df_results['total_score'].mean()
+                    st.metric("📊 平均得分", f"{avg_score:.1f}")
+                
+                st.divider()
+                
+                # 显示分析结果表格
+                st.subheader("📊 分析结果（按得分排序）")
+                
+                display_df = df_results[['name', 'symbol', 'total_score', 'rating', 'recommendation']].copy()
+                display_df.columns = ['股票名称', '代码', '综合得分', '评级', '操作建议']
+                
+                st.dataframe(
+                    display_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=400
+                )
+                
+                # 重点关注提示
+                if strong_count > 0:
+                    st.divider()
+                    st.subheader("🎯 重点关注股票")
+                    strong_stocks = df_results[df_results['total_score'] >= 85]
+                    
+                    for idx, row in strong_stocks.iterrows():
+                        with st.expander(f"🔥 {row['name']} ({row['symbol']}) - 得分: {row['total_score']}"):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.metric("🕒 涨停时间得分", f"{row['scores']['time_score']}")
+                                st.metric("💪 封单强度得分", f"{row['scores']['seal_score']}")
+                            with col2:
+                                st.metric("🔓 开板次数得分", f"{row['scores']['open_score']}")
+                                st.metric("📊 量能得分", f"{row['scores']['volume_score']}")
+                            
+                            st.success(f"📌 **建议**: {row['recommendation']}")
+                
+                # 下载按钮
+                st.divider()
+                csv = df_results.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="💾 下载分析结果 (CSV)",
+                    data=csv,
+                    file_name=f"limitup_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
         
         st.divider()
         st.divider()
