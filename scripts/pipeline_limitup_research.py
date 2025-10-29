@@ -89,11 +89,12 @@ def list_instruments(limit: Optional[int] = None) -> List[str]:
             codes = []
     if not codes and HAS_AK:
         try:
-            # disable proxies to avoid interception
+            # optionally disable proxies (default: respect proxies)
             import os as _os
-            for _k in ("HTTP_PROXY","HTTPS_PROXY","http_proxy","https_proxy"):
-                _os.environ.pop(_k, None)
-            _os.environ["NO_PROXY"] = "*"
+            if _os.getenv("AKSHARE_DISABLE_PROXY", "0").lower() in ("1", "true", "yes"):
+                for _k in ("HTTP_PROXY","HTTPS_PROXY","http_proxy","https_proxy"):
+                    _os.environ.pop(_k, None)
+                _os.environ["NO_PROXY"] = "*"
             df = ak.stock_zh_a_spot_em()
             # map to Qlib-style codes: SH/SZ prefix uppercase
             raw_codes = df["代码"].astype(str).tolist() if isinstance(df, pd.DataFrame) and "代码" in df.columns else []
@@ -195,14 +196,17 @@ def fetch_panel(universe: List[str], start: str, end: str) -> pd.DataFrame:
             print(f"[WARN] Qlib fetch failed: {e}")
     # Fallback: AkShare (slow for large universe)
     if not frames and HAS_AK:
-        # disable proxies to avoid interception
+        # optionally disable proxies (default: respect proxies)
         import os as _os
-        for _k in ("HTTP_PROXY","HTTPS_PROXY","http_proxy","https_proxy"):
-            _os.environ.pop(_k, None)
-        _os.environ["NO_PROXY"] = "*"
+        if _os.getenv("AKSHARE_DISABLE_PROXY", "0").lower() in ("1", "true", "yes"):
+            for _k in ("HTTP_PROXY","HTTPS_PROXY","http_proxy","https_proxy"):
+                _os.environ.pop(_k, None)
+            _os.environ["NO_PROXY"] = "*"
         rows = []
         # cap to 300 for speed when using AkShare
         universe_ak = universe[:300] if len(universe) > 300 else universe
+        # throttle to avoid anti-scraping
+        import time as _time
         for i, sym in enumerate(universe_ak):
             code = _to_ak_code(sym)
             if not code:
@@ -223,6 +227,8 @@ def fetch_panel(universe: List[str], start: str, end: str) -> pd.DataFrame:
                 continue
             if (i + 1) % 100 == 0:
                 print(f"  [AK] fetched {i+1}/{len(universe_ak)}")
+            if (i + 1) % 50 == 0:
+                _time.sleep(0.5)
         if rows:
             df2 = pd.concat(rows, ignore_index=True)
             df2 = df2.set_index(["date", "symbol"]).sort_index()
