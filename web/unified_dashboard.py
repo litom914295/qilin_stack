@@ -1234,6 +1234,16 @@ class UnifiedDashboard:
                             if samples.empty:
                                 st.error("❌ 未生成任何样本，请检查日期范围和数据可用性")
                                 return
+                            # 小样本与单类标签友好提示
+                            try:
+                                import pandas as _pd
+                                _n = len(samples)
+                                _u = _pd.Series(samples.get('y')).nunique() if 'y' in samples.columns else 0
+                                if _n < 10 or _u < 2:
+                                    st.error(f"❌ 样本量过少({_n})或标签单一({_u})，无法训练。请拉长日期范围（建议≥6个月）或扩大股票池/改用全市场模式。")
+                                    return
+                            except Exception:
+                                pass
                             
                             # 保存数据集
                             ds_path = OUT_DIR / f"limitup_samples_{p_start}_{p_end}_custom.parquet"
@@ -1246,6 +1256,7 @@ class UnifiedDashboard:
                             # 生成权重建议
                             imp_path = res.shap_path or res.perm_path
                             if imp_path and imp_path.exists():
+                                import pandas as pd  # 确保pd可用
                                 imp = pd.read_csv(imp_path)
                                 if imp.columns[1] != "importance":
                                     imp = imp.rename(columns={imp.columns[1]: "importance"})
@@ -1305,6 +1316,7 @@ class UnifiedDashboard:
                 files = sorted(out_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)[:12]
                 if files:
                     st.markdown("**最近生成文件**")
+                    import pandas as pd  # 确保pd可用
                     df_files = pd.DataFrame([
                         {"文件": f.name, "大小(KB)": round(f.stat().st_size/1024,1), "修改时间": datetime.fromtimestamp(f.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
                         for f in files
