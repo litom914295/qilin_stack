@@ -1307,6 +1307,18 @@ class UnifiedDashboard:
                     except Exception:
                         pass
                     st.json(summary)
+                    # 数据源提示
+                    info = summary.get('data_source_info') or {}
+                    if info.get('data_source_used') == 'synthetic':
+                        reasons = []
+                        if info.get('qlib_error'):
+                            reasons.append('Qlib初始化/读取失败')
+                        if (info.get('ak_errors_sample') or []) or (info.get('ak_success', 0) == 0):
+                            reasons.append('AkShare 网络被拦截或中断')
+                        if reasons:
+                            st.warning('已使用合成数据训练：' + '；'.join(reasons) + '。建议配置本地Qlib数据或修复网络/代理。')
+                    elif info.get('data_source_used'):
+                        st.info(f"使用真实数据源：{info.get('data_source_used').upper()}")
                 # 展示权重建议
                 sug = out_dir / "agent_weight_suggestions.json"
                 if sug.exists():
