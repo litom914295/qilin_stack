@@ -1,0 +1,165 @@
+# Alertmanager配置文件
+# 麒麟量化交易系统告警管理
+
+global:
+  # SMTP配置（邮件告警）
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alertmanager@qilin-stack.com'
+  smtp_auth_username: 'alertmanager@qilin-stack.com'
+  smtp_auth_password: 'your_password'
+  smtp_require_tls: true
+  
+  # 默认接收者
+  resolve_timeout: 5m
+
+# 告警路由
+route:
+  # 默认接收者
+  receiver: 'default-receiver'
+  
+  # 分组配置
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s        # 等待时间，收集同组告警
+  group_interval: 10s    # 同组告警间隔
+  repeat_interval: 12h   # 重复告警间隔
+  
+  # 子路由
+  routes:
+    # 系统告警
+    - match:
+        category: system
+      receiver: 'system-team'
+      group_by: ['alertname', 'instance']
+      continue: true
+    
+    # 应用告警
+    - match:
+        category: application
+      receiver: 'app-team'
+      group_by: ['alertname', 'service']
+      continue: true
+    
+    # 数据库告警
+    - match:
+        category: database
+      receiver: 'dba-team'
+      group_by: ['alertname', 'instance']
+      continue: true
+    
+    # 交易系统告警（高优先级）
+    - match:
+        category: trading
+      receiver: 'trading-team'
+      group_wait: 0s         # 立即发送
+      group_interval: 5s     # 短间隔
+      repeat_interval: 1h    # 1小时重复
+      continue: true
+    
+    # 严重告警（Critical）
+    - match:
+        severity: critical
+      receiver: 'critical-team'
+      group_wait: 0s
+      repeat_interval: 30m
+      continue: true
+
+# 告警抑制
+inhibit_rules:
+  # 节点宕机时抑制其他相关告警
+  - source_match:
+      alertname: 'InstanceDown'
+    target_match:
+      instance: '.*'
+    equal: ['instance']
+  
+  # 严重告警触发时抑制警告告警
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+
+# 接收者配置
+receivers:
+  # 默认接收者
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'ops@qilin-stack.com'
+        send_resolved: true
+        headers:
+          Subject: '[Qilin Alert] {{ .GroupLabels.alertname }}'
+    
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/alerts'
+        send_resolved: true
+
+  # 系统团队
+  - name: 'system-team'
+    email_configs:
+      - to: 'system-ops@qilin-stack.com'
+        send_resolved: true
+        headers:
+          Subject: '[Qilin System] {{ .GroupLabels.alertname }}'
+    
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#system-alerts'
+        title: '系统告警'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        send_resolved: true
+
+  # 应用团队
+  - name: 'app-team'
+    email_configs:
+      - to: 'app-ops@qilin-stack.com'
+        send_resolved: true
+    
+    pagerduty_configs:
+      - service_key: 'YOUR_PAGERDUTY_SERVICE_KEY'
+        description: '{{ .GroupLabels.alertname }}'
+
+  # 数据库团队
+  - name: 'dba-team'
+    email_configs:
+      - to: 'dba@qilin-stack.com'
+        send_resolved: true
+        headers:
+          Subject: '[Qilin DB] {{ .GroupLabels.alertname }}'
+
+  # 交易系统团队（最高优先级）
+  - name: 'trading-team'
+    email_configs:
+      - to: 'trading-ops@qilin-stack.com,cto@qilin-stack.com'
+        send_resolved: true
+        headers:
+          Subject: '[URGENT - Qilin Trading] {{ .GroupLabels.alertname }}'
+    
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/trading-alerts'
+        send_resolved: true
+    
+    # 企业微信/钉钉（需要额外配置）
+    wechat_configs:
+      - corp_id: 'YOUR_WECHAT_CORP_ID'
+        api_secret: 'YOUR_WECHAT_API_SECRET'
+        to_user: '@all'
+        agent_id: 'YOUR_AGENT_ID'
+        message: '{{ template "wechat.default.message" . }}'
+        send_resolved: true
+
+  # 严重告警团队
+  - name: 'critical-team'
+    email_configs:
+      - to: 'critical@qilin-stack.com,ceo@qilin-stack.com'
+        send_resolved: true
+        headers:
+          Subject: '[CRITICAL - Qilin Stack] {{ .GroupLabels.alertname }}'
+    
+    # 短信告警（需要第三方服务）
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/sms-alerts'
+        send_resolved: true
+
+# 模板配置
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

@@ -28,7 +28,7 @@ def render():
         # 获取可用日期
         available_dates = get_available_dates(reports_dir)
         if available_dates:
-            selected_date = st.selectbox("选择日期", available_dates)
+            selected_date = st.selectbox("选择日期", available_dates, key="limitup_selected_date")
         else:
             selected_date = datetime.now().strftime("%Y-%m-%d")
             st.warning("未找到历史报告")

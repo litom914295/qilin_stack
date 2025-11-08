@@ -23,6 +23,9 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import pickle
 import hashlib
 
+# 代码沙盒 (P1-3)
+from rd_agent.code_sandbox import execute_safe, SecurityLevel
+
 # 机器学习相关
 from sklearn.metrics import mean_squared_error, accuracy_score, f1_score
 from sklearn.model_selection import cross_val_score, TimeSeriesSplit
@@ -31,9 +34,32 @@ from optuna.samplers import TPESampler
 
 # 大语言模型相关
 import openai
-from langchain import LLMChain, PromptTemplate
-from langchain.llms import OpenAI
-from langchain.agents import Tool, AgentExecutor, LLMSingleActionAgent
+
+# langchain 1.0+ 导入方式
+try:
+    # 新版langchain (1.0+) - 模块化结构
+    from langchain_community.chains import LLMChain
+    from langchain_core.prompts import PromptTemplate
+    from langchain_openai import OpenAI
+    from langchain.agents import Tool, AgentExecutor
+    LANGCHAIN_NEW = True
+except ImportError as e:
+    try:
+        # 尝试旧版导入方式
+        from langchain import LLMChain, PromptTemplate
+        from langchain.llms import OpenAI
+        from langchain.agents import Tool, AgentExecutor, LLMSingleActionAgent
+        LANGCHAIN_NEW = False
+    except ImportError:
+        # langchain功能不可用,使用降级方案
+        LLMChain = None
+        PromptTemplate = None
+        OpenAI = None
+        Tool = None
+        AgentExecutor = None
+        LANGCHAIN_NEW = None
+        import warnings
+        warnings.warn(f"langchain功能不可用: {e}. 部分AI功能将被禁用")
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -331,8 +357,19 @@ class RDAgent:
     def _check_conditions(self, conditions: List[str], data: pd.Series, params: Dict) -> bool:
         """检查条件是否满足"""
         for condition in conditions:
-            # 简单的条件解析（实际应该更复杂）
-            if not eval(condition, {"data": data, "params": params}):
+            # P1-3: 使用代码沙盒执行条件检查
+            code = f"result = {condition}"
+            execution_result = execute_safe(
+                code=code,
+                context={"data": data, "params": params},
+                timeout=2
+            )
+            
+            if not execution_result.success:
+                logger.warning(f"Condition execution failed: {execution_result.error}")
+                return False
+            
+            if not execution_result.locals.get('result', False):
                 return False
         return True
     
@@ -392,8 +429,13 @@ class HypothesisGenerator:
         
     def _init_llm(self):
         """初始化大语言模型"""
-        # 这里可以配置不同的LLM
-        return None  # 示例中简化处理
+        # langchain为可选依赖,当前使用基于规则的生成器
+        if LANGCHAIN_NEW is None:
+            logger.info("💡 langchain不可用,使用基于规则的生成器")
+            return None
+        
+        # 未来可以在这里配置真正的LLM
+        return None
     
     async def generate(self,
                        topic: str,
@@ -752,28 +794,41 @@ class ExecutionEngine:
                      code: str,
                      data: pd.DataFrame,
                      hypothesis: ResearchHypothesis) -> Dict[str, Any]:
-        """执行代码"""
+        """执行代码 (P1-3: 使用代码沙盒)"""
         try:
-            # 准备执行环境
-            exec_globals = self.sandbox.copy()
-            exec_globals['data'] = data
+            # P1-3: 使用代码沙盒执行
+            context = {
+                'data': data,
+                'np': np,
+                'pd': pd,
+                'datetime': datetime
+            }
             
-            # 执行代码
-            exec(code, exec_globals)
+            execution_result = execute_safe(
+                code=code,
+                context=context,
+                timeout=10  # 10秒超时
+            )
+            
+            if not execution_result.success:
+                logger.error(f"Execution error: {execution_result.error}")
+                return {"success": False, "error": execution_result.error}
             
             # 获取结果
             if hypothesis.category == "factor":
-                result = exec_globals.get('calculate_factor')(data)
-                return {"factor_values": result, "success": True}
+                calculate_factor = execution_result.locals.get('calculate_factor')
+                if calculate_factor:
+                    result = calculate_factor(data)
+                    return {"factor_values": result, "success": True}
             elif hypothesis.category == "strategy":
                 # 创建策略实例
-                strategy_class = exec_globals.get('Strategy')
+                strategy_class = execution_result.locals.get('Strategy')
                 if strategy_class:
                     strategy = strategy_class({'vol_threshold': 0.02})
                     signals = strategy.generate_signals(data)
                     return {"signals": signals, "success": True}
             elif hypothesis.category == "model":
-                model_class = exec_globals.get('Model')
+                model_class = execution_result.locals.get('Model')
                 if model_class:
                     return {"model": model_class, "success": True}
             
@@ -784,14 +839,26 @@ class ExecutionEngine:
             return {"success": False, "error": str(e)}
     
     async def calculate_factor(self, factor_code: str, data: pd.DataFrame) -> pd.Series:
-        """计算因子值"""
+        """计算因子值 (P1-3: 使用代码沙盒)"""
         try:
-            exec_globals = self.sandbox.copy()
-            exec_globals['data'] = data
+            # P1-3: 使用代码沙盒执行
+            context = {
+                'data': data,
+                'np': np,
+                'pd': pd
+            }
             
-            exec(factor_code, exec_globals)
+            execution_result = execute_safe(
+                code=factor_code,
+                context=context,
+                timeout=10
+            )
             
-            calculate_func = exec_globals.get('calculate_factor')
+            if not execution_result.success:
+                logger.error(f"Factor calculation error: {execution_result.error}")
+                return pd.Series()
+            
+            calculate_func = execution_result.locals.get('calculate_factor')
             if calculate_func:
                 return calculate_func(data)
             

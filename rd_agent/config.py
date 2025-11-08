@@ -22,7 +22,7 @@ class RDAgentConfig:
     rdagent_path: str = field(
         default_factory=lambda: os.getenv(
             "RDAGENT_PATH",
-            "D:/test/Qlib/RD-Agent"
+            "G:/test/RD-Agent"  # 修正为实际路径
         )
     )
     
@@ -92,6 +92,13 @@ class RDAgentConfig:
     log_level: str = "INFO"
     log_file: Optional[str] = None
     verbose: bool = True
+    
+    # ✅ P0-1: 会话恢复配置
+    checkpoint_path: Optional[str] = field(
+        default_factory=lambda: os.getenv("RDAGENT_CHECKPOINT_PATH")
+    )
+    enable_auto_checkpoint: bool = True  # 是否自动保存检查点
+    checkpoint_interval: int = 5  # 检查点保存间隔（轮次）
     
     def __post_init__(self):
         """后初始化验证"""
@@ -242,7 +249,7 @@ CONFIG_TEMPLATE = """
 
 rdagent:
   # RD-Agent项目路径
-  rdagent_path: "D:/test/Qlib/RD-Agent"
+  rdagent_path: "G:/test/RD-Agent"
   
   # LLM配置
   llm_provider: "openai"  # openai, azure, anthropic, local

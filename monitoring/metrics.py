@@ -213,8 +213,30 @@ class SystemMonitor:
             labels={"source": source}
         )
     
-    def record_market_state(self, regime: str, confidence: float):
-        """记录市场状态"""
+    def record_market_state(
+        self,
+        regime: str = None,
+        confidence: float = None,
+        date: str = None,
+        state: Dict = None
+    ):
+        """记录市场状态
+        
+        支持两种调用方式:
+        1. 直接传参: record_market_state(regime='bull', confidence=0.8)
+        2. 传state字典: record_market_state(state={'regime': 'bull', 'confidence': 0.8})
+        """
+        # 如果提供state参数,从中提取信息
+        if state is not None:
+            regime = state.get('regime', regime)
+            confidence = state.get('confidence', confidence)
+        
+        # 默认值
+        if regime is None:
+            regime = "unknown"
+        if confidence is None:
+            confidence = 0.5
+        
         # 将市场状态编码为数字
         regime_map = {
             "bull": 1.0,

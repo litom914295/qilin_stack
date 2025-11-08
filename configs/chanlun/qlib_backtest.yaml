@@ -1,0 +1,119 @@
+# Qlib 缠论回测配置
+# 
+# 功能: 使用缠论评分模型进行完整回测
+# 替代: backtest/simple_backtest.py (412行)
+#
+# 使用方式:
+#   qrun run --config_path configs/chanlun/qlib_backtest.yaml
+#
+# 作者: Warp AI Assistant
+# 日期: 2025-01
+# 项目: 麒麟量化系统 - 缠论Qlib集成
+
+qlib_init:
+    provider_uri: "~/.qlib/qlib_data/cn_data"
+    region: cn
+
+market: csi300
+
+data_handler_config: &data_handler_config
+    start_time: 2020-01-01
+    end_time: 2023-12-31
+    fit_start_time: 2020-01-01
+    fit_end_time: 2022-12-31
+    instruments: csi300
+    infer_processors:
+        - class: RobustZScoreNorm
+          kwargs:
+              fields_group: feature
+              clip_outlier: true
+        - class: Fillna
+          kwargs:
+              fields_group: feature
+    learn_processors:
+        - class: DropnaLabel
+        - class: CSRankNorm
+          kwargs:
+              fields_group: label
+    label: ["Ref($close, -2) / Ref($close, -1) - 1"]
+
+# 使用混合Handler加载缠论特征
+handler:
+    class: HybridChanLunHandler
+    module_path: qlib_enhanced.chanlun.hybrid_handler
+    kwargs: *data_handler_config
+
+# 数据集配置
+dataset:
+    class: DatasetH
+    module_path: qlib.data.dataset
+    kwargs:
+        handler:
+            class: HybridChanLunHandler
+            module_path: qlib_enhanced.chanlun.hybrid_handler
+            kwargs: *data_handler_config
+        segments:
+            train: [2020-01-01, 2021-12-31]
+            valid: [2022-01-01, 2022-06-30]
+            test: [2022-07-01, 2023-12-31]
+
+# 缠论评分模型
+model:
+    class: ChanLunScoringModel
+    module_path: models.chanlun_model
+    kwargs:
+        # 权重配置
+        morphology_weight: 0.40      # 形态评分权重
+        bsp_weight: 0.35             # 买卖点权重
+        divergence_weight: 0.15      # 背驰权重
+        multi_level_weight: 0.10     # 多级别共振权重
+        
+        # 功能开关
+        enable_bsp: true             # 启用买卖点评分
+        enable_divergence: true      # 启用背驰评分
+        use_multi_level: false       # 暂不使用多级别共振
+
+# 策略: TopK选股策略
+strategy:
+    class: TopkDropoutStrategy
+    module_path: qlib.contrib.strategy.signal_strategy
+    kwargs:
+        signal: <MODEL>              # 使用模型输出作为信号
+        topk: 10                     # 选取Top 10股票
+        n_drop: 2                    # 每次调仓最多卖出2只
+        method_sell: "bottom"        # 卖出评分最低的股票
+        method_buy: "top"            # 买入评分最高的股票
+        hold_thresh: 1               # 持仓阈值
+        only_tradable: true          # 只交易可交易股票
+
+# 回测执行器
+backtest:
+    start_time: 2022-07-01
+    end_time: 2023-12-31
+    account: 100000000               # 初始资金: 1亿
+    benchmark: SH000300              # 基准: 沪深300
+    exchange_kwargs:
+        freq: day                    # 交易频率: 日频
+        limit_threshold: 0.095       # 涨跌停阈值: 9.5%
+        deal_price: close            # 成交价格: 收盘价
+        open_cost: 0.0005            # 买入手续费: 0.05%
+        close_cost: 0.0015           # 卖出手续费: 0.15% (含印花税)
+        min_cost: 5                  # 最低手续费: 5元
+
+# 记录器配置
+record:
+    - class: SignalRecord
+      module_path: qlib.workflow.record_temp
+      kwargs: {}
+    - class: SigAnaRecord
+      module_path: qlib.workflow.record_temp
+      kwargs:
+          ana_long_short: false
+          ann_scaler: 252
+    - class: PortAnaRecord
+      module_path: qlib.workflow.record_temp
+      kwargs:
+          config: *data_handler_config
+
+# 工作流名称
+exp_name: chanlun_qlib_backtest

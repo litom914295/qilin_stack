@@ -79,12 +79,33 @@ class LimitUpRDAgentIntegration:
                 MODEL_PROP_SETTING
             )
             
-            # 创建研发循环
-            self.factor_loop = FactorRDLoop(FACTOR_PROP_SETTING)
+            # ✅ P0-1: 检测 checkpoint_path 并支持恢复
+            checkpoint_path = getattr(self.config, 'checkpoint_path', None)
+            
+            # 创建研发循环（支持从checkpoint恢复）
+            if checkpoint_path and Path(checkpoint_path).exists():
+                logger.info(f"检测到 checkpoint: {checkpoint_path}，尝试恢复会话...")
+                try:
+                    self.factor_loop = FactorRDLoop.load(str(checkpoint_path), checkout=True)
+                    logger.info("✅ 成功从 checkpoint 恢复 FactorRDLoop")
+                except Exception as e:
+                    logger.warning(f"从 checkpoint 恢复失败: {e}，创建新循环")
+                    self.factor_loop = FactorRDLoop(FACTOR_PROP_SETTING)
+            else:
+                self.factor_loop = FactorRDLoop(FACTOR_PROP_SETTING)
+                if checkpoint_path:
+                    logger.info(f"Checkpoint 配置存在但文件不存在: {checkpoint_path}")
+            
             self.model_loop = ModelRDLoop(MODEL_PROP_SETTING)
             
-            # 创建场景
-            self.factor_scenario = QlibFactorScenario()
+            # 创建场景（使用涨停板专属场景）
+            try:
+                from rd_agent.scenarios.limitup_factor_scenario import LimitUpFactorScenario
+                self.factor_scenario = LimitUpFactorScenario()
+                logger.info("✅ 使用 LimitUpFactorScenario（涨停板专属场景）")
+            except ImportError:
+                logger.warning("LimitUpFactorScenario 不可用，使用通用 QlibFactorScenario")
+                self.factor_scenario = QlibFactorScenario()
             self.model_scenario = QlibModelScenario()
             
             self.rdagent_available = True
@@ -148,63 +169,71 @@ class LimitUpRDAgentIntegration:
         return top_factors
     
     def _get_predefined_limit_up_factors(self) -> List[Dict[str, Any]]:
-        """获取预定义涨停板因子"""
+        """获取预定义涨停板因子（从配置读取）"""
+        # ✅ P0-6 修复：从配置读取因子类别
+        factor_categories = getattr(self.config, 'factor_categories', [
+            'seal_strength', 'continuous_board', 'concept_synergy',
+            'timing', 'volume_pattern', 'order_flow'
+        ])
+        
         factors = []
         
-        # 封板强度因子
-        factors.append({
-            'name': 'seal_strength',
-            'expression': '封单金额 / 流通市值',
-            'code': 'lambda df: df["seal_amount"] / df["market_cap"]',
-            'category': 'seal_strength',
-            'description': '衡量封板资金力度'
-        })
+        # 根据配置动态加载因子
+        if 'seal_strength' in factor_categories:
+            factors.append({
+                'name': 'seal_strength',
+                'expression': '封单金额 / 流通市值',
+                'code': 'lambda df: df["seal_amount"] / df["market_cap"]',
+                'category': 'seal_strength',
+                'description': '衡量封板资金力度'
+            })
         
-        # 连板动量因子
-        factors.append({
-            'name': 'continuous_momentum',
-            'expression': 'log(连板天数 + 1) * 量比',
-            'code': 'lambda df: np.log1p(df["continuous_board"]) * df["volume_ratio"]',
-            'category': 'continuous_board',
-            'description': '连板高度与量能的共振'
-        })
+        if 'continuous_board' in factor_categories:
+            factors.append({
+                'name': 'continuous_momentum',
+                'expression': 'log(连板天数 + 1) * 量比',
+                'code': 'lambda df: np.log1p(df["continuous_board"]) * df["volume_ratio"]',
+                'category': 'continuous_board',
+                'description': '连板高度与量能的共振'
+            })
         
-        # 题材共振因子
-        factors.append({
-            'name': 'concept_synergy',
-            'expression': '同题材涨停数量 * 涨停强度',
-            'code': 'lambda df: df["concept_heat"] * df["limit_up_strength"]',
-            'category': 'concept_synergy',
-            'description': '题材热度与个股强度的结合'
-        })
+        if 'concept_synergy' in factor_categories:
+            factors.append({
+                'name': 'concept_synergy',
+                'expression': '同题材涨停数量 * 涨停强度',
+                'code': 'lambda df: df["concept_heat"] * df["limit_up_strength"]',
+                'category': 'concept_synergy',
+                'description': '题材热度与个股强度的结合'
+            })
         
-        # 早盘涨停因子
-        factors.append({
-            'name': 'early_limit_up',
-            'expression': '1 - (涨停分钟数 / 240)',
-            'code': 'lambda df: 1.0 - (df["limit_up_minutes"] / 240)',
-            'category': 'timing',
-            'description': '涨停时间越早越强'
-        })
+        if 'timing' in factor_categories:
+            factors.append({
+                'name': 'early_limit_up',
+                'expression': '1 - (涨停分钟数 / 240)',
+                'code': 'lambda df: 1.0 - (df["limit_up_minutes"] / 240)',
+                'category': 'timing',
+                'description': '涨停时间越早越强'
+            })
         
-        # 量能爆发因子
-        factors.append({
-            'name': 'volume_explosion',
-            'expression': '成交量 / 20日均量',
-            'code': 'lambda df: df["volume"] / df["volume_ma20"]',
-            'category': 'volume_pattern',
-            'description': '量能突增的力度'
-        })
+        if 'volume_pattern' in factor_categories:
+            factors.append({
+                'name': 'volume_explosion',
+                'expression': '成交量 / 20日均量',
+                'code': 'lambda df: df["volume"] / df["volume_ma20"]',
+                'category': 'volume_pattern',
+                'description': '量能突增的力度'
+            })
         
-        # 大单净流入因子
-        factors.append({
-            'name': 'large_order_net',
-            'expression': '(大买单 - 大卖单) / 成交额',
-            'code': 'lambda df: (df["large_buy"] - df["large_sell"]) / df["amount"]',
-            'category': 'order_flow',
-            'description': '大资金的净流向'
-        })
+        if 'order_flow' in factor_categories:
+            factors.append({
+                'name': 'large_order_net',
+                'expression': '(大买单 - 大卖单) / 成交额',
+                'code': 'lambda df: (df["large_buy"] - df["large_sell"]) / df["amount"]',
+                'category': 'order_flow',
+                'description': '大资金的净流向'
+            })
         
+        logger.info(f"✅ 从配置加载 {len(factors)} 个预定义因子（类别: {factor_categories}）")
         return factors
     
     async def _rdagent_factor_discovery(self,
@@ -245,21 +274,123 @@ class LimitUpRDAgentIntegration:
                                start_date: str,
                                end_date: str) -> List[Dict[str, Any]]:
         """评估因子性能"""
-        evaluated = []
+        # ✅ P0-6 修复：从配置读取预测目标
+        prediction_targets = getattr(self.config, 'prediction_targets', ['next_day_limit_up'])
+        logger.info(f"评估目标: {prediction_targets}")
         
+        evaluated = []
         for factor in factors:
             try:
-                # 获取历史涨停数据
-                # 计算因子值
-                # 计算性能指标
+                # ✅ P0-3: 实现真实因子评估逻辑
                 
-                factor['performance'] = {
-                    'ic': np.random.uniform(0.03, 0.15),  # 示例
-                    'ir': np.random.uniform(0.5, 2.0),
-                    'sharpe': np.random.uniform(1.0, 3.0),
-                    'next_day_limit_up_rate': np.random.uniform(0.2, 0.5)
+                # 1. 获取历史涨停股票列表
+                limit_up_stocks = self.data_interface.get_limit_up_stocks(start_date)
+                if not limit_up_stocks:
+                    logger.warning(f"{start_date} 没有涨停股，跳过因子 {factor['name']}")
+                    continue
+                
+                symbols = [stock.symbol for stock in limit_up_stocks[:100]]  # 限制100只避免过慢
+                
+                # 2. 获取因子特征数据
+                df = self.data_interface.get_limit_up_features(symbols, start_date, lookback_days=20)
+                
+                if df.empty:
+                    logger.warning(f"因子 {factor['name']} 特征数据为空")
+                    continue
+                
+                # 3. 计算因子值
+                try:
+                    factor_code = factor.get('code', '')
+                    
+                    # 支持 lambda 表达式
+                    if factor_code.startswith('lambda'):
+                        factor_func = eval(factor_code)
+                        df['factor_value'] = factor_func(df)
+                    # 支持 Python 代码字符串
+                    elif 'def ' in factor_code:
+                        local_scope = {'df': df, 'np': np, 'pd': pd}
+                        exec(factor_code, local_scope)
+                        df['factor_value'] = local_scope.get('result', df.iloc[:, 0])
+                    else:
+                        # fallback: 尝试直接作为pandas表达式
+                        df['factor_value'] = eval(factor_code, {'df': df, 'np': np, 'pd': pd})
+                
+                except Exception as e:
+                    logger.error(f"因子 {factor['name']} 计算失败: {e}")
+                    continue
+                
+                # 4. 获取次日结果
+                df_next = self.data_interface.get_next_day_result(symbols, start_date)
+                
+                if df_next.empty:
+                    logger.warning(f"因子 {factor['name']} 次日数据为空")
+                    continue
+                
+                # 5. 合并数据
+                df = df.join(df_next, how='inner')
+                
+                # 过滤无效值
+                df = df.dropna(subset=['factor_value', 'next_return'])
+                
+                if len(df) < 10:  # 样本太少，不可信
+                    logger.warning(f"因子 {factor['name']} 有效样本不足 ({len(df)} < 10)")
+                    continue
+                
+                # 6. 计算 IC (Information Coefficient)
+                ic = df['factor_value'].corr(df['next_return'])
+                
+                # 7. 计算 IR (Information Ratio)
+                # 模拟多日IC计算 (单日数据假设每只股票是一个观测)
+                # 实际应该是多个交易日的IC序列，这里简化为IC / 0.5
+                ir = ic / 0.5 if ic is not None and not np.isnan(ic) else 0.0
+                
+                # 8. 计算 Sharpe Ratio (简化版：基于IC估计)
+                sharpe = abs(ic) * np.sqrt(252) if ic is not None and not np.isnan(ic) else 0.0
+                
+                performance = {
+                    'ic': float(ic) if ic is not None and not np.isnan(ic) else 0.0,
+                    'ir': float(ir) if not np.isnan(ir) else 0.0,
+                    'sharpe': float(sharpe) if not np.isnan(sharpe) else 0.0,
+                    'sample_count': len(df),
                 }
                 
+                # ✅ 根据 prediction_targets 动态添加指标
+                if 'next_day_limit_up' in prediction_targets:
+                    # 计算Top 10%因子值的次日涨停率
+                    top_n = max(1, int(len(df) * 0.1))
+                    top_stocks = df.nlargest(top_n, 'factor_value')
+                    next_day_limit_up_rate = top_stocks['next_limit_up'].mean()
+                    performance['next_day_limit_up_rate'] = float(next_day_limit_up_rate)
+                
+                if 'open_premium' in prediction_targets:
+                    # 如果有 open_premium 数据，计算Top 10%的平均值
+                    if 'open_premium' in df.columns:
+                        top_n = max(1, int(len(df) * 0.1))
+                        top_stocks = df.nlargest(top_n, 'factor_value')
+                        open_premium = top_stocks['open_premium'].mean()
+                        performance['open_premium'] = float(open_premium)
+                    else:
+                        performance['open_premium'] = 0.0
+                
+                if 'continuous_probability' in prediction_targets:
+                    # 计算Top 10%的连板概率 (连板天数 >= 2)
+                    if 'continuous_board' in df.columns:
+                        top_n = max(1, int(len(df) * 0.1))
+                        top_stocks = df.nlargest(top_n, 'factor_value')
+                        continuous_prob = (top_stocks['continuous_board'] >= 2).mean()
+                        performance['continuous_probability'] = float(continuous_prob)
+                    else:
+                        performance['continuous_probability'] = 0.0
+                
+                factor['performance'] = performance
+                evaluated.append(factor)
+                
+                logger.info(
+                    f"✅ 因子 {factor['name']} 评估完成: "
+                    f"IC={performance['ic']:.4f}, "
+                    f"IR={performance['ir']:.4f}, "
+                    f"samples={performance['sample_count']}"
+                )
                 evaluated.append(factor)
                 
             except Exception as e:

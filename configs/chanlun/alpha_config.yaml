@@ -1,0 +1,328 @@
+# 缠论Alpha因子配置
+# 
+# 10个复合Alpha因子的配置和使用建议
+# 
+# 作者: Warp AI Assistant
+# 日期: 2025-01
+# 项目: 麒麟量化系统 - Phase 4.1
+
+# ================== Alpha因子定义 ==================
+
+alpha_factors:
+  # Alpha1: 买点强度
+  alpha_buy_strength:
+    formula: "is_buy_point × bi_power"
+    description: "买点出现时的笔力度，力度越大信号越强"
+    type: continuous
+    range: [0, 1]
+    importance: high
+    usage:
+      - 识别强力买点
+      - 作为买入信号的主要依据
+      - 与其他因子组合使用
+  
+  # Alpha2: 卖点风险
+  alpha_sell_risk:
+    formula: "-is_sell_point × bi_power"
+    description: "卖点出现时的风险，负值表示应该卖出"
+    type: continuous
+    range: [-1, 0]
+    importance: high
+    usage:
+      - 识别卖出风险
+      - 止损信号
+      - 反向指标（负值越大风险越大）
+  
+  # Alpha3: 趋势一致性
+  alpha_trend_consistency:
+    formula: "bi_direction × seg_direction"
+    description: "笔方向与线段方向一致性，1表示完全一致"
+    type: discrete
+    range: [-1, 0, 1]
+    importance: high
+    usage:
+      - 趋势确认
+      - 多级别共振验证
+      - 过滤假信号
+  
+  # Alpha4: 形态突破
+  alpha_pattern_breakthrough:
+    formula: "fx_mark × bi_position"
+    description: "分型出现在笔的不同位置，位置越高/低信号越强"
+    type: continuous
+    range: [-1, 1]
+    importance: medium
+    usage:
+      - 突破点识别
+      - 进场时机选择
+  
+  # Alpha5: 中枢震荡度
+  alpha_zs_oscillation:
+    formula: "in_zs × (1 - |close - zs_mid| / zs_range)"
+    description: "在中枢内且接近边界时，震荡度高"
+    type: continuous
+    range: [0, 1]
+    importance: medium
+    usage:
+      - 中枢边界交易
+      - 震荡行情策略
+      - 区间操作
+  
+  # Alpha6: 买点持续性
+  alpha_buy_persistence:
+    formula: "Sum(is_buy_point, 5) / 5"
+    description: "近5日买点出现频率，频率越高信号越持续"
+    type: continuous
+    range: [0, 1]
+    importance: medium
+    usage:
+      - 信号确认
+      - 避免单次虚假信号
+      - 趋势确认
+  
+  # Alpha7: 形态转折动量
+  alpha_pattern_momentum:
+    formula: "Delta(fx_mark, 1)"
+    description: "分型变化，从无到有或变化方向"
+    type: discrete
+    range: [-2, -1, 0, 1, 2]
+    importance: low
+    usage:
+      - 转折点识别
+      - 早期信号捕捉
+  
+  # Alpha8: 笔段共振
+  alpha_bi_ma_resonance:
+    formula: "bi_direction × Sign(MA5 - MA10)"
+    description: "笔方向与均线方向一致时，共振信号强"
+    type: discrete
+    range: [-1, 0, 1]
+    importance: high
+    usage:
+      - 缠论与传统技术分析结合
+      - 趋势共振确认
+      - 提高胜率
+  
+  # Alpha9: 买卖点比率
+  alpha_bsp_ratio:
+    formula: "Sum(is_buy_point, 20) / (Sum(is_sell_point, 20) + 1)"
+    description: "近20日买点/卖点比率，>1表示买点更多"
+    type: continuous
+    range: [0, inf]
+    importance: medium
+    usage:
+      - 市场情绪判断
+      - 长期趋势判断
+      - 仓位管理参考
+  
+  # Alpha10: 缠论动量
+  alpha_chanlun_momentum:
+    formula: "Mean(bi_power × bi_direction, 5)"
+    description: "笔力度×方向的移动平均，表示近期动量"
+    type: continuous
+    range: [-1, 1]
+    importance: high
+    usage:
+      - 动量策略
+      - 趋势强度判断
+      - 加减仓依据
+
+# ================== 因子重要性排序 ==================
+
+importance_ranking:
+  high:
+    - alpha_buy_strength       # 最重要
+    - alpha_chanlun_momentum
+    - alpha_trend_consistency
+    - alpha_bi_ma_resonance
+    - alpha_sell_risk
+  
+  medium:
+    - alpha_buy_persistence
+    - alpha_bsp_ratio
+    - alpha_pattern_breakthrough
+    - alpha_zs_oscillation
+  
+  low:
+    - alpha_pattern_momentum
+
+# ================== 因子组合策略 ==================
+
+combinations:
+  # 组合1: 强力买入信号
+  strong_buy:
+    factors:
+      - alpha_buy_strength: ">= 0.03"        # 买点强度高
+      - alpha_chanlun_momentum: ">= 0.02"    # 动量向上
+      - alpha_trend_consistency: "== 1"       # 趋势一致
+    score_formula: "alpha_buy_strength * 0.4 + alpha_chanlun_momentum * 0.3 + alpha_trend_consistency * 0.3"
+    threshold: 0.05
+    description: "强力买入信号：买点强度大、动量向上、趋势一致"
+  
+  # 组合2: 趋势跟随
+  trend_following:
+    factors:
+      - alpha_chanlun_momentum: ">= 0.01"
+      - alpha_bi_ma_resonance: "== 1"
+      - alpha_trend_consistency: "== 1"
+    score_formula: "alpha_chanlun_momentum * 0.5 + (alpha_bi_ma_resonance + alpha_trend_consistency) * 0.25"
+    threshold: 0.03
+    description: "趋势跟随：动量向上、均线共振、趋势一致"
+  
+  # 组合3: 中枢突破
+  breakout:
+    factors:
+      - alpha_pattern_breakthrough: ">= 0.5"
+      - alpha_zs_oscillation: ">= 0.7"
+      - alpha_buy_strength: ">= 0.02"
+    score_formula: "alpha_pattern_breakthrough * 0.3 + alpha_zs_oscillation * 0.3 + alpha_buy_strength * 0.4"
+    threshold: 0.04
+    description: "中枢突破：形态突破、接近边界、买点出现"
+  
+  # 组合4: 卖出信号
+  sell_signal:
+    factors:
+      - alpha_sell_risk: "<= -0.02"          # 卖点风险高
+      - alpha_chanlun_momentum: "<= 0"        # 动量向下
+      - alpha_bsp_ratio: "<= 0.5"            # 卖点多于买点
+    score_formula: "abs(alpha_sell_risk) * 0.4 + abs(min(alpha_chanlun_momentum, 0)) * 0.3 + (1 - alpha_bsp_ratio) * 0.3"
+    threshold: 0.03
+    description: "卖出信号：卖点风险大、动量向下、卖点占优"
+
+# ================== 使用场景 ==================
+
+use_cases:
+  # Qlib融合系统
+  qlib_system:
+    handler:
+      - 自动加载Alpha因子
+      - 与基础缠论因子合并
+      - 输入到LightGBM模型
+    
+    model:
+      - LightGBM特征选择
+      - 自动学习因子权重
+      - 输出预测分数
+    
+    strategy:
+      - TopK选股
+      - 结合Alpha因子和模型分数
+      - 动态调仓
+    
+    recommended_factors:
+      - alpha_buy_strength
+      - alpha_chanlun_momentum
+      - alpha_trend_consistency
+      - alpha_bi_ma_resonance
+      - alpha_sell_risk
+  
+  # 独立缠论系统
+  standalone_system:
+    multi_agent:
+      - 在ChanLunScoringAgent中调用
+      - 增强评分维度
+      - 提高选股准确率
+    
+    limitup_strategy:
+      - 涨停股票筛选
+      - 结合Alpha因子判断强度
+      - 提高一进二成功率
+    
+    recommended_factors:
+      - alpha_buy_strength
+      - alpha_chanlun_momentum
+      - alpha_buy_persistence
+      - alpha_bsp_ratio
+
+# ================== 权重配置 ==================
+
+weights:
+  # Qlib系统权重（与ML模型结合）
+  qlib:
+    chanlun_base_factors: 0.30      # 16个基础因子
+    chanlun_alpha_factors: 0.25     # 10个Alpha因子
+    qlib_alpha191: 0.30             # Qlib Alpha191因子
+    technical_indicators: 0.15       # 技术指标
+  
+  # 独立系统权重（直接评分）
+  standalone:
+    chanlun_base_score: 0.50        # 基础缠论评分
+    alpha_enhancement: 0.30         # Alpha因子增强
+    other_agents: 0.20              # 其他Agent评分
+
+# ================== 性能优化配置 ==================
+
+performance:
+  # 缓存设置
+  cache:
+    enabled: true
+    ttl: 86400  # 1天
+    max_size: 10000  # 最多缓存10000个结果
+  
+  # 并行计算
+  parallel:
+    enabled: true
+    num_workers: 8
+    batch_size: 100  # 每批处理100只股票
+  
+  # 增量计算
+  incremental:
+    enabled: true
+    lookback_days: 1  # 只计算最近1天的新数据
+
+# ================== 回测配置 ==================
+
+backtest:
+  # 快速回测（仅使用Top5因子）
+  quick:
+    factors:
+      - alpha_buy_strength
+      - alpha_chanlun_momentum
+      - alpha_trend_consistency
+      - alpha_bi_ma_resonance
+      - alpha_buy_persistence
+    time_range:
+      train: ["2020-01-01", "2022-12-31"]
+      test: ["2023-01-01", "2023-12-31"]
+  
+  # 完整回测（使用全部10个因子）
+  full:
+    factors:
+      - alpha_buy_strength
+      - alpha_sell_risk
+      - alpha_trend_consistency
+      - alpha_pattern_breakthrough
+      - alpha_zs_oscillation
+      - alpha_buy_persistence
+      - alpha_pattern_momentum
+      - alpha_bi_ma_resonance
+      - alpha_bsp_ratio
+      - alpha_chanlun_momentum
+    time_range:
+      train: ["2018-01-01", "2022-12-31"]
+      test: ["2023-01-01", "2024-12-31"]
+
+# ================== 监控告警 ==================
+
+monitoring:
+  # 因子异常值检测
+  anomaly_detection:
+    enabled: true
+    thresholds:
+      alpha_buy_strength: [0, 1]
+      alpha_sell_risk: [-1, 0]
+      alpha_bsp_ratio: [0, 10]
+  
+  # 因子质量监控
+  quality_metrics:
+    - factor_coverage  # 因子覆盖率
+    - null_ratio       # 空值比率
+    - outlier_ratio    # 异常值比率
+    - correlation      # 因子相关性
+
+# ================== 版本信息 ==================
+
+version: "1.0"
+created_date: "2025-01"
+author: "Warp AI Assistant"
+project: "麒麟量化系统 - Phase 4.1"

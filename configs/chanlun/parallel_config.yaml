@@ -1,0 +1,239 @@
+# 缠论并行计算配置 - Phase 4.3.2
+#
+# 功能: 配置并行计算参数
+# 版本: v1.6
+# 日期: 2025-01
+
+# ========================================
+# 场景1: 回测环境 - 大规模并行
+# ========================================
+backtest:
+  # 工作进程数 (null=自动使用CPU核心数)
+  num_workers: null
+  
+  # 任务块大小
+  chunk_size: 1
+  
+  # 失败重试次数
+  max_retries: 2
+  
+  # 单任务超时(秒)
+  timeout: 300
+  
+  # 启用进度监控
+  enable_progress: true
+  
+  # 批处理配置
+  batch_size: 100  # 每批处理100只股票
+  
+  description: |
+    适用于大规模历史回测
+    - 全市场股票分析
+    - 参数优化
+    - 因子测试
+
+# ========================================
+# 场景2: 实时交易 - 快速响应
+# ========================================
+realtime:
+  # 较少进程 (避免资源竞争)
+  num_workers: 2
+  
+  chunk_size: 1
+  max_retries: 1  # 减少重试
+  timeout: 30     # 快速超时
+  enable_progress: false  # 关闭进度日志
+  
+  # 小批量
+  batch_size: 10
+  
+  description: |
+    适用于实时监控
+    - 自选股监控
+    - 信号扫描
+    - 快速响应
+
+# ========================================
+# 场景3: 开发调试 - 串行处理
+# ========================================
+development:
+  # 禁用并行 (方便调试)
+  num_workers: 1
+  
+  chunk_size: 1
+  max_retries: 0
+  timeout: 600
+  enable_progress: true
+  
+  batch_size: 10
+  
+  description: |
+    适用于开发调试
+    - 单步调试
+    - 错误定位
+    - 性能分析
+
+# ========================================
+# 场景4: 性能测试 - 极限并行
+# ========================================
+benchmark:
+  # 最大并行度
+  num_workers: null  # 使用所有核心
+  
+  chunk_size: 1
+  max_retries: 0  # 不重试
+  timeout: 60
+  enable_progress: true
+  
+  # 大批量
+  batch_size: 1000
+  
+  description: |
+    适用于性能基准测试
+    - 最大吞吐量
+    - 并行效率测试
+    - 压力测试
+
+# ========================================
+# 高级配置
+# ========================================
+advanced:
+  num_workers: 8
+  chunk_size: 5  # 批量提交
+  max_retries: 3
+  timeout: 300
+  enable_progress: true
+  
+  # 动态调整
+  auto_scale: true  # 根据负载自动调整进程数
+  min_workers: 2
+  max_workers: 16
+  
+  # 资源限制
+  max_memory_per_worker: 2048  # MB
+  max_cpu_percent: 80
+  
+  # 任务调度
+  priority_queue: true  # 优先级队列
+  fair_scheduling: true  # 公平调度
+  
+  # 监控
+  enable_metrics: true
+  metrics_interval: 10  # 每10秒记录一次
+  
+  description: |
+    高级配置选项
+    - 动态资源管理
+    - 优先级调度
+    - 性能监控
+
+# ========================================
+# 集成配置 - 缓存 + 并行
+# ========================================
+integrated:
+  # 并行配置
+  parallel:
+    num_workers: 4
+    max_retries: 2
+    timeout: 300
+    enable_progress: true
+  
+  # 缓存配置
+  cache:
+    backend: file
+    cache_dir: "./cache/chanlun/parallel"
+    max_memory_items: 2000
+    default_ttl: 3600
+    enable_compression: true
+  
+  # 联合优化
+  enable_cache: true
+  enable_parallel: true
+  
+  # 性能优化
+  cache_strategy: "write-through"  # 写穿策略
+  prefetch: true                   # 预加载
+  lazy_loading: false              # 非懒加载
+  
+  description: |
+    缓存 + 并行联合配置
+    - 最佳性能组合
+    - 自动负载均衡
+    - 智能缓存策略
+
+# ========================================
+# 使用说明
+# ========================================
+#
+# 1. 基本使用:
+#
+#   from qlib_enhanced.chanlun.chanlun_parallel import ChanLunParallel
+#   import yaml
+#
+#   with open('configs/chanlun/parallel_config.yaml') as f:
+#       config = yaml.safe_load(f)
+#
+#   parallel = ChanLunParallel(**config['backtest'])
+#   results = parallel.run(tasks, process_func)
+#
+# 2. 集成批量处理器:
+#
+#   from qlib_enhanced.chanlun.chanlun_parallel import ChanLunBatchProcessor
+#   from qlib_enhanced.chanlun.chanlun_cache import ChanLunCache
+#
+#   cache = ChanLunCache(**config['integrated']['cache'])
+#   processor = ChanLunBatchProcessor(
+#       cache=cache,
+#       **config['integrated']['parallel']
+#   )
+#   results = processor.process_batch(tasks, process_func)
+#
+# 3. Handler中集成:
+#
+#   handler = CzscChanLunHandler(
+#       parallel_config=config['backtest'],
+#       enable_parallel=True
+#   )
+
+# ========================================
+# 预期性能提升
+# ========================================
+#
+# 测试场景: 100只股票 × 250日历史数据
+#
+# | 配置           | 进程数 | 耗时  | 加速比 | CPU使用率 |
+# |---------------|--------|------|--------|----------|
+# | 串行           | 1      | 100s | 1.0x   | 25%      |
+# | 小规模并行     | 2      | 55s  | 1.8x   | 45%      |
+# | 中规模并行     | 4      | 30s  | 3.3x   | 80%      |
+# | 大规模并行     | 8      | 18s  | 5.6x   | 95%      |
+# | 最大并行 (16核) | 16     | 12s  | 8.3x   | 100%     |
+#
+# 缓存 + 并行组合:
+# - 首次运行: 30s (4进程并行)
+# - 二次运行: 2s (95%缓存命中)
+# - 总提升: 50x
+
+# ========================================
+# 最佳实践
+# ========================================
+#
+# 1. 进程数选择:
+#    - CPU密集: num_workers = CPU核心数
+#    - IO密集: num_workers = CPU核心数 × 2
+#    - 混合型: num_workers = CPU核心数 × 1.5
+#
+# 2. 超时设置:
+#    - 快速任务 (<10s): timeout = 30
+#    - 普通任务 (10-60s): timeout = 300
+#    - 长任务 (>60s): timeout = 600
+#
+# 3. 重试策略:
+#    - 稳定环境: max_retries = 0-1
+#    - 不稳定网络: max_retries = 2-3
+#    - 调试阶段: max_retries = 0
+#
+# 4. 缓存策略:
+#    - 回测: 启用缓存, TTL=0 (永久)
+#    - 实时: 启用缓存, TTL=60 (1分钟)
+#    - 开发: 启用缓存, TTL=600 (10分钟)

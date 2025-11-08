@@ -139,13 +139,15 @@ class FactorMiningTab:
             with col1:
                 factor_type = st.selectbox(
                     "因子类型",
-                    ["技术因子", "基本面因子", "量价因子", "情绪因子", "混合因子"]
+                    ["技术因子", "基本面因子", "量价因子", "情绪因子", "混合因子"],
+                    key="fm_factor_type"
                 )
             
             with col2:
                 generation_method = st.selectbox(
                     "生成方法",
-                    ["从零生成", "基于模板", "进化改进", "研报启发"]
+                    ["从零生成", "基于模板", "进化改进", "研报启发"],
+                    key="fm_generation_method"
                 )
             
             with col3:
@@ -362,19 +364,21 @@ class FactorMiningTab:
             with col3:
                 selection_method = st.selectbox(
                     "选择方法",
-                    ["锦标赛", "轮盘赌", "精英主义"]
+                    ["锦标赛", "轮盘赌", "精英主义"],
+                    key="fm_selection_method"
                 )
                 fitness_function = st.selectbox(
                     "适应度函数",
-                    ["IC", "IC_IR", "Sharpe", "综合得分"]
+                    ["IC", "IC_IR", "Sharpe", "综合得分"],
+                    key="fm_fitness_function"
                 )
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🚀 开始进化", type="primary", use_container_width=True):
+            if st.button("🚀 开始进化", type="primary", use_container_width=True, key="fm_start_evolution"):
                 self.start_evolution()
         with col2:
-            if st.button("⏸️ 停止", use_container_width=True):
+            if st.button("⏸️ 停止", use_container_width=True, key="fm_stop_evolution"):
                 st.warning("已停止进化")
         
         # 进化历史可视化
@@ -425,7 +429,8 @@ class FactorMiningTab:
         if st.session_state.generated_factors:
             selected_factor = st.selectbox(
                 "选择要评估的因子",
-                [f.get('name', f'Factor_{i}') for i, f in enumerate(st.session_state.generated_factors)]
+                [f.get('name', f'Factor_{i}') for i, f in enumerate(st.session_state.generated_factors)],
+                key="fm_selected_factor"
             )
             
             # 评估指标
@@ -581,6 +586,114 @@ class FactorMiningTab:
                 "IR": st.column_config.NumberColumn(format="%.3f"),
             }
         )
+        
+        # 批量保存到因子库
+        st.divider()
+        st.markdown("### 💾 保存到因子库")
+        
+        col1, col2, col3 = st.columns([2, 1, 1])
+        
+        with col1:
+            # 选择要保存的因子
+            valid_factors = [f for f in factors if f.get('valid', False)]
+            st.info(f"共 {len(factors)} 个因子, 其中 {len(valid_factors)} 个有效")
+        
+        with col2:
+            save_valid_only = st.checkbox("仅保存有效因子", value=True, key="save_valid_only")
+        
+        with col3:
+            if st.button("💾 批量保存", type="primary", use_container_width=True):
+                self.save_factors_to_library(factors, save_valid_only)
+        
+        # 单个因子操作
+        st.markdown("#### 或选择单个因子保存")
+        
+        selected_indices = st.multiselect(
+            "选择要保存的因子",
+            options=list(range(len(factors))),
+            format_func=lambda i: f"{factors[i].get('name', f'Factor_{i}')} (IC: {factors[i].get('ic', 0):.3f})",
+            key="selected_factors"
+        )
+        
+        if selected_indices:
+            if st.button("💾 保存选中因子", type="secondary"):
+                selected = [factors[i] for i in selected_indices]
+                self.save_factors_to_library(selected, save_valid_only=False)
+    
+    def save_factors_to_library(self, factors: List[Dict], save_valid_only: bool = True):
+        """保存因子到库"""
+        try:
+            from .factor_library import FactorLibraryDB
+            
+            db = FactorLibraryDB()
+            
+            # 过滤因子
+            factors_to_save = [f for f in factors if f.get('valid', False)] if save_valid_only else factors
+            
+            if not factors_to_save:
+                st.warning("没有符合条件的因子可保存")
+                return
+            
+            # 批量保存
+            saved_count = 0
+            failed_count = 0
+            
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for i, factor in enumerate(factors_to_save):
+                try:
+                    # 补充缺失字段
+                    factor_data = {
+                        'name': factor.get('name', f'Factor_{i}'),
+                        'type': factor.get('type', '技术因子'),
+                        'description': factor.get('description', ''),
+                        'formulation': factor.get('formulation', ''),
+                        'code': factor.get('code', ''),
+                        'ic': factor.get('ic'),
+                        'ir': factor.get('ir'),
+                        'sharpe': factor.get('sharpe'),
+                        'annual_return': factor.get('annual_return'),
+                        'max_drawdown': factor.get('max_drawdown'),
+                        'turnover': factor.get('turnover'),
+                        'valid': factor.get('valid', True),
+                        'tags': ['auto_generated', factor.get('type', '').replace('因子', '')],
+                        'metadata': {
+                            'generation_method': factor.get('method', 'llm'),
+                            'generated_at': str(factor.get('created_at', datetime.now()))
+                        }
+                    }
+                    
+                    factor_id = db.save_factor(factor_data)
+                    saved_count += 1
+                    
+                except Exception as e:
+                    failed_count += 1
+                    st.warning(f"因子 {factor.get('name', 'Unknown')} 保存失败: {str(e)[:50]}")
+                
+                # 更新进度
+                progress = (i + 1) / len(factors_to_save)
+                progress_bar.progress(progress)
+                status_text.text(f"正在保存: {i+1}/{len(factors_to_save)}")
+            
+            # 完成提示
+            progress_bar.empty()
+            status_text.empty()
+            
+            if saved_count > 0:
+                st.success(f"✅ 成功保存 {saved_count} 个因子到库!")
+                if failed_count > 0:
+                    st.warning(f"⚠️ {failed_count} 个因子保存失败")
+                
+                # 显示前往因子库的链接
+                st.info("💡 前往 '📚 因子库管理' Tab 查看已保存的因子")
+            else:
+                st.error("❌ 所有因子保存失败")
+        
+        except ImportError:
+            st.error("❌ 无法导入因子库模块,请确保 factor_library.py 存在")
+        except Exception as e:
+            st.error(f"❌ 保存失败: {e}")
     
     def extract_factors_from_report(self, pdf_path: str):
         """从研报提取因子"""

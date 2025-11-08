@@ -1,0 +1,233 @@
+# 缠论缓存管理配置 - Phase 4.3.1
+# 
+# 功能: 配置缓存策略和参数
+# 版本: v1.6
+# 日期: 2025-01
+
+# ========================================
+# 场景1: 生产环境 - Redis缓存
+# ========================================
+production:
+  backend: redis
+  redis_url: "redis://localhost:6379/0"
+  redis_db: 0
+  
+  # 内存LRU缓存 (一级缓存)
+  max_memory_items: 1000
+  
+  # 默认TTL (秒)
+  default_ttl: 3600  # 1小时
+  
+  # 不启用压缩 (Redis已高效)
+  enable_compression: false
+  
+  # 使用场景说明
+  description: |
+    适用于生产环境，支持多进程/多机共享缓存
+    - 实时交易系统
+    - Web服务集群
+    - 高并发场景
+
+# ========================================
+# 场景2: 回测环境 - 文件缓存
+# ========================================
+backtest:
+  backend: file
+  cache_dir: "./cache/chanlun/backtest"
+  
+  # 内存LRU缓存
+  max_memory_items: 5000  # 回测可用更多内存
+  
+  # 长期缓存 (回测数据不变)
+  default_ttl: 0  # 永不过期
+  
+  # 启用压缩 (节省磁盘空间)
+  enable_compression: true
+  
+  description: |
+    适用于回测环境，缓存历史分析结果
+    - 大规模历史数据回测
+    - 参数优化
+    - 策略研发
+    
+  # 回测特定配置
+  cleanup_on_start: false  # 保留历史缓存
+  cache_key_template: "{symbol}_{date}"
+
+# ========================================
+# 场景3: 开发环境 - 文件缓存 (短期)
+# ========================================
+development:
+  backend: file
+  cache_dir: "./cache/chanlun/dev"
+  
+  # 适中的内存缓存
+  max_memory_items: 500
+  
+  # 短期缓存 (开发时数据频繁变化)
+  default_ttl: 600  # 10分钟
+  
+  # 启用压缩
+  enable_compression: true
+  
+  description: |
+    适用于开发调试，缓存最近测试结果
+    - 本地开发
+    - 单元测试
+    - 功能验证
+  
+  # 开发特定配置
+  cleanup_on_start: true  # 每次启动清空
+  auto_cleanup_interval: 3600  # 每小时清理过期
+
+# ========================================
+# 场景4: 实时交易 - Redis缓存 (短TTL)
+# ========================================
+realtime:
+  backend: redis
+  redis_url: "redis://localhost:6379/1"  # 独立DB
+  redis_db: 1
+  
+  # 较小的内存缓存 (重点在Redis)
+  max_memory_items: 200
+  
+  # 短期缓存 (实时数据快速变化)
+  default_ttl: 60  # 1分钟
+  
+  enable_compression: false
+  
+  description: |
+    适用于实时交易，缓存最新分析结果
+    - 分钟级/秒级更新
+    - 减少重复计算
+    - 快速响应
+  
+  # 实时交易特定配置
+  cache_key_template: "{symbol}_{timestamp}"
+  max_cache_size_mb: 100  # 限制总大小
+
+# ========================================
+# 高级配置示例
+# ========================================
+advanced:
+  backend: redis
+  redis_url: "redis://localhost:6379/2"
+  redis_db: 2
+  
+  # LRU配置
+  max_memory_items: 2000
+  lru_policy: "allkeys-lru"  # Redis策略
+  
+  # TTL分层
+  default_ttl: 3600
+  ttl_by_type:
+    bi: 7200      # 笔: 2小时
+    xd: 14400     # 线段: 4小时
+    zs: 21600     # 中枢: 6小时
+    bsp: 1800     # 买卖点: 30分钟
+    alpha: 3600   # Alpha因子: 1小时
+  
+  # 压缩配置
+  enable_compression: true
+  compression_level: 6  # zlib压缩级别 (1-9)
+  compression_threshold: 1024  # 大于1KB才压缩
+  
+  # 性能监控
+  enable_stats: true
+  stats_log_interval: 300  # 每5分钟记录统计
+  
+  # 缓存键命名空间
+  key_prefix: "chanlun:v1"
+  key_separator: ":"
+  
+  # 自动清理
+  auto_cleanup: true
+  cleanup_interval: 3600  # 每小时清理
+  cleanup_batch_size: 100  # 每次清理100条
+  
+  # 容错配置
+  fallback_to_file: true  # Redis失败时降级到文件
+  file_fallback_dir: "./cache/chanlun/fallback"
+  
+  description: |
+    高级配置示例，展示所有可用选项
+    - 分层TTL策略
+    - 性能监控
+    - 容错降级
+
+# ========================================
+# 性能基准测试配置
+# ========================================
+benchmark:
+  backend: file
+  cache_dir: "./cache/chanlun/benchmark"
+  
+  max_memory_items: 10000
+  default_ttl: 0
+  enable_compression: false  # 关闭压缩测试纯性能
+  
+  # 基准测试参数
+  test_data_size: 1000  # 测试1000个缓存项
+  test_iterations: 10   # 每个操作重复10次
+  test_operations:
+    - set
+    - get
+    - delete
+    - hit_rate
+  
+  description: |
+    用于性能基准测试
+    - 测试缓存读写速度
+    - 评估命中率
+    - 对比不同配置
+
+# ========================================
+# 使用说明
+# ========================================
+# 
+# 1. Python代码中使用:
+# 
+#   from qlib_enhanced.chanlun.chanlun_cache import ChanLunCache
+#   import yaml
+#   
+#   # 加载配置
+#   with open('configs/chanlun/cache_config.yaml') as f:
+#       config = yaml.safe_load(f)
+#   
+#   # 创建缓存实例 (根据环境选择)
+#   cache = ChanLunCache(**config['production'])  # 生产
+#   cache = ChanLunCache(**config['backtest'])     # 回测
+#   cache = ChanLunCache(**config['development']) # 开发
+# 
+# 2. Handler中集成:
+# 
+#   handler = ChanLunHandler(
+#       cache_config=config['backtest'],
+#       enable_cache=True
+#   )
+# 
+# 3. 命令行测试:
+# 
+#   python qlib_enhanced/chanlun/chanlun_cache.py
+# 
+# 4. 性能监控:
+# 
+#   stats = cache.get_stats()
+#   print(f"命中率: {stats.hit_rate:.2%}")
+#   print(f"命中次数: {stats.hits}")
+#   print(f"未命中次数: {stats.misses}")
+
+# ========================================
+# 预期性能提升
+# ========================================
+# 
+# 场景              | 无缓存耗时 | 有缓存耗时 | 提升
+# -----------------|----------|----------|------
+# 单股票分析        | 100ms    | 5ms      | 20x
+# 批量回测(100股票) | 10s      | 2s       | 5x
+# 实时更新(1分钟)   | 50ms     | 2ms      | 25x
+# 
+# 命中率目标:
+# - 回测环境: >95% (数据不变)
+# - 实时交易: >80% (数据更新频繁)
+# - 开发环境: >60% (数据变化大)

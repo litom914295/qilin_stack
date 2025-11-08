@@ -1,0 +1,58 @@
+{
+  "broker": "mock",
+  "total_tests": 5,
+  "passed_tests": 0,
+  "failed_tests": 5,
+  "success_rate": 0.0,
+  "total_duration": 0.17564606666564941,
+  "test_results": [
+    {
+      "test_name": "基础订单执行测试",
+      "success": false,
+      "details": {
+        "error": "'OrderResult' object is not subscriptable"
+      },
+      "duration": 0.17362308502197266,
+      "timestamp": "2025-11-07T14:49:15.201418"
+    },
+    {
+      "test_name": "多标的交易测试",
+      "success": false,
+      "details": {
+        "orders": [],
+        "error": "TradingSignal.__init__() got an unexpected keyword argument 'action'"
+      },
+      "duration": 0.001020669937133789,
+      "timestamp": "2025-11-07T14:49:15.202438"
+    },
+    {
+      "test_name": "风控机制验证测试",
+      "success": false,
+      "details": {
+        "error": "TradingSignal.__init__() got an unexpected keyword argument 'action'"
+      },
+      "duration": 0.0,
+      "timestamp": "2025-11-07T14:49:15.202438"
+    },
+    {
+      "test_name": "持仓跟踪测试",
+      "success": false,
+      "details": {
+        "error": "TradingSignal.__init__() got an unexpected keyword argument 'action'"
+      },
+      "duration": 0.0010023117065429688,
+      "timestamp": "2025-11-07T14:49:15.203440"
+    },
+    {
+      "test_name": "系统延迟测量",
+      "success": false,
+      "details": {
+        "latencies": [],
+        "error": "TradingSignal.__init__() got an unexpected keyword argument 'action'"
+      },
+      "duration": 0.0,
+      "timestamp": "2025-11-07T14:49:15.203440"
+    }
+  ],
+  "timestamp": "2025-11-07T14:49:15.203440"
+}

@@ -1,0 +1,194 @@
+# 缠论因子配置文件
+#
+# 定义所有缠论因子的名称、描述和配置
+#
+# 作者: Warp AI Assistant
+# 日期: 2025-01
+# 项目: 麒麟量化系统 - Phase 3 优化
+
+# ========== CZSC 因子 (6个) ==========
+czsc_factors:
+  - name: $fx_mark
+    description: 分型标记 (1=顶分型, -1=底分型, 0=无)
+    type: categorical
+    range: [-1, 0, 1]
+    
+  - name: $bi_direction
+    description: 笔方向 (1=上涨笔, -1=下跌笔, 0=无)
+    type: categorical
+    range: [-1, 0, 1]
+    
+  - name: $bi_position
+    description: 笔内位置 (0-1, 0=笔起点, 1=笔终点)
+    type: continuous
+    range: [0, 1]
+    
+  - name: $bi_power
+    description: 笔幅度 (涨跌幅度)
+    type: continuous
+    range: [null, null]  # 无固定范围
+    
+  - name: $in_zs
+    description: 是否在中枢内 (1=是, 0=否)
+    type: binary
+    range: [0, 1]
+    
+  - name: $bars_since_fx
+    description: 距离最近分型的K线数
+    type: discrete
+    range: [0, 999]
+
+# ========== Chan.py 因子 (10个) ==========
+chanpy_factors:
+  - name: $is_buy_point
+    description: 是否买点 (1=是, 0=否)
+    type: binary
+    range: [0, 1]
+    
+  - name: $is_sell_point
+    description: 是否卖点 (1=是, 0=否)
+    type: binary
+    range: [0, 1]
+    
+  - name: $bsp_type
+    description: 买卖点类型 (1买/2买/3买/1卖/2卖/3卖)
+    type: categorical
+    range: [0, 1, 2, 3]
+    
+  - name: $bsp_is_buy
+    description: 买卖点方向 (1=买点, 0=卖点)
+    type: binary
+    range: [0, 1]
+    
+  - name: $seg_direction
+    description: 线段方向 (1=向上, -1=向下)
+    type: categorical
+    range: [-1, 0, 1]
+    
+  - name: $is_seg_start
+    description: 是否线段起点 (1=是, 0=否)
+    type: binary
+    range: [0, 1]
+    
+  - name: $is_seg_end
+    description: 是否线段终点 (1=是, 0=否)
+    type: binary
+    range: [0, 1]
+    
+  - name: $in_chanpy_zs
+    description: 是否在Chan.py中枢内 (1=是, 0=否)
+    type: binary
+    range: [0, 1]
+    
+  - name: $zs_low_chanpy
+    description: Chan.py中枢下沿价格
+    type: continuous
+    range: [null, null]
+    
+  - name: $zs_high_chanpy
+    description: Chan.py中枢上沿价格
+    type: continuous
+    range: [null, null]
+
+# ========== Alpha 因子组合示例 ==========
+# 基于缠论因子构建的 Alpha 因子
+alpha_factors:
+  # Alpha 1: 底分型且上涨笔
+  - name: $alpha_cl_001
+    expression: "($fx_mark == -1) & ($bi_direction == 1)"
+    description: 底分型且处于上涨笔中
+    weight: 1.0
+    
+  # Alpha 2: 一买点强度
+  - name: $alpha_cl_002
+    expression: "($is_buy_point == 1) & ($bsp_type == 1) & ($bi_power > 0.03)"
+    description: 一买点且笔幅度大于3%
+    weight: 1.5
+    
+  # Alpha 3: 二买点确认
+  - name: $alpha_cl_003
+    expression: "($is_buy_point == 1) & ($bsp_type == 2) & ($bi_position > 0.5)"
+    description: 二买点且笔内位置过半
+    weight: 2.0
+    
+  # Alpha 4: 离开中枢向上
+  - name: $alpha_cl_004
+    expression: "($in_zs == 0) & ($bi_direction == 1) & ($bars_since_fx < 5)"
+    description: 离开中枢、上涨笔、近期分型
+    weight: 1.2
+    
+  # Alpha 5: 线段起点且买点
+  - name: $alpha_cl_005
+    expression: "($is_seg_start == 1) & ($is_buy_point == 1) & ($seg_direction == 1)"
+    description: 向上线段起点且买点
+    weight: 1.8
+
+# ========== 因子使用建议 ==========
+usage_recommendations:
+  # 快速回测 - 仅使用核心因子
+  quick_backtest:
+    - $fx_mark
+    - $bi_direction
+    - $is_buy_point
+    - $is_sell_point
+  
+  # 完整回测 - 使用所有因子
+  full_backtest:
+    czsc: all
+    chanpy: all
+  
+  # 特征工程 - 推荐的因子组合
+  feature_engineering:
+    morphology:  # 形态
+      - $fx_mark
+      - $bi_direction
+      - $bi_position
+    
+    buy_sell_points:  # 买卖点
+      - $is_buy_point
+      - $is_sell_point
+      - $bsp_type
+    
+    structure:  # 结构
+      - $in_zs
+      - $seg_direction
+      - $is_seg_start
+      - $is_seg_end
+    
+    power:  # 力度
+      - $bi_power
+      - $bars_since_fx
+
+# ========== 因子组合策略 ==========
+combination_strategies:
+  # 策略 1: 底部反转
+  bottom_reversal:
+    conditions:
+      - "$fx_mark == -1"
+      - "$bi_direction == 1"
+      - "$bi_position < 0.3"
+      - "$bars_since_fx <= 3"
+    weight: 0.25
+  
+  # 策略 2: 买点确认
+  buy_point_confirmation:
+    conditions:
+      - "$is_buy_point == 1"
+      - "$bsp_type == 2"  # 二买
+      - "$bi_power > 0.03"
+    weight: 0.35
+  
+  # 策略 3: 突破中枢
+  breakout:
+    conditions:
+      - "$in_zs == 0"
+      - "$bi_direction == 1"
+      - "$seg_direction == 1"
+    weight: 0.20
+  
+  # 策略 4: 卖点风险
+  sell_point_risk:
+    conditions:
+      - "$is_sell_point == 1"
+      - "$bsp_type >= 2"
+    weight: -0.20  # 负权重表示卖出信号

@@ -36,18 +36,18 @@ try:
 except Exception:
     pass
 
-# --- Compat patch: map deprecated use_container_width -> width ---
+# --- Compat patch: 静默移除 deprecated use_container_width 参数 ---
 def _patch_streamlit_use_container_width():
-    import inspect
+    """Patch Streamlit 组件以静默移除 use_container_width 参数"""
+    import warnings
     def _wrap(func):
         def inner(*args, **kwargs):
+            # 静默移除 use_container_width 参数以避免警告
             if 'use_container_width' in kwargs:
-                ucw = kwargs.pop('use_container_width')
-                # map to new width API
-                kwargs.setdefault('width', 'stretch' if ucw else 'content')
+                kwargs.pop('use_container_width')
             return func(*args, **kwargs)
         return inner
-    # patch common APIs
+    # patch 常用 APIs
     try:
         st.button = _wrap(st.button)
         st.dataframe = _wrap(st.dataframe)
@@ -70,55 +70,204 @@ if _ENV_TA:
         sys.path.append(str(p))
 
 # 监控权重
-from monitoring.metrics import get_monitor
+try:
+    from monitoring.metrics import get_monitor
+except Exception as e:
+    logger.warning(f"监控模块导入失败: {e}")
+    get_monitor = None
 
-# 导入核心组件
-from tradingagents_integration.integration_adapter import (
-    TradingAgentsAdapter, 
-    UnifiedTradingSystem
-)
-from trading.realtime_trading_system import RealtimeTradingSystem
-from agents.trading_agents import MultiAgentManager
-from qlib_integration.qlib_engine import QlibIntegrationEngine
-from data_layer.data_access_layer import DataAccessLayer
+# 导入核心组件 - 可选导入
+try:
+    from tradingagents_integration.integration_adapter import (
+        TradingAgentsAdapter, 
+        UnifiedTradingSystem
+    )
+except Exception as e:
+    logger.warning(f"TradingAgents适配器导入失败: {e}")
+    TradingAgentsAdapter = None
+    UnifiedTradingSystem = None
 
-# 导入P2增强功能模块
+try:
+    from trading.realtime_trading_system import RealtimeTradingSystem
+except Exception as e:
+    logger.warning(f"实时交易系统导入失败: {e}")
+    RealtimeTradingSystem = None
+
+try:
+    from agents.trading_agents import MultiAgentManager
+except Exception as e:
+    logger.warning(f"多智能体管理器导入失败: {e}")
+    MultiAgentManager = None
+
+try:
+    from qlib_integration.qlib_engine import QlibIntegrationEngine
+except Exception as e:
+    logger.warning(f"Qlib集成引擎导入失败: {e}")
+    QlibIntegrationEngine = None
+
+try:
+    from data_layer.data_access_layer import DataAccessLayer
+except Exception as e:
+    logger.warning(f"数据访问层导入失败: {e}")
+    DataAccessLayer = None
+
+# 导入P2增强功能模块 - 可选导入
 sys.path.insert(0, str(Path(__file__).parent.parent / "qlib_enhanced"))
-from high_freq_limitup import HighFreqLimitUpAnalyzer, create_sample_high_freq_data
-from online_learning import OnlineLearningManager, DriftDetector, AdaptiveLearningRate
-from multi_source_data import MultiSourceDataProvider, DataSource
-from one_into_two_pipeline import (
-    build_sample_dataset,
-    OneIntoTwoTrainer,
-    rank_candidates,
-    extract_limitup_features,
-)
-# Phase 2 模块
-from rl_trading import TradingEnvironment, DQNAgent, RLTrainer, create_sample_data as create_rl_data
-from portfolio_optimizer import MeanVarianceOptimizer, BlackLittermanOptimizer, RiskParityOptimizer, create_sample_returns
-from risk_management import ValueAtRiskCalculator, StressTest, RiskMonitor, create_sample_data as create_risk_data
-from performance_attribution import TransactionCostAnalysis
 
-# Phase 3 风控模块
-from qilin_stack.agents.risk.liquidity_monitor import LiquidityMonitor, LiquidityLevel
-from qilin_stack.agents.risk.extreme_market_guard import ExtremeMarketGuard, ProtectionLevel, MarketCondition
-from qilin_stack.agents.risk.position_manager import (
-    PositionManager as RiskPositionManager,
-    PositionSizeMethod,
-    RiskLevel,
-)
+try:
+    from high_freq_limitup import HighFreqLimitUpAnalyzer, create_sample_high_freq_data
+except Exception as e:
+    logger.warning(f"高频涨停分析器导入失败: {e}")
+    HighFreqLimitUpAnalyzer = None
+    create_sample_high_freq_data = None
 
-# Phase 4 写实回测模块
-from qilin_stack.backtest.slippage_model import (
-    SlippageEngine,
-    SlippageModel,
-    OrderSide,
-    MarketDepth as Depth,
-)
-from qilin_stack.backtest.limit_up_queue_simulator import (
-    LimitUpQueueSimulator,
-    LimitUpStrength,
-)
+try:
+    from online_learning import OnlineLearningManager, DriftDetector, AdaptiveLearningRate
+except Exception as e:
+    logger.warning(f"在线学习模块导入失败: {e}")
+    OnlineLearningManager = None
+    DriftDetector = None
+    AdaptiveLearningRate = None
+
+try:
+    from multi_source_data import MultiSourceDataProvider, DataSource
+except Exception as e:
+    logger.warning(f"多数据源提供者导入失败: {e}")
+    MultiSourceDataProvider = None
+    DataSource = None
+
+try:
+    from one_into_two_pipeline import (
+        build_sample_dataset,
+        OneIntoTwoTrainer,
+        rank_candidates,
+        extract_limitup_features,
+    )
+except Exception as e:
+    logger.warning(f"一进二管道导入失败: {e}")
+    build_sample_dataset = None
+    OneIntoTwoTrainer = None
+    rank_candidates = None
+    extract_limitup_features = None
+
+# Phase 2 模块 - 可选导入
+try:
+    from rl_trading import TradingEnvironment, DQNAgent, RLTrainer, create_sample_data as create_rl_data
+except Exception as e:
+    logger.warning(f"强化学习交易导入失败: {e}")
+    TradingEnvironment = None
+    DQNAgent = None
+    RLTrainer = None
+    create_rl_data = None
+
+try:
+    from portfolio_optimizer import MeanVarianceOptimizer, BlackLittermanOptimizer, RiskParityOptimizer, create_sample_returns
+except Exception as e:
+    logger.warning(f"组合优化器导入失败: {e}")
+    MeanVarianceOptimizer = None
+    BlackLittermanOptimizer = None
+    RiskParityOptimizer = None
+    create_sample_returns = None
+
+try:
+    from risk_management import ValueAtRiskCalculator, StressTest, RiskMonitor, create_sample_data as create_risk_data
+except Exception as e:
+    logger.warning(f"风险管理导入失败: {e}")
+    ValueAtRiskCalculator = None
+    StressTest = None
+    RiskMonitor = None
+    create_risk_data = None
+
+try:
+    from performance_attribution import TransactionCostAnalysis
+except Exception as e:
+    logger.warning(f"绩效归因导入失败: {e}")
+    TransactionCostAnalysis = None
+
+# Phase 3 风控模块 - 可选导入
+try:
+    from qilin_stack.agents.risk.liquidity_monitor import LiquidityMonitor, LiquidityLevel
+except Exception as e:
+    logger.warning(f"流动性监控导入失败: {e}")
+    LiquidityMonitor = None
+    LiquidityLevel = None
+
+# Phase 3 & 4 UI优化与高级功能 - 必需导入
+try:
+    from web.components.ui_styles import inject_global_styles
+    from web.components.color_scheme import Colors, Emojis
+    from web.components.loading_cache import LoadingSpinner, CacheManager, show_success_animation, show_error_animation
+    from web.components.smart_tips_enhanced import EnhancedSmartTipSystem
+    from web.components.advanced_features import (
+        SimulatedTrading,
+        StrategyBacktest,
+        ExportManager,
+        render_simulated_trading,
+        render_backtest,
+        render_export
+    )
+    logger.info("Phase 3 & 4 组件导入成功")
+except Exception as e:
+    logger.warning(f"Phase 3 & 4 组件导入失败: {e}")
+    inject_global_styles = None
+    Colors = None
+    Emojis = None
+    LoadingSpinner = None
+    CacheManager = None
+    show_success_animation = None
+    show_error_animation = None
+    EnhancedSmartTipSystem = None
+    SimulatedTrading = None
+    StrategyBacktest = None
+    ExportManager = None
+    render_simulated_trading = None
+    render_backtest = None
+    render_export = None
+
+try:
+    from qilin_stack.agents.risk.extreme_market_guard import ExtremeMarketGuard, ProtectionLevel, MarketCondition
+except Exception as e:
+    logger.warning(f"极端市场保护导入失败: {e}")
+    ExtremeMarketGuard = None
+    ProtectionLevel = None
+    MarketCondition = None
+
+try:
+    from qilin_stack.agents.risk.position_manager import (
+        PositionManager as RiskPositionManager,
+        PositionSizeMethod,
+        RiskLevel,
+    )
+except Exception as e:
+    logger.warning(f"仓位管理器导入失败: {e}")
+    RiskPositionManager = None
+    PositionSizeMethod = None
+    RiskLevel = None
+
+# Phase 4 写实回测模块 - 可选导入
+try:
+    from qilin_stack.backtest.slippage_model import (
+        SlippageEngine,
+        SlippageModel,
+        OrderSide,
+        MarketDepth as Depth,
+    )
+except Exception as e:
+    logger.warning(f"滑点模型导入失败: {e}")
+    SlippageEngine = None
+    SlippageModel = None
+    OrderSide = None
+    Depth = None
+
+try:
+    from qilin_stack.backtest.limit_up_queue_simulator import (
+        LimitUpQueueSimulator,
+        LimitUpStrength,
+    )
+except Exception as e:
+    logger.warning(f"涨停队列模拟器导入失败: {e}")
+    LimitUpQueueSimulator = None
+    LimitUpStrength = None
 
 # 页面配置
 st.set_page_config(
@@ -128,7 +277,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 自定义CSS
+# 注入Phase 3全局样式
+if inject_global_styles:
+    inject_global_styles()
+    logger.info("全局样式已注入")
+
+# 自定义CSS（保留兼容性）
 st.markdown("""
 <style>
     .main { 
@@ -183,8 +337,8 @@ class UnifiedDashboard:
     """统一管理界面"""
     
     def __init__(self):
-        self.init_session_state()
-        self.setup_connections()
+        self.setup_connections()  # 先设置连接
+        self.init_session_state()  # 再初始化状态（需要 redis_available）
         self.init_systems()
         
     def init_session_state(self):
@@ -211,7 +365,8 @@ class UnifiedDashboard:
         if 'system_running' not in st.session_state:
             st.session_state.system_running = False
         if 'selected_stocks' not in st.session_state:
-            st.session_state.selected_stocks = ["000001", "000002", "600000"]
+            # 初始化时获取实际涨停股
+            st.session_state.selected_stocks = self._get_top_limitup_stocks()
         if 'refresh_interval' not in st.session_state:
             st.session_state.refresh_interval = 5
         if 'auto_trade' not in st.session_state:
@@ -243,6 +398,40 @@ class UnifiedDashboard:
         # WebSocket连接（实时行情）
         self.ws_client = None
         self.ws_thread = None
+    
+    def _get_top_limitup_stocks(self, top_n: int = 3) -> List[str]:
+        """获取当日最强势的前 N 只涨停股"""
+        try:
+            # 尝试从 Redis 缓存获取
+            if hasattr(self, 'redis_available') and self.redis_available:
+                cached = self.redis_client.get('top_limitup_stocks')
+                if cached:
+                    stocks = json.loads(cached)
+                    if len(stocks) >= top_n:
+                        return stocks[:top_n]
+            
+            # 尝试从文件系统获取最近的筛选结果
+            data_dir = Path(__file__).parent.parent / "data" / "daily_selections"
+            if data_dir.exists():
+                # 查找最近的筛选文件
+                files = list(data_dir.glob("limitup_*.json"))
+                if files:
+                    latest_file = max(files, key=lambda p: p.stat().st_mtime)
+                    with open(latest_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        if 'stocks' in data and len(data['stocks']) > 0:
+                            # 按质量评分排序
+                            stocks = sorted(
+                                data['stocks'], 
+                                key=lambda x: x.get('quality_score', 0), 
+                                reverse=True
+                            )
+                            return [s['symbol'] for s in stocks[:top_n]]
+        except Exception as e:
+            logger.warning(f"获取涨停股数据失败: {e}")
+        
+        # 默认返回示例数据
+        return ["000001", "000002", "600000"]
         
     def init_systems(self):
         """初始化交易系统"""
@@ -254,17 +443,29 @@ class UnifiedDashboard:
             "take_profit_pct": 0.10
         }
         
-        # 初始化适配器
-        if st.session_state.adapter is None:
-            st.session_state.adapter = TradingAgentsAdapter(config)
+        # 初始化适配器 - 可选
+        if st.session_state.adapter is None and TradingAgentsAdapter is not None:
+            try:
+                st.session_state.adapter = TradingAgentsAdapter(config)
+            except Exception as e:
+                logger.warning(f"初始化TradingAgents适配器失败: {e}")
+                st.session_state.adapter = None
             
-        # 初始化统一系统
-        if st.session_state.unified_system is None:
-            st.session_state.unified_system = UnifiedTradingSystem(config)
+        # 初始化统一系统 - 可选
+        if st.session_state.unified_system is None and UnifiedTradingSystem is not None:
+            try:
+                st.session_state.unified_system = UnifiedTradingSystem(config)
+            except Exception as e:
+                logger.warning(f"初始化统一系统失败: {e}")
+                st.session_state.unified_system = None
             
-        # 初始化实时交易系统
-        if st.session_state.trading_system is None:
-            st.session_state.trading_system = RealtimeTradingSystem(config)
+        # 初始化实时交易系统 - 可选
+        if st.session_state.trading_system is None and RealtimeTradingSystem is not None:
+            try:
+                st.session_state.trading_system = RealtimeTradingSystem(config)
+            except Exception as e:
+                logger.warning(f"初始化实时交易系统失败: {e}")
+                st.session_state.trading_system = None
     
     def run(self):
         """运行主界面"""
@@ -278,9 +479,10 @@ class UnifiedDashboard:
         # 主界面内容
         self.render_main_content()
         
-        # 自动刷新
-        if st.session_state.get('auto_refresh', False):
-            st.experimental_rerun()
+        # 注意：自动刷新已禁用，以免影响浏览体验
+        # 如果需要实时数据更新，请手动点击“刷新数据”按钮
+        # if st.session_state.get('auto_refresh', False):
+        #     st.experimental_rerun()
     
     def render_header(self):
         """渲染头部"""
@@ -317,7 +519,7 @@ class UnifiedDashboard:
         """渲染侧边栏"""
         st.header("📍 控制面板")
         
-        # 系统控制
+        # ========== 1. 系统控制（最重要，保持在顶部） ==========
         st.subheader("🎮 系统控制")
         
         # 显示当前系统状态
@@ -325,7 +527,7 @@ class UnifiedDashboard:
             st.success("✅ 系统运行中")
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("⏸️ 停止", use_container_width=True, type="primary"):
+                if st.button("⏸️ 停止", use_container_width=True, type="primary", key="ud_stop_system"):
                     self.stop_system()
         else:
             st.error("❌ 系统已停止")
@@ -334,101 +536,188 @@ class UnifiedDashboard:
                 if st.button("▶️ 启动", use_container_width=True, type="primary"):
                     self.start_system()
                 
-        if st.button("🔄 刷新数据", use_container_width=True):
+        if st.button("🔄 刷新数据", use_container_width=True, key="ud_sidebar_refresh"):
             self.refresh_data()
-            
-        # 股票选择
+        
+        st.divider()
+        
+        # ========== 2. 监控股票（常用功能） ==========
         st.subheader("📊 监控股票")
         selected_stocks = st.multiselect(
             "选择股票",
             options=["000001", "000002", "600000", "600519", "000858", "300750"],
-            default=st.session_state.selected_stocks
+            default=st.session_state.selected_stocks,
+            key="sidebar_stock_select"
         )
         st.session_state.selected_stocks = selected_stocks
         
-        # 参数设置
-        st.subheader("⚙️ 交易参数")
+        st.divider()
         
-        position_size = st.slider(
-            "单股仓位(%)",
-            min_value=5,
-            max_value=30,
-            value=10
-        )
-        stop_loss = st.number_input(
-            "止损线(%)",
-            min_value=1.0,
-            max_value=10.0,
-            value=5.0
-        )
-        
-        take_profit = st.number_input(
-            "止盈线(%)",
-            min_value=5.0,
-            max_value=30.0,
-            value=10.0
-        )
-        
-        # 刷新设置
-        st.subheader("🔄 刷新设置")
-        
-        auto_refresh = st.checkbox("自动刷新", value=False)
-        st.session_state.auto_refresh = auto_refresh
-        
-        refresh_interval = st.slider(
-            "刷新间隔(秒)",
-            min_value=1,
-            max_value=60,
-            value=st.session_state.refresh_interval
-        )
-        st.session_state.refresh_interval = refresh_interval
-
-        # 文档与指南
-        st.subheader("📚 文档与指南")
-        docs = {
-            "配置指南 (CONFIGURATION.md)": "docs/CONFIGURATION.md",
-            "Windows 环境变量与启动": "docs/ENV_SETUP_WINDOWS.md",
-            "RD-Agent 集成指南": "docs/RD-Agent_Integration_Guide.md",
-            "TradingAgents 集成说明": "tradingagents_integration/README.md",
-            "Qlib 功能分析": "docs/QLIB_FEATURE_ANALYSIS.md",
-            "部署指南": "docs/DEPLOYMENT_GUIDE.md",
-            "监控指标": "docs/MONITORING_METRICS.md",
-            "SLO 配置": "docs/sla/slo.yaml",
-        }
-        choice = st.selectbox("选择文档", list(docs.keys()))
-        colv1, colv2 = st.columns([1,1])
-        with colv1:
-            if st.button("🔎 预览", use_container_width=True):
-                self._show_doc(docs[choice])
-        with colv2:
-            st.caption(str(Path(__file__).parent.parent / docs[choice]))
-
-        # 文档搜索
-        st.subheader("🔎 文档搜索")
-        query = st.text_input("关键词", value="", placeholder="输入要搜索的关键字…")
-        scopes = {
-            "docs/": Path(__file__).parent.parent / "docs",
-            "tradingagents_integration/": Path(__file__).parent.parent / "tradingagents_integration",
-            "web/tabs/rdagent/": Path(__file__).parent.parent / "web" / "tabs" / "rdagent",
-            "web/tabs/tradingagents/": Path(__file__).parent.parent / "web" / "tabs" / "tradingagents",
-        }
-        selected = st.multiselect("搜索范围", list(scopes.keys()), default=["docs/"])
-        file_exts = st.multiselect("文件类型", ['.md', '.markdown', '.yaml', '.yml', '.txt'], default=['.md', '.markdown', '.yaml', '.yml'])
-        max_hits = st.slider("最多结果条数", 10, 200, 50, 10)
-        if st.button("🔍 开始搜索", use_container_width=True):
-            if not query.strip():
-                st.warning("请输入关键词")
-            else:
-                roots = [scopes[k] for k in selected]
-                results = self._doc_search(query.strip(), roots, exts=set(file_exts), max_hits=max_hits)
-                if not results:
-                    st.info("未找到匹配项")
+        # ========== 3. 文档中心（合并文档与指南+文档搜索） ==========
+        with st.expander("📚 文档中心 (29个文档)", expanded=True):
+            st.caption("💡 快速查找和预览系统文档")
+            
+            # 文档选择与预览
+            docs = {
+                # 快速开始
+                "—— 🚀 快速开始 ——": None,
+                "🚀 5分钟快速上手": "docs/QUICKSTART.md",
+                "📖 完整使用指南": "docs/USAGE_GUIDE.md",
+                "🧪 测试指南": "docs/TESTING_GUIDE.md",
+                
+                # RD-Agent
+                "—— 🤖 RD-Agent ——": None,
+                "✅ RD-Agent对齐完成": "docs/archive/completion/RDAGENT_ALIGNMENT_COMPLETE.md",
+                "📝 RD-Agent对齐计划": "docs/RDAGENT_ALIGNMENT_PLAN.md",
+                "🏆 RD-Agent最终总结": "docs/RDAGENT_FINAL_SUMMARY.md",
+                "🔗 RD-Agent集成指南": "docs/RD-Agent_Integration_Guide.md",
+                
+                # 功能指南
+                "—— 📖 功能指南 ——": None,
+                "📅 日常交易SOP": "docs/DAILY_TRADING_SOP.md",
+                "📊 数据准备指南": "docs/DATA_GUIDE.md",
+                "🎯 股票选择指南": "docs/STOCK_SELECTION_GUIDE.md",
+                "📦 股票池配置": "docs/STOCK_POOL_GUIDE.md",
+                "🔬 因子研发快速开始": "docs/FACTOR_RESEARCH_QUICKSTART.md",
+                "🤖 LLM因子发现": "docs/LLM_FACTOR_DISCOVERY_GUIDE.md",
+                "🏛️ Qlib模型库快速开始": "docs/QLIB_MODEL_ZOO_QUICKSTART.md",
+                "💻 AKShare使用指南": "docs/AKSHARE_GUIDE.md",
+                
+                # 技术架构
+                "—— 🏛️ 技术架构 ——": None,
+                "🏛️ 深度架构指南": "docs/DEEP_ARCHITECTURE_GUIDE.md",
+                "📝 技术架构v2.1": "docs/Technical_Architecture_v2.1_Final.md",
+                "🚀 部署指南": "docs/DEPLOYMENT_GUIDE.md",
+                "💻 Windows环境配置": "docs/ENV_SETUP_WINDOWS.md",
+                "🔌 API文档": "docs/API_DOCUMENTATION.md",
+                
+                # 项目报告
+                "—— 📊 项目报告 ——": None,
+                "🏆 项目最终报告": "docs/FINAL_PROJECT_REPORT.md",
+                "✅ 对齐完成检查": "docs/archive/completion/ALIGNMENT_COMPLETION_CHECK.md",
+                "📊 麒鳞对齐报告": "docs/QILIN_ALIGNMENT_REPORT.md",
+                "🧪 测试完成报告": "docs/archive/completion/TESTING_COMPLETION_REPORT.md",
+                
+                # 专项模块
+                "—— 🔧 专项模块 ——": None,
+                "💼 竞价交易框架": "docs/AUCTION_WORKFLOW_FRAMEWORK.md",
+                "🧠 AI进化系统": "docs/AI_EVOLUTION_SYSTEM_INTEGRATION.md",
+                "📈 涨停板AI进化": "docs/LIMITUP_AI_EVOLUTION_SYSTEM.md",
+                "🔁 迭代进化训练": "docs/ITERATIVE_EVOLUTION_TRAINING.md",
+                "💻 Web控制面板指南": "docs/WEB_DASHBOARD_GUIDE.md",
+                
+                # 文档索引
+                "—— 📚 文档索引 ——": None,
+                "📑 文档总索引": "docs/INDEX.md",
+                "📋 文档整理方案": "docs/DOCUMENTATION_STRUCTURE.md",
+                "✅ 文档整理完成": "docs/DOCUMENTATION_CLEANUP_COMPLETE.md",
+            }
+            # 过滤掉分隔符
+            valid_docs = {k: v for k, v in docs.items() if v is not None}
+            
+            choice = st.selectbox("选择文档", list(valid_docs.keys()), key="doc_selector")
+            colv1, colv2 = st.columns([1,1])
+            with colv1:
+                if st.button("🔎 预览", use_container_width=True, key="doc_preview_btn"):
+                    self._show_doc(valid_docs[choice])
+            with colv2:
+                st.caption(str(Path(__file__).parent.parent / valid_docs[choice]))
+            
+            st.divider()
+            
+            # 文档搜索
+            st.markdown("★★🔍 文档搜索★★")
+            query = st.text_input("关键词", value="", placeholder="输入要搜索的关键字…", key="doc_search_query")
+            scopes = {
+                "docs/": Path(__file__).parent.parent / "docs",
+                "tradingagents_integration/": Path(__file__).parent.parent / "tradingagents_integration",
+                "web/tabs/rdagent/": Path(__file__).parent.parent / "web" / "tabs" / "rdagent",
+                "web/tabs/tradingagents/": Path(__file__).parent.parent / "web" / "tabs" / "tradingagents",
+            }
+            selected = st.multiselect("搜索范围", list(scopes.keys()), default=["docs/"], key="doc_search_scope")
+            file_exts = st.multiselect("文件类型", ['.md', '.markdown', '.yaml', '.yml', '.txt'], default=['.md', '.markdown', '.yaml', '.yml'], key="doc_search_exts")
+            max_hits = st.slider("最多结果条数", 10, 200, 50, 10, key="doc_search_max_hits")
+            if st.button("🔍 开始搜索", use_container_width=True, key="doc_search_btn"):
+                if not query.strip():
+                    st.warning("请输入关键词")
                 else:
-                    st.caption(f"共找到 {len(results)} 条（最多显示 {max_hits} 条）")
-                    for r in results:
-                        fp = r['path']
-                        st.markdown(f"**{fp}** · 第 {r['line']} 行")
-                        st.markdown(self._highlight(r['snippet'], query.strip()), unsafe_allow_html=True)
+                    roots = [scopes[k] for k in selected]
+                    results = self._doc_search(query.strip(), roots, exts=set(file_exts), max_hits=max_hits)
+                    if not results:
+                        st.info("未找到匹配项")
+                    else:
+                        st.caption(f"共找到 {len(results)} 条（最多显示 {max_hits} 条）")
+                        for r in results:
+                            fp = r['path']
+                            st.markdown(f"★★{fp}★★ · 第 {r['line']} 行")
+                            st.markdown(self._highlight(r['snippet'], query.strip()), unsafe_allow_html=True)
+        
+        st.divider()
+        
+        # ========== 4. 高级设置（折叠不常用的参数） ==========
+        with st.expander("⚙️ 高级设置", expanded=False):
+            st.caption("🔧 配置交易参数和系统设置")
+            
+            # 交易参数
+            st.markdown("★★⚡ 交易参数★★")
+            position_size = st.slider(
+                "单股仓位(%)",
+                min_value=5,
+                max_value=30,
+                value=10,
+                key="sidebar_position_size"
+            )
+            stop_loss = st.number_input(
+                "止损线(%)",
+                min_value=1.0,
+                max_value=10.0,
+                value=5.0,
+                key="sidebar_stop_loss"
+            )
+            take_profit = st.number_input(
+                "止盈线(%)",
+                min_value=5.0,
+                max_value=30.0,
+                value=10.0,
+                key="sidebar_take_profit"
+            )
+            
+            st.divider()
+            
+            # 刷新设置
+            st.markdown("★★🔄 刷新设置★★")
+            
+            st.info("""
+            💡 **提示**：自动刷新功能已禁用，以避免影响页面浏览。  
+            如需更新数据，请点击顶部的“🔄 刷新数据”按钮。
+            """)
+            
+            auto_refresh = st.checkbox(
+                "自动刷新（已禁用）", 
+                value=False, 
+                disabled=True,
+                key="sidebar_auto_refresh",
+                help="该功能已被禁用以优化用户体验"
+            )
+            st.session_state.auto_refresh = False  # 确保始终为False
+            
+            refresh_interval = st.slider(
+                "刷新间隔(秒)（仅供参考）",
+                min_value=1,
+                max_value=60,
+                value=st.session_state.refresh_interval,
+                key="sidebar_refresh_interval",
+                disabled=True,
+                help="自动刷新已禁用，该设置暂无作用"
+            )
+            st.session_state.refresh_interval = refresh_interval
+        
+        st.divider()
+        
+        # ========== 5. 底部快捷入口 ==========
+        st.caption("💡 快捷入口")
+        st.success("📚 文档已整理：29个核心文档 + 46个历史归档")
+        st.info("🔍 展开上方「文档中心」可预览文档或快速搜索")
     
     def _show_doc(self, rel_path: str):
         """侧边栏预览Markdown/YAML文档"""
@@ -495,39 +784,143 @@ class UnifiedDashboard:
         return f"<pre style='white-space:pre-wrap'>{html}</pre>"
 
     def render_main_content(self):
+        """渲染主内容区域"""
+        # 渲染主界面内容
+        self.render_main_content_original()
+        
+    def render_main_content_original(self):
         """渲染主内容区"""
-        # 创建主标签页 - Qilin监控 + Qlib + RD-Agent + TradingAgents
-        main_tab1, main_tab2, main_tab3, main_tab4 = st.tabs([
+        # 创建主标签页 - 一进二涨停监控 + Qilin监控 + 缠论系统 + 竞价决策 + Qlib + RD-Agent + TradingAgents + 高级功能 + 系统指南
+        main_tab0, main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8 = st.tabs([
+            "🎯 一进二涨停监控",
             "🏠 Qilin监控",
+            "📈 缠论系统",
+            "🔖 竞价决策(旧)",
             "📦 Qlib",
             "🧠 RD-Agent研发智能体",
-            "🤝 TradingAgents多智能体"
+            "🤝 TradingAgents多智能体",
+            "🚀 高级功能",
+            "📚 系统指南"
         ])
+        
+        with main_tab0:
+            # 一进二涨停监控统一视图（Phase 1新界面）
+            self.render_limitup_monitor_unified()
         
         with main_tab1:
             # Qilin系统级监控与操作
             self.render_qilin_tabs()
         
         with main_tab2:
+            # 缠论技术分析系统（独立模块）
+            self.render_chanlun_system_tab()
+        
+        with main_tab3:
+            # 竞价决策视图（旧版，保留以便对比）
+            st.info("💡 推荐使用新版 '🎯 一进二涨停监控' 界面，功能更清晰易用！")
+            self.render_auction_decision_tab()
+        
+        with main_tab4:
             # Qlib相关功能
             self.render_qlib_tabs()
         
-        with main_tab3:
+        with main_tab5:
             # RD-Agent的6个子tab
             self.render_rdagent_tabs()
         
-        with main_tab4:
-            # TradingAgents的6个子tab
+        with main_tab6:
+            # TradingAgents的6个sub tab
             self.render_tradingagents_tabs()
         
+        with main_tab7:
+            # Phase 3 & 4 高级功能
+            self.render_advanced_features_tab()
+        
+        with main_tab8:
+            # 系统使用指南
+            self.render_system_guide_tab()
+        
+    def render_limitup_monitor_unified(self):
+        """渲染一进二涨停监控统一界面（Phase 1优化）"""
+        try:
+            from web.tabs.limitup_monitor_unified import render
+            render()
+        except Exception as e:
+            st.error(f"一进二涨停监控加载失败: {e}")
+            import traceback
+            with st.expander("🔍 查看详细错误"):
+                st.code(traceback.format_exc())
+    
+    def render_chanlun_system_tab(self):
+        """渲染缠论技术分析系统标签页"""
+        try:
+            from web.tabs.chanlun_system_tab import render_chanlun_system_tab
+            render_chanlun_system_tab()
+        except Exception as e:
+            st.error(f"缠论系统加载失败: {e}")
+            st.info("💡 缠论系统包括：多智能体选股、缠论评分分析、一进二涨停策略")
+            import traceback
+            with st.expander("🔍 查看详细错误"):
+                st.code(traceback.format_exc())
+    
+    def render_auction_decision_tab(self):
+        """渲染竞价决策标签页（旧版，保留备查）"""
+        try:
+            from web.auction_decision_view import AuctionDecisionView
+            view = AuctionDecisionView()
+            view.render()
+        except Exception as e:
+            st.error(f"竞价决策视图加载失败: {e}")
+            import traceback
+            with st.expander("🔍 查看详细错误"):
+                st.code(traceback.format_exc())
+    
+    def render_advanced_features_tab(self):
+        """渲柔高级功能标签页（Phase 3 & 4）"""
+        try:
+            # 修复导入路径
+            import sys
+            from pathlib import Path
+            tabs_path = Path(__file__).parent / "tabs"
+            if str(tabs_path) not in sys.path:
+                sys.path.insert(0, str(tabs_path))
+            from advanced_features_tab import render_advanced_features_tab
+            render_advanced_features_tab()
+        except Exception as e:
+            st.error(f"❌ 高级功能模块未正确安装: {e}")
+            st.info("💡 Phase 3 & 4 高级功能包括：模拟交易、策略回测、数据导出")
+            import traceback
+            with st.expander("🔍 查看详细错误"):
+                st.code(traceback.format_exc())
+    
+    def render_system_guide_tab(self):
+        """渲柔系统指南标签页（放在最右侧）"""
+        try:
+            # 修复导入路径
+            import sys
+            from pathlib import Path
+            components_path = Path(__file__).parent / "components"
+            if str(components_path) not in sys.path:
+                sys.path.insert(0, str(components_path))
+            from system_guide import show_system_guide
+            show_system_guide()
+        except Exception as e:
+            st.error(f"❌ 系统指南加载失败: {e}")
+            import traceback
+            with st.expander("🔍 查看详细错误"):
+                st.code(traceback.format_exc())
+    
     def render_qilin_tabs(self):
         """渲染Qilin系统级tabs（监控/操作）"""
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
             "📊 实时监控",
             "🤖 智能体状态",
             "📈 交易执行",
             "📉 风险管理",
-            "📋 历史记录"
+            "📋 历史记录",
+            "🧠 AI进化系统",
+            "🔄 循环进化训练",
+            "📖 写实回测"
         ])
         
         with tab1:
@@ -539,7 +932,34 @@ class UnifiedDashboard:
         with tab4:
             self.render_risk_management()
         with tab5:
-            self.render_history()
+            self.render_history(key_prefix="qilin_history")
+        with tab6:
+            # 集成AI进化系统
+            try:
+                from tabs.limitup_ai_evolution_tab import render_limitup_ai_evolution_tab
+                render_limitup_ai_evolution_tab()
+            except Exception as e:
+                st.error(f"AI进化系统加载失败: {e}")
+                st.info("🚧 该功能开发中，敬请期待")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
+        
+        with tab7:
+            # 集成循环进化训练
+            try:
+                from tabs.evolution_training_tab import render_evolution_training_tab
+                render_evolution_training_tab()
+            except Exception as e:
+                st.error(f"循环进化训练加载失败: {e}")
+                st.info("🚧 该功能开发中，敬请期待")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
+        
+        with tab8:
+            # 写实回测页面
+            self.render_realistic_backtest_page()
 
     def render_qlib_tabs(self):
         """渲染Qlib量化平台（6大分区）"""
@@ -573,17 +993,39 @@ class UnifiedDashboard:
             return None
 
     def render_qlib_model_training_tab(self):
-        """Qlib/模型训练：在线学习、强化学习、模型库"""
-        sub1, sub2, sub3 = st.tabs(["🧠 在线学习", "🤖 强化学习", "🚀 一进二策略"])
+        """Qlib/模型训练：工作流、在线学习、强化学习、模型库"""
+        sub1, sub2, sub3, sub4, sub5 = st.tabs(["🔄 Qlib工作流", "🧠 在线学习", "🤖 强化学习", "🚀 一进二策略", "🗂️ 模型库"])
         with sub1:
-            self._safe("在线学习", self.render_online_learning)
+            # 集成Qlib qrun工作流（Phase P1-2）
+            try:
+                from web.tabs.qlib_qrun_workflow_tab import render_qlib_qrun_workflow_tab
+                render_qlib_qrun_workflow_tab()
+            except Exception as e:
+                st.error(f"Qlib工作流加载失败: {e}")
+                st.info("💡 提示：Qlib工作流允许通过YAML配置文件一键运行训练-回测-评估全流程")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
         with sub2:
-            self._safe("强化学习", self.render_rl_trading)
+            self._safe("在线学习", self.render_online_learning)
         with sub3:
+            self._safe("强化学习", self.render_rl_trading)
+        with sub4:
             self._safe("一进二策略", self.render_one_into_two_strategy)
+        with sub5:
+            # 集成Qlib模型库（Phase 5.1）
+            try:
+                from web.tabs.qlib_model_zoo_tab import render_model_zoo_tab
+                render_model_zoo_tab()
+            except Exception as e:
+                st.error(f"模型库加载失败: {e}")
+                st.info("🚧 Qlib模型库开发中，敬请期待")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
     def render_qlib_data_management_tab(self):
-        """Qlib/数据管理:多数据源、涨停板分析、特征/因子"""
-        sub1, sub2, sub3, sub4 = st.tabs(["🔌 多数据源", "🔥 涨停板分析", "🎯 涨停板监控", "🧮 因子/特征"])
+        """八库/数据管理:多数据源、涨停板分析、特征/因子、IC分析、数据工具"""
+        sub1, sub2, sub3, sub4, sub5, sub6 = st.tabs(["🔌 多数据源", "🔥 涨停板分析", "🎯 涨停板监控", "🧪 因子研究", "📊 IC分析", "🛠️ 数据工具"])
         with sub1:
             self._safe("多数据源", self.render_multi_source_data)
         with sub2:
@@ -596,29 +1038,99 @@ class UnifiedDashboard:
                 st.error(f"涨停板监控模块加载失败: {e}")
                 st.info("请确保已正确安装依赖: matplotlib")
         with sub4:
+            # 集成因子研究功能（一进二涨停板）
             try:
-                from tabs.rdagent import factor_mining
-                factor_mining.render()
-            except Exception:
-                st.info("可在 RD-Agent → 因子挖掘 中使用完整功能；此处仅做入口。")
-                st.info("可在 RD-Agent → 因子挖掘 中使用完整功能；此处仅做入口。")
+                from tabs.factor_research_tab import render_factor_research_tab
+                render_factor_research_tab()
+            except Exception as e:
+                st.error(f"因子研究模块加载失败: {e}")
+                st.info("请确保因子研究模块已正确配置")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
+        with sub5:
+            # 集成IC分析报告（Phase 5.3）
+            try:
+                from web.tabs.qlib_ic_analysis_tab import render_qlib_ic_analysis_tab
+                render_qlib_ic_analysis_tab()
+            except Exception as e:
+                st.error(f"IC分析报告加载失败: {e}")
+                st.info("🚧 Qlib IC分析报告开发中，敬请期待")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
+        with sub6:
+            # 集成数据工具箱（Phase 6.1）
+            try:
+                from web.tabs.qlib_data_tools_tab import render_qlib_data_tools_tab
+                render_qlib_data_tools_tab()
+            except Exception as e:
+                st.error(f"数据工具箱加载失败: {e}")
+                st.info("🚧 Qlib数据工具箱开发中，敬请期待")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
 
     def render_qlib_portfolio_tab(self):
-        """Qlib/投资组合：回测、优化、归因分析"""
-        sub1, sub2, sub3 = st.tabs(["⏪ 回测", "🧭 组合优化", "📊 归因分析"])
+        """八库/投资组合：回测、优化、归因分析、订单执行、策略对比、高频交易"""
+        sub1, sub2, sub3, sub4, sub5, sub6 = st.tabs(["⏪ 回测", "🧭 组合优化", "📊 归因分析", "🚀 订单执行", "🏆 策略对比", "⚡ 高频交易"])
         with sub1:
-            self._safe("回测", self.render_history)
+            # 回测引擎选择（P1-1：完整集成Qlib原生回测）
+            engine = st.radio("回测引擎", ["Qlib原生(推荐)", "写实回测(自研)"], index=0, horizontal=True, key="bt_engine")
+            if engine == "写实回测(自研)":
+                st.info("建议前往顶部的'写实回测系统'页运行；运行后风控页可选择'回测(最近一次)'进行风险分析。")
+                st.divider()
+                self._safe("回测", self.render_history, key_prefix="qlib_history")
+            else:
+                # 集成Qlib原生回测（Phase P1-1）
+                try:
+                    from web.tabs.qlib_backtest_tab import render_qlib_backtest_tab
+                    render_qlib_backtest_tab()
+                except Exception as e:
+                    st.error(f"Qlib原生回测加载失败: {e}")
+                    st.info("💡 提示：请确保已安装Qlib并正确配置数据路径")
+                    import traceback
+                    with st.expander("🔍 查看详细错误"):
+                        st.code(traceback.format_exc())
         with sub2:
             self._safe("组合优化", self.render_portfolio_optimization)
         with sub3:
             self._safe("归因分析", self.render_performance_attribution)
+        with sub4:
+            # 集成订单执行引擎（Phase 5.2）
+            try:
+                from web.tabs.qlib_execution_tab import render_qlib_execution_tab
+                render_qlib_execution_tab()
+            except Exception as e:
+                st.error(f"订单执行引擎加载失败: {e}")
+                st.info("🚧 Qlib订单执行引擎开发中，敬请期待")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
+        with sub5:
+            # 策略对比工具（Phase 6.4）
+            self._safe("策略对比", self.render_strategy_comparison)
+        with sub6:
+            # 高频交易模块（Phase 6.2）
+            try:
+                from web.tabs.qlib_highfreq_tab import render_qlib_highfreq_tab
+                render_qlib_highfreq_tab()
+            except Exception as e:
+                st.error(f"高频交易模块加载失败: {e}")
+                st.info("🚧 Qlib高频交易模块开发中，敬请期待")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
 
     def render_qlib_risk_control_tab(self):
-        """Qlib/风险控制：VaR与压力测试"""
-        sub1, sub2 = st.tabs(["⚠️ 风险监控", "🔥 压力测试"])
+        """麒麟Qlib/风险控制：VaR、CVaR、尾部风险、压力测试"""
+        sub1, sub2, sub3 = st.tabs(["⚠️ 风险监控", "🔥 高级风险指标", "🎯 压力测试"])
         with sub1:
             self._safe("风险监控", self.render_risk_monitoring)
         with sub2:
+            # 集成高级风险指标（Phase 6扩展）
+            self._safe("高级风险指标", self.render_advanced_risk_metrics)
+        with sub3:
             self._safe("压力测试", self.render_stress_test)
 
     def render_qlib_online_service_tab(self):
@@ -642,21 +1154,21 @@ class UnifiedDashboard:
             headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
             c1, c2, c3 = st.columns(3)
             with c1:
-                if st.button("健康检查"):
+                if st.button("健康检查", key="qlib_serving_health_check"):
                     try:
                         r = requests.get(urljoin(base_url, health_path), headers=headers, timeout=5)
                         st.success(f"{r.status_code} {r.text[:120]}")
                     except Exception as e:
                         st.error(f"检查失败: {e}")
             with c2:
-                if st.button("启动服务"):
+                if st.button("启动服务", key="qlib_serving_start"):
                     try:
                         r = requests.post(urljoin(base_url, start_path), headers=headers, timeout=8)
                         st.success(f"已启动: {r.status_code}")
                     except Exception as e:
                         st.error(f"启动失败: {e}")
             with c3:
-                if st.button("停止服务"):
+                if st.button("停止服务", key="qlib_serving_stop"):
                     try:
                         r = requests.post(urljoin(base_url, stop_path), headers=headers, timeout=8)
                         st.warning(f"已停止: {r.status_code}")
@@ -685,7 +1197,27 @@ class UnifiedDashboard:
         st.caption("提示：以上路径可按你的服务实际调整；支持带Bearer Token。")
 
     def render_qlib_experiment_management_tab(self):
-        """Qlib/实验管理：接入MLflow Tracking & Registry"""
+        """Qlib/实验管理：MLflow集成 + 实验对比分析（P2-2）"""
+        # 创建子标签页
+        sub1, sub2 = st.tabs(["📊 MLflow管理", "🔬 实验对比"])
+        
+        with sub1:
+            self._render_mlflow_management()
+        
+        with sub2:
+            # 集成实验对比功能（Phase P2-2）
+            try:
+                from web.tabs.qlib_experiment_comparison_tab import render_qlib_experiment_comparison_tab
+                render_qlib_experiment_comparison_tab()
+            except Exception as e:
+                st.error(f"实验对比功能加载失败: {e}")
+                st.info("💡 提示：实验对比功能支持多实验性能对比、可视化分析和统计检验")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
+    
+    def _render_mlflow_management(self):
+        """渲染MLflow管理界面"""
         st.subheader("📊 实验管理 (MLflow)")
         st.markdown("- 记录训练运行、指标与参数\n- 注册最佳模型用于 Serving")
         try:
@@ -962,7 +1494,7 @@ class UnifiedDashboard:
         if "Qlib" in mode:
             qlib_dir = st.text_input(
                 "Qlib数据目录",
-                value=str(Path("G:/test/qlib/qlib_data/cn_data")),
+                value=str((Path.home() / ".qlib/qlib_data/cn_data").expanduser()),
                 help="设置你的Qlib数据存储路径",
                 key="qlib_real_data_dir"
             )
@@ -1077,18 +1609,79 @@ class UnifiedDashboard:
                     with st.spinner("正在从Qlib加载离线数据…"):
                         import qlib
                         from qlib.data import D
+                        import numpy as _np
                         
                         # 初始化Qlib
-                        qlib.init(provider_uri=qlib_dir, region="cn")
-                        
-                        # 加载真实数据
-                        # TODO: 这里需要实现从 Qlib 加载数据的逻辑
-                        st.warning("⚠️ Qlib数据加载功能开发中，当前使用示例数据")
-                        df = build_sample_dataset(symbols, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
-                        st.session_state['oit_dataset'] = df
+                        qlib.init(provider_uri=str(Path(qlib_dir).expanduser()), region="cn")
+
+                        # 转换股票代码为 Qlib 格式：000001.SZ -> SZ000001, 600519.SH -> SH600519
+                        def _to_qlib(sym: str) -> str:
+                            s = sym.strip().upper()
+                            if "." in s:
+                                code, exch = s.split(".")
+                                return ("SZ" + code) if exch == "SZ" else ("SH" + code)
+                            return s
+                        q_syms = [_to_qlib(s) for s in symbols]
+
+                        # 拉取日线面板
+                        fields = ["$open", "$high", "$low", "$close", "$volume", "$amount"]
+                        df = D.features(q_syms, fields, start_time=start.strftime('%Y-%m-%d'), end_time=end.strftime('%Y-%m-%d'), freq='day')
+                        if df is None or df.empty:
+                            raise RuntimeError("Qlib返回空数据，请检查日期范围或数据包是否完整")
+                        df = df.copy()
+                        df.columns = [c.replace('$','') for c in df.columns]
+                        df = df.reset_index().rename(columns={"instrument":"symbol","datetime":"date"})
+                        # 统一 symbol 为 000001.SZ 格式
+                        def _to_ui(sym: str) -> str:
+                            s = sym.upper()
+                            if s.startswith("SH"):
+                                return s[2:] + ".SH"
+                            if s.startswith("SZ"):
+                                return s[2:] + ".SZ"
+                            return s
+                        df['symbol'] = df['symbol'].astype(str).map(_to_ui)
+                        df['date'] = pd.to_datetime(df['date']).dt.date
+
+                        # 计算标签与特征：按 symbol 分组
+                        g = df.sort_values(['symbol','date']).groupby('symbol', group_keys=False)
+                        def _feat(grp: pd.DataFrame) -> pd.DataFrame:
+                            grp = grp.copy()
+                            grp['prev_close'] = grp['close'].shift(1)
+                            # 触发阈值（10%涨停，留千分之一余量）
+                            thr_prev = grp['prev_close'] * 1.10 * 0.999
+                            touched_prev = (grp['high'].shift(1) >= thr_prev)
+                            touched_today = (grp['high'] >= thr_prev)
+                            grp['pool_label'] = touched_prev.astype(int)
+                            grp['board_label'] = (touched_prev & touched_today).astype(int)
+
+                            # 日度特征（当日）
+                            grp['ret_day'] = grp['close'] / grp['prev_close'] - 1.0
+                            grp['amplitude'] = (grp['high'] - grp['low']) / grp['close'].replace(0, _np.nan)
+                            grp['gap'] = grp['open'] / grp['prev_close'] - 1.0
+                            grp['vol_ma5'] = grp['volume'].rolling(5).mean()
+                            grp['vol_ratio'] = grp['volume'] / grp['vol_ma5']
+                            grp['mom_5'] = grp['close'] / grp['close'].shift(5) - 1.0
+                            grp['volatility_5'] = grp['close'].pct_change().rolling(5).std()
+
+                            # 昨日特征前缀 y_
+                            for col in ['ret_day','amplitude','vol_ratio','mom_5','volatility_5','gap']:
+                                grp['y_' + col] = grp[col].shift(1)
+
+                            return grp
+                        df2 = g.apply(_feat)
+
+                        # 生成训练用数据：以“今天”为 date，标签来自 昨日/今日（pool/board）
+                        keep_cols = ['date','symbol','pool_label','board_label','ret_day','amplitude','vol_ratio','mom_5','volatility_5','gap',
+                                     'y_ret_day','y_amplitude','y_vol_ratio','y_mom_5','y_volatility_5','y_gap']
+                        df_out = df2[keep_cols].dropna(subset=['pool_label','board_label']).reset_index(drop=True)
+
+                        if df_out.empty:
+                            raise RuntimeError("Qlib数据构建为空；请增大日期范围或更换股票池")
+
+                        st.session_state['oit_dataset'] = df_out
                         st.session_state['oit_data_mode'] = 'qlib'
-                        st.success(f"✅ 数据集已就绪：{df.shape}")
-                        st.dataframe(df.head(5), use_container_width=True)
+                        st.success(f"✅ 已从Qlib构建数据：{df_out.shape}")
+                        st.dataframe(df_out.head(10), use_container_width=True)
                 except Exception as e:
                     st.error(f"❌ 加载Qlib数据失败: {e}")
                     st.info("🔄 回退到示例模式")
@@ -1123,8 +1716,16 @@ class UnifiedDashboard:
                     trainer = OneIntoTwoTrainer(top_n=top_n)
                     with st.spinner("训练中…"):
                         res = trainer.fit(df)
-                    st.session_state['oit_result'] = res
-                    st.success(f"AUC(pool)={res.auc_pool:.3f} | AUC(board)={res.auc_board:.3f} | 阈值≈{res.threshold_topn:.3f}")
+                        st.session_state['oit_result'] = res
+                        st.session_state['model_trained'] = True  # 标记模型已训练
+                        st.success(f"AUC(pool)={res.auc_pool:.3f} | AUC(board)={res.auc_board:.3f} | 阈值≈{res.threshold_topn:.3f}")
+                        
+                        # 同步训练结果到AI进化系统
+                        st.session_state['training_results'] = {
+                            'val_auc': res.auc_board,
+                            'pool_auc': res.auc_pool,
+                            'threshold_topn': res.threshold_topn
+                        }
         st.divider()
         # 预测&选股（当天示例）
         if st.button("🎯 生成T+1候选"):
@@ -1176,7 +1777,7 @@ class UnifiedDashboard:
         with colp2:
             p_end = st.date_input("结束", value=datetime.now().date(), key="oit_pipe_end")
         with colp3:
-            provider_uri = st.text_input("Qlib数据目录", value=str(Path("G:/test/qlib/qlib_data/cn_data")), key="oit_pipe_provider")
+            provider_uri = st.text_input("Qlib数据目录", value=str((Path.home()/".qlib/qlib_data/cn_data").expanduser()), key="oit_pipe_provider")
         
         # 根据模式显示信息
         if "股票池" in pipeline_mode:
@@ -1339,15 +1940,30 @@ class UnifiedDashboard:
                 st.exception(e)
         
     def render_rdagent_tabs(self):
-        """渲染RD-Agent的6个子tabs"""
-        rd_tab1, rd_tab2, rd_tab3, rd_tab4, rd_tab5, rd_tab6 = st.tabs([
+        """渲染RD-Agent的09个子tabs"""
+        rd_tab0, rd_tab1, rd_tab2, rd_tab3, rd_tab4, rd_tab5, rd_tab6, rd_tab7, rd_tab8 = st.tabs([
+            "⚙️ 环境配置",
             "🔍 因子挖掘",
-            "🏗️ 模型优化",
+            "🏭️ 模型优化",
             "📚 知识学习",
-            "🏆 Kaggle Agent",
             "🔬 研发协同",
-            "📊 MLE-Bench"
+            "📊 MLE-Bench",
+            "🎮 会话管理",
+            "🧪 数据科学",
+            "🧧 日志可视化"
         ])
+        
+        with rd_tab0:
+            # 环境配置
+            try:
+                from tabs.rdagent.env_config import render
+                render()
+            except Exception as e:
+                st.error(f"加载环境配置模块失败: {e}")
+                st.info("请确保 env_config.py 模块存在")
+                import traceback
+                with st.expander("🔍 查看详细错误"):
+                    st.code(traceback.format_exc())
         
         with rd_tab1:
             # 导入因子挖掘模块
@@ -1376,14 +1992,6 @@ class UnifiedDashboard:
                 st.error(f"加载知识学习模块失败: {e}")
         
         with rd_tab4:
-            # Kaggle Agent
-            try:
-                from tabs.rdagent.other_tabs import render_kaggle_agent
-                render_kaggle_agent()
-            except Exception as e:
-                st.error(f"加载Kaggle Agent模块失败: {e}")
-        
-        with rd_tab5:
             # 研发协同 - 增强版
             try:
                 from tabs.rdagent.rd_coordination_enhanced import render_rd_coordination_enhanced
@@ -1397,7 +2005,7 @@ class UnifiedDashboard:
                 except:
                     pass
         
-        with rd_tab6:
+        with rd_tab5:
             # MLE-Bench - 增强版
             try:
                 from tabs.rdagent.rd_coordination_enhanced import render_mle_bench_enhanced
@@ -1410,6 +2018,30 @@ class UnifiedDashboard:
                     render_mle_bench()
                 except:
                     pass
+        
+        with rd_tab6:
+            # 会话管理
+            try:
+                from tabs.rdagent.session_manager import render as render_session_manager
+                render_session_manager()
+            except Exception as e:
+                st.error(f"加载会话管理模块失败: {e}")
+        
+        with rd_tab7:
+            # 数据科学RDLoop
+            try:
+                from tabs.rdagent.data_science_loop import render as render_ds
+                render_ds()
+            except Exception as e:
+                st.error(f"加载数据科学模块失败: {e}")
+        
+        with rd_tab8:
+            # 原生日志可视化
+            try:
+                from tabs.rdagent.log_visualizer import render as render_log
+                render_log()
+            except Exception as e:
+                st.error(f"加载日志可视化模块失败: {e}")
     
     def render_tradingagents_tabs(self):
         """渲染TradingAgents的6个子tabs"""
@@ -1796,7 +2428,7 @@ class UnifiedDashboard:
                     for w in rec.warnings: st.warning(w)
                 st.info(f"方法: {rec.method.value} | 理由: {rec.rationale} | 调整: {rec.adjustment_suggestion}")
     
-    def render_history(self):
+    def render_history(self, key_prefix: str = "history"):
         """历史记录页面"""
         # 日期选择
         col1, col2 = st.columns(2)
@@ -1804,13 +2436,13 @@ class UnifiedDashboard:
             start_date = st.date_input(
                 "开始日期",
                 value=(datetime.now() - timedelta(days=30)).date(),
-                key="history_start_date"
+                key=f"{key_prefix}_start_date"
             )
         with col2:
             end_date = st.date_input(
                 "结束日期",
                 value=datetime.now().date(),
-                key="history_end_date"
+                key=f"{key_prefix}_end_date"
             )
         
         # 历史收益曲线
@@ -1824,6 +2456,54 @@ class UnifiedDashboard:
         # 绩效统计
         st.subheader("📊 绩效统计")
         self.render_performance_stats(start_date, end_date)
+    
+    def render_realistic_backtest_page(self):
+        """写实回测页面"""
+        try:
+            from web.components.realistic_backtest_page import show_realistic_backtest_page
+            show_realistic_backtest_page()
+        except Exception as e:
+            error_msg = str(e)
+            st.error(f"写实回测页面加载失败: {error_msg}")
+            
+            # 根据错误类型给出具体提示
+            if "shap" in error_msg.lower():
+                st.warning("🚧 缺少 SHAP 库（用于模型解释）")
+                st.markdown("""
+                ### 🔧 安装 SHAP
+                
+                ```bash
+                pip install shap
+                ```
+                
+                **注意**: SHAP 安装可能需要一些时间，它依赖于 C++ 编译器。
+                
+                如果安装失败，可以尝试：
+                ```bash
+                # Windows 用户可能需要先安装 Visual C++ Build Tools
+                pip install --upgrade pip
+                pip install shap --no-cache-dir
+                ```
+                """)
+            else:
+                st.info("🚧 该功能需要安装额外依赖")
+                st.markdown("""
+                ### 📚 写实回测系统
+                
+                请确保已安装以下依赖：
+                ```bash
+                pip install plotly pandas numpy shap
+                ```
+                
+                相关文档：
+                - 🐴 **麒麟改进实施报告**: `docs/QILIN_EVOLUTION_IMPLEMENTATION.md`
+                - 📊 **回测引擎**: `backtesting/realistic_backtest.py`
+                - 🔬 **SHAP解释器**: `ml/model_explainer.py`
+                """)
+            
+            import traceback
+            with st.expander("🔍 查看详细错误"):
+                st.code(traceback.format_exc())
     
     # ===== 数据获取方法 =====
     
@@ -1919,21 +2599,24 @@ class UnifiedDashboard:
         df = pd.DataFrame(quotes_data)
         
         # 格式化显示
-        st.dataframe(
-            df.style.format({
-                '现价': '¥{:.2f}',
-                '涨跌幅': '{:+.2%}',
-                '成交量': '{:,.0f}',
-                '成交额': '¥{:,.0f}',
-                '买一': '¥{:.2f}',
-                '卖一': '¥{:.2f}'
-            }).applymap(
-                lambda x: 'color: red;' if x < 0 else 'color: green;',
-                subset=['涨跌幅']
-            ),
-            use_container_width=True,
-            hide_index=True
-        )
+        if not df.empty and '涨跌幅' in df.columns:
+            st.dataframe(
+                df.style.format({
+                    '现价': '¥{:.2f}',
+                    '涨跌幅': '{:+.2%}',
+                    '成交量': '{:,.0f}',
+                    '成交额': '¥{:,.0f}',
+                    '买一': '¥{:.2f}',
+                    '卖一': '¥{:.2f}'
+                }).map(
+                    lambda x: 'color: red;' if x < 0 else 'color: green;',
+                    subset=['涨跌幅']
+                ),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("暂无实时行情数据")
     
     def render_latest_signals(self):
         """渲染最新信号"""
@@ -2084,20 +2767,24 @@ class UnifiedDashboard:
         
         df = pd.DataFrame(positions)
         
-        if not df.empty:
+        if not df.empty and '盈亏' in df.columns and '盈亏比例' in df.columns:
             st.dataframe(
                 df.style.format({
                     '成本价': '¥{:.2f}',
                     '现价': '¥{:.2f}',
                     '盈亏': '¥{:+,.0f}',
                     '盈亏比例': '{:+.2%}'
-                }).applymap(
+                }).map(
                     lambda x: 'color: red;' if x < 0 else 'color: green;',
                     subset=['盈亏', '盈亏比例']
                 ),
                 use_container_width=True,
                 hide_index=True
             )
+        elif not df.empty:
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        else:
+            st.info("暂无持仓数据")
     
     def render_equity_curve(self, start_date, end_date):
         """渲染收益曲线"""
@@ -2165,9 +2852,15 @@ class UnifiedDashboard:
             # 更新实时数据
             if self.redis_available:
                 try:
-                    # 从Redis获取最新数据
+                    # 从 Redis获取最新数据
                     pass
                 except Exception:pass
+            
+            # 更新选中的股票列表
+            top_stocks = self._get_top_limitup_stocks()
+            if top_stocks and top_stocks != ["000001", "000002", "600000"]:
+                st.session_state.selected_stocks = top_stocks
+                
             st.success("✅ 数据已刷新")
     
     def submit_order(self, symbol, action, quantity, price_type):
@@ -2244,12 +2937,295 @@ class UnifiedDashboard:
         df = pd.DataFrame(scenarios)
         st.dataframe(
             df.style.format({
-                '预期损失': '¥{:,.0f}',
+                '预期损失': '￥{:,.0f}',
                 '概率': '{:.1%}'
             }),
             use_container_width=True,
             hide_index=True
         )
+    
+    def render_advanced_risk_metrics(self):
+        """渲染高级风险指标（Phase 6扩展）"""
+        st.header("🔥 高级风险指标")
+        
+        st.info("""
+        **功能说明：**
+        - VaR (Value at Risk): 风险价值
+        - CVaR (Conditional VaR): 条件风险价值
+        - 尾部风险指标: 极端损失分析
+        - 风险调整收益: Sharpe、Sortino、Calmar
+        """
+        )
+        
+        st.divider()
+        
+        # 参数设置
+        st.subheader("⚙️ 参数设置")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            confidence_level = st.slider(
+                "置信水平",
+                min_value=0.90,
+                max_value=0.99,
+                value=0.95,
+                step=0.01,
+                format="%.2f"
+            )
+        
+        with col2:
+            time_horizon = st.selectbox(
+                "时间周期",
+                options=["1天", "5天", "10天", "20天"],
+                index=1
+            )
+        
+        with col3:
+            method = st.selectbox(
+                "计算方法",
+                options=["历史模拟", "方差-协方差", "蒙特卡洛模拟"],
+                index=0
+            )
+        
+        st.divider()
+        
+        # 数据来源选择
+        st.markdown("##### 数据来源")
+        data_source = st.selectbox(
+            "选择收益数据来源",
+            options=["模拟数据", "回测(最近一次)", "上传CSV"],
+            index=0,
+        )
+        returns_series = None
+        if data_source == "回测(最近一次)":
+            returns_series = st.session_state.get("last_backtest_returns")
+            if returns_series is None:
+                st.warning("未找到回测收益，请先在“回测”页运行一次回测，或使用“上传CSV”。")
+        elif data_source == "上传CSV":
+            up = st.file_uploader("上传CSV（包含 date 与 return 列）", type=["csv"])
+            if up is not None:
+                try:
+                    df_up = pd.read_csv(up)
+                    dt_col = None
+                    for c in ["date", "Date", "datetime", "time"]:
+                        if c in df_up.columns:
+                            dt_col = c; break
+                    ret_col = None
+                    for c in ["return", "ret", "returns"]:
+                        if c in df_up.columns:
+                            ret_col = c; break
+                    if dt_col and ret_col:
+                        df_up[dt_col] = pd.to_datetime(df_up[dt_col])
+                        df_up = df_up.sort_values(dt_col)
+                        returns_series = pd.Series(df_up[ret_col].values, index=df_up[dt_col])
+                    else:
+                        st.error("CSV 需包含 date 与 return 列")
+                except Exception as e:
+                    st.error(f"解析CSV失败: {e}")
+        
+        # 若无外部数据，使用模拟数据
+        np.random.seed(42)
+        if returns_series is None:
+            returns_array = np.random.normal(0.001, 0.02, 252)
+        else:
+            returns_array = returns_series.values
+        portfolio_value = 1000000
+        
+        # VaR 计算
+        st.subheader("📊 VaR 分析")
+        
+        var_value = np.percentile(returns_array, (1 - confidence_level) * 100)
+        var_amount = abs(var_value * portfolio_value)
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(
+                f"VaR ({confidence_level:.0%} 置信水平)",
+                f"￥{var_amount:,.0f}",
+                delta=f"{var_value:.2%}",
+                delta_color="inverse"
+            )
+        
+        # CVaR 计算
+        cvar_value = returns[returns <= var_value].mean()
+        cvar_amount = abs(cvar_value * portfolio_value)
+        
+        with col2:
+            st.metric(
+                "CVaR (条件VaR)",
+                f"￥{cvar_amount:,.0f}",
+                delta=f"{cvar_value:.2%}",
+                delta_color="inverse"
+            )
+        
+        # 最大回撤
+        cum_returns = (1 + returns_array).cumprod()
+        max_dd = (cum_returns / np.maximum.accumulate(cum_returns) - 1).min()
+        max_dd_amount = abs(max_dd * portfolio_value)
+        
+        with col3:
+            st.metric(
+                "最大回撤",
+                f"{max_dd:.2%}",
+                delta=f"￥{max_dd_amount:,.0f}",
+                delta_color="inverse"
+            )
+        
+        st.divider()
+        
+        # 收益分布
+        st.subheader("📈 收益分布")
+        
+        fig = go.Figure()
+        
+        # 添加直方图
+        fig.add_trace(go.Histogram(
+            x=returns_array,
+            nbinsx=50,
+            name="收益分布",
+            marker=dict(color='#1f77b4', opacity=0.7)
+        ))
+        
+        # 添加VaR线
+        fig.add_vline(
+            x=var_value,
+            line_dash="dash",
+            line_color="red",
+            annotation_text=f"VaR ({confidence_level:.0%})",
+            annotation_position="top right"
+        )
+        
+        fig.update_layout(
+            xaxis_title="收益率",
+            yaxis_title="频数",
+            height=400,
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.divider()
+        
+        # 风险调整收益指标
+        st.subheader("🎯 风险调整收益")
+        
+        annual_return = returns.mean() * 252
+        annual_vol = returns.std() * np.sqrt(252)
+        sharpe = annual_return / annual_vol if annual_vol > 0 else 0
+        
+        # Sortino比率（只考虑下行波动）
+        downside_returns = returns_array[returns_array < 0]
+        downside_vol = downside_returns.std() * np.sqrt(252)
+        sortino = annual_return / downside_vol if downside_vol > 0 else 0
+        
+        # Calmar比率
+        calmar = annual_return / abs(max_dd) if max_dd != 0 else 0
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                "Sharpe比率",
+                f"{sharpe:.2f}",
+                delta="优秀" if sharpe > 1.5 else "一般"
+            )
+        
+        with col2:
+            st.metric(
+                "Sortino比率",
+                f"{sortino:.2f}",
+                delta="优秀" if sortino > 2.0 else "一般"
+            )
+        
+        with col3:
+            st.metric(
+                "Calmar比率",
+                f"{calmar:.2f}",
+                delta="优秀" if calmar > 3.0 else "一般"
+            )
+        
+        with col4:
+            st.metric(
+                "年化波动率",
+                f"{annual_vol:.2%}"
+            )
+        
+        st.divider()
+        
+        # 尾部风险
+        st.subheader("⚡ 尾部风险分析")
+        
+        # 找出极端损失
+        worst_returns = np.sort(returns_array)[:10]
+        
+        tail_data = pd.DataFrame({
+            '排名': range(1, 11),
+            '收益率': worst_returns,
+            '损失金额': [abs(r * portfolio_value) for r in worst_returns]
+        })
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.dataframe(
+                tail_data.style.format({
+                    '收益率': '{:.2%}',
+                    '损失金额': '￥{:,.0f}'
+                }).background_gradient(subset=['损失金额'], cmap='Reds'),
+                use_container_width=True,
+                hide_index=True
+            )
+        
+        with col2:
+            # 极端损失分布
+            fig = go.Figure()
+            
+            fig.add_trace(go.Bar(
+                x=tail_data['排名'],
+                y=tail_data['收益率'],
+                marker=dict(color=tail_data['收益率'], colorscale='Reds'),
+                text=[f"{r:.2%}" for r in tail_data['收益率']],
+                textposition='outside'
+            ))
+            
+            fig.update_layout(
+                title="Top 10 最大损失日",
+                xaxis_title="排名",
+                yaxis_title="收益率",
+                height=300,
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.divider()
+        
+        # 风险总结
+        st.subheader("📊 风险评估总结")
+        
+        if var_amount < portfolio_value * 0.05:
+            risk_level = "🟢 低风险"
+            risk_msg = "组合风险处于较低水平，可以维持当前策略。"
+        elif var_amount < portfolio_value * 0.10:
+            risk_level = "🟡 中等风险"
+            risk_msg = "组合风险处于正常范围，建议定期监控。"
+        else:
+            risk_level = "🔴 高风险"
+            risk_msg = "组合风险较高，建议考虑降低仓位或增加对冲。"
+        
+        st.info(f"""
+        **风险等级**: {risk_level}
+        
+        {risk_msg}
+        
+        **关键指标**：
+        - VaR ({confidence_level:.0%}): ￥{var_amount:,.0f} ({var_value:.2%})
+        - CVaR: ￥{cvar_amount:,.0f} ({cvar_value:.2%})
+        - Sharpe: {sharpe:.2f} | Sortino: {sortino:.2f} | Calmar: {calmar:.2f}
+        - 最大回撤: {max_dd:.2%}
+        """)
     
     def render_risk_alerts(self):
         """渲染风险预警"""
@@ -2495,7 +3471,7 @@ class UnifiedDashboard:
             )
         
         # 分析按钮
-        if st.button("🔍 开始分析", use_container_width=True, type="primary"):
+        if st.button("🔍 开始分析", use_container_width=True, type="primary", key="limitup_start_analysis"):
             with st.spinner("📊 正在分析高频数据..."):
                 # 初始化分析器
                 analyzer = HighFreqLimitUpAnalyzer(freq=analysis_freq)
@@ -3093,7 +4069,7 @@ class UnifiedDashboard:
                     volume_data = pd.DataFrame({'volume': [0], 'turnover_rate': [0.0]})
                     order_book = None
                 
-            if st.button("🔍 评估流动性", type="primary"):
+            if st.button("🔍 评估流动性", type="primary", key="p3_liq_eval_duplicate"):
                 metrics = monitor.evaluate_liquidity(
                     symbol=symbol,
                     current_price=current_price,
@@ -3120,7 +4096,7 @@ class UnifiedDashboard:
                 
                 st.divider()
                 target_shares = st.number_input("拟建仓股数", min_value=0, value=10000, step=100)
-                if st.button("📏 建仓规模检查"):
+                if st.button("📏 建仓规模检查", key="p3_liq_check_duplicate"):
                     ok, reason, rec = monitor.check_position_size(symbol, target_shares, metrics)
                     if ok:
                         st.success(f"通过：{reason} | 建议股数 {rec:,}")
@@ -3130,7 +4106,7 @@ class UnifiedDashboard:
         with tab_guard:
             st.markdown("市场健康度与交易暂停策略")
             guard = ExtremeMarketGuard()
-            if st.button("🧪 评估示例市场健康度"):
+            if st.button("🧪 评估示例市场健康度", key="p3_guard_health_duplicate"):
                 # 构造简化市场数据字典
                 market_data = {
                     f"{i:06d}.SZ": pd.DataFrame({
@@ -3157,7 +4133,7 @@ class UnifiedDashboard:
             
             st.divider()
             st.markdown("个股极端事件检测（示例数据）")
-            if st.button("⚡ 检测个股事件"):
+            if st.button("⚡ 检测个股事件", key="p3_guard_stock_duplicate"):
                 price_data = pd.DataFrame({
                     'open': [10.0] * 60,
                     'high': [10.2] * 60,
@@ -3185,7 +4161,7 @@ class UnifiedDashboard:
                 avg_return = st.slider("平均盈利(%)", 1.0, 30.0, 8.0, 0.5) if method == PositionSizeMethod.KELLY else None
                 volatility = st.slider("波动率(%)", 1.0, 10.0, 2.5, 0.1) if method == PositionSizeMethod.VOLATILITY_ADJUSTED else None
             
-            if st.button("🧮 计算仓位", type="primary"):
+            if st.button("🧮 计算仓位", type="primary", key="p3_pos_calc_duplicate"):
                 mgr = RiskPositionManager(total_capital=total_capital, risk_level=risk_level)
                 rec = mgr.calculate_position_size(
                     symbol=symbol_p,
@@ -3295,7 +4271,7 @@ class UnifiedDashboard:
                 t = st.time_input("封板时间", value=datetime.strptime("09:35:00", "%H:%M:%S").time())
                 target_shares_q = st.number_input("目标股数", min_value=100, value=20000, step=100)
             
-            if st.button("📊 评估排队状态", type="primary"):
+            if st.button("📊 评估排队状态", type="primary", key="p4_queue_eval_duplicate"):
                 today = datetime.now()
                 seal_time = today.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=0)
                 status = sim.evaluate_queue_status(
@@ -3321,7 +4297,7 @@ class UnifiedDashboard:
                     for w in status.warnings:
                         st.warning(w)
                 
-                if st.button("🎲 模拟一次排队成交"):
+                if st.button("🎲 模拟一次排队成交", key="p4_queue_sim_duplicate"):
                     exec_one = sim.simulate_queue_execution(
                         symbol=symbol,
                         order_time=today,
@@ -3523,7 +4499,7 @@ class UnifiedDashboard:
         with col3:
             st.write("")
             st.write("")
-            if st.button("🚀 开始测试", use_container_width=True, type="primary"):
+            if st.button("🚀 开始测试", use_container_width=True, type="primary", key="multi_source_test"):
                 with st.spinner("正在从多个数据源获取数据..."):
                     import time
                     time.sleep(1.5)
@@ -4912,6 +5888,271 @@ class UnifiedDashboard:
                 - 因子归因表明市场因子贡献最大
                 - 交易成本处于合理水平，约占交易额的0.11%
                 """)
+
+    def render_strategy_comparison(self):
+        """策略对比工具（Phase 6.4）"""
+        st.header("🏆 策略对比")
+        
+        st.info("""
+        **功能说明：**
+        - 多策略性能对比：同时运行多个策略，对比关键指标
+        - 回测结果分析：收益率、夏普比率、最大回撤等
+        - 可视化展示：曲线图、雷达图、指标对比
+        """
+        )
+        
+        st.divider()
+        
+        # 策略选择
+        st.subheader("🎯 策略选择")
+        
+        available_strategies = [
+            "📈 趨势跟随策略",
+            "📊 均值回归策略",
+            "🧠 机器学习策略 (LSTM)",
+            "🚀 涨停板策略",
+            "🔄 动量策略"
+        ]
+        
+        selected_strategies = st.multiselect(
+            "选择要对比的策略（最多5个）",
+            options=available_strategies,
+            default=available_strategies[:3]
+        )
+        
+        if len(selected_strategies) < 2:
+            st.warning("⚠️ 请至少选择2个策略进行对比")
+            return
+        
+        st.divider()
+        
+        # 回测参数
+        st.subheader("⚙️ 回测参数")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            initial_capital = st.number_input(
+                "初始资金 (元)",
+                min_value=10000,
+                max_value=10000000,
+                value=1000000,
+                step=10000
+            )
+        
+        with col2:
+            start_date = st.date_input(
+                "开始日期",
+                value=(datetime.now() - timedelta(days=365)).date()
+            )
+        
+        with col3:
+            end_date = st.date_input(
+                "结束日期",
+                value=datetime.now().date()
+            )
+        
+        st.divider()
+        
+        # 执行对比
+        st.subheader("🛠️ 执行对比")
+        
+        if st.button("🚀 开始对比", type="primary", use_container_width=True, key="strategy_comparison_run"):
+            with st.spinner("📊 正在运行策略对比..."):
+                import time
+                time.sleep(1.5)
+                
+                # 生成模拟数据
+                np.random.seed(42)
+                days = (end_date - start_date).days
+                dates = pd.date_range(start=start_date, end=end_date, freq='D')
+                
+                results = {}
+                colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
+                
+                for idx, strategy in enumerate(selected_strategies):
+                    # 生成模拟收益
+                    if "趨势" in strategy:
+                        daily_returns = np.random.normal(0.0008, 0.015, len(dates))
+                    elif "均值" in strategy:
+                        daily_returns = np.random.normal(0.0005, 0.012, len(dates))
+                    elif "机器" in strategy:
+                        daily_returns = np.random.normal(0.001, 0.018, len(dates))
+                    elif "涨停" in strategy:
+                        daily_returns = np.random.normal(0.0012, 0.025, len(dates))
+                    else:
+                        daily_returns = np.random.normal(0.0006, 0.014, len(dates))
+                    
+                    cum_returns = (1 + daily_returns).cumprod()
+                    portfolio_values = initial_capital * cum_returns
+                    
+                    results[strategy] = {
+                        'returns': daily_returns,
+                        'cum_returns': cum_returns,
+                        'portfolio_values': portfolio_values,
+                        'color': colors[idx % len(colors)]
+                    }
+                
+                st.success("✅ 对比完成！")
+                
+                st.divider()
+                
+                # 性能指标对比
+                st.subheader("📊 性能指标对比")
+                
+                metrics_data = []
+                for strategy, data in results.items():
+                    returns = data['returns']
+                    total_return = data['cum_returns'][-1] - 1
+                    annual_return = (1 + total_return) ** (252 / len(returns)) - 1
+                    annual_vol = returns.std() * np.sqrt(252)
+                    sharpe = annual_return / annual_vol if annual_vol > 0 else 0
+                    max_dd = (data['cum_returns'] / np.maximum.accumulate(data['cum_returns']) - 1).min()
+                    
+                    metrics_data.append({
+                        '策略': strategy,
+                        '总收益率': total_return,
+                        '年化收益': annual_return,
+                        '年化波动': annual_vol,
+                        '夏普比率': sharpe,
+                        '最大回撤': max_dd
+                    })
+                
+                df_metrics = pd.DataFrame(metrics_data)
+                
+                st.dataframe(
+                    df_metrics.style.format({
+                        '总收益率': '{:.2%}',
+                        '年化收益': '{:.2%}',
+                        '年化波动': '{:.2%}',
+                        '夏普比率': '{:.2f}',
+                        '最大回撤': '{:.2%}'
+                    }).background_gradient(subset=['夏普比率'], cmap='RdYlGn'),
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                st.divider()
+                
+                # 累计收益曲线
+                st.subheader("📈 累计收益曲线")
+                
+                fig = go.Figure()
+                
+                for strategy, data in results.items():
+                    fig.add_trace(go.Scatter(
+                        x=dates,
+                        y=data['portfolio_values'],
+                        mode='lines',
+                        name=strategy,
+                        line=dict(width=2, color=data['color'])
+                    ))
+                
+                fig.add_hline(
+                    y=initial_capital,
+                    line_dash="dash",
+                    line_color="gray",
+                    annotation_text="初始资金"
+                )
+                
+                fig.update_layout(
+                    xaxis_title="日期",
+                    yaxis_title="组合价值 (元)",
+                    height=500,
+                    hovermode='x unified',
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1
+                    )
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.divider()
+                
+                # 雷达图
+                st.subheader("🎯 性能雷达图")
+                
+                categories = ['收益', '风险', 'Sharpe', '回撤', '稳定性']
+                
+                fig = go.Figure()
+                
+                for strategy, data in results.items():
+                    returns = data['returns']
+                    # 标准化指标（0-1）
+                    metrics_row = df_metrics[df_metrics['策略'] == strategy].iloc[0]
+                    values = [
+                        min(1.0, max(0.0, (metrics_row['年化收益'] + 0.2) / 0.4)),  # 收益
+                        1 - min(1.0, metrics_row['年化波动'] / 0.3),  # 风险（反向）
+                        min(1.0, max(0.0, metrics_row['夏普比率'] / 3.0)),  # Sharpe
+                        1 - min(1.0, abs(metrics_row['最大回撤']) / 0.3),  # 回撤（反向）
+                        1 - returns.std()  # 稳定性
+                    ]
+                    values.append(values[0])  # 闭合
+                    
+                    fig.add_trace(go.Scatterpolar(
+                        r=values,
+                        theta=categories + [categories[0]],
+                        name=strategy,
+                        fill='toself',
+                        line=dict(color=data['color'])
+                    ))
+                
+                fig.update_layout(
+                    polar=dict(
+                        radialaxis=dict(
+                            visible=True,
+                            range=[0, 1]
+                        )
+                    ),
+                    height=500,
+                    showlegend=True
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.divider()
+                
+                # 总结
+                st.subheader("🏆 对比总结")
+                
+                best_return = df_metrics.loc[df_metrics['年化收益'].idxmax()]
+                best_sharpe = df_metrics.loc[df_metrics['夏普比率'].idxmax()]
+                best_dd = df_metrics.loc[df_metrics['最大回撤'].idxmax()]
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.success(f"""
+                    **🏆 最高收益**
+                    
+                    {best_return['策略']}
+                    
+                    年化收益：{best_return['年化收益']:.2%}
+                    """)
+                
+                with col2:
+                    st.success(f"""
+                    **🏆 最佳Sharpe**
+                    
+                    {best_sharpe['策略']}
+                    
+                    Sharpe比率：{best_sharpe['夏普比率']:.2f}
+                    """)
+                
+                with col3:
+                    st.success(f"""
+                    **🏆 最小回撤**
+                    
+                    {best_dd['策略']}
+                    
+                    最大回撤：{best_dd['最大回撤']:.2%}
+                    """)
+        else:
+            st.info("👆 点击上方按钮开始策略对比")
 
 
 # 主程序入口

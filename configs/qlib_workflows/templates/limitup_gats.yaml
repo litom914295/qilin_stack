@@ -1,0 +1,36 @@
+task:
+  model:
+    class: GATsModel
+    module_path: qlib.contrib.model.pytorch_gats
+    kwargs:
+      d_feat: 158
+      n_heads: 4
+      n_layers: 2
+      hidden_size: 128
+      dropout: 0.1
+      GPU: 0
+  dataset:
+    class: DatasetH
+    kwargs:
+      handler:
+        class: Alpha158
+        kwargs:
+          instruments: csi1000
+          start_time: 2018-01-01
+          end_time: 2023-12-31
+          label: |
+            (
+              ($close / Ref($close, 1) - 1 > 0.095) &
+              (Ref($close, -1) / $close - 1 > 0.095)
+            )
+      segments:
+        train: [2019-01-01, 2021-12-31]
+        valid: [2022-01-01, 2022-12-31]
+        test:  [2023-01-01, 2023-12-31]
+strategy:
+  class: TopkDropoutStrategy
+  module_path: qlib.contrib.strategy
+  kwargs:
+    signal: <PRED>
+    topk: 15
+    n_drop: 0

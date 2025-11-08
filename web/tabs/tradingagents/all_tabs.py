@@ -179,15 +179,19 @@ def render_agent_management():
     # 智能体性能对比（占位/示例）
     st.subheader("📊 性能对比")
     
+    # 生成与 agents_config 长度一致的模拟数据
+    import numpy as np
+    num_agents = len(agents_config)
+    
     performance_data = {
         "智能体": [a['name'] for a in agents_config],
-        "准确率": [0.78, 0.82, 0.75, 0.68, 0.81, 0.79][: len(agents_config)],
-        "响应时间(s)": [2.1, 1.8, 3.2, 2.5, 2.3, 2.4][: len(agents_config)],
-        "信心度": [0.85, 0.89, 0.76, 0.72, 0.88, 0.86][: len(agents_config)],
+        "准确率": [round(0.75 + np.random.rand() * 0.15, 2) for _ in range(num_agents)],
+        "响应时间(s)": [round(1.5 + np.random.rand() * 2.0, 1) for _ in range(num_agents)],
+        "信心度": [round(0.70 + np.random.rand() * 0.25, 2) for _ in range(num_agents)],
     }
     
     df = pd.DataFrame(performance_data)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, hide_index=True)
 
 
 def render_collaboration():
@@ -195,25 +199,36 @@ def render_collaboration():
     _ensure_user_state()
     st.session_state.setdefault('collab_logs', [])
     st.session_state.setdefault('collab_rounds', [])
-    st.header("🗣️ 协作机制")
+    st.header("🗣️ 智能体协作决策")
     
     st.markdown("""
-    **结构化辩论流程**
-    1. 🎤 初始观点提出
-    2. 📋 论据收集与支持
-    3. ⚔️ 对立观点辩驳
-    4. 🔄 多轮迭代优化
-    5. ✅ 共识达成
+    **🤖 多智能体协作决策机制**
+    
+    这个功能模拟“多个专家会诊”的场景：
+    - 👥 **多个 AI 智能体**（如技术分析师、基本面分析师、情绪分析师等）同时分析同一只股票
+    - 📊 每个智能体独立给出 **BUY（买入）/ SELL（卖出）/ HOLD（持有）** 的建议
+    - 🗣️ 通过“投票”统计各智能体的观点分布
+    - ✅ 当某个观点占比超过阈值（如 75%），认为**达成共识**，作为最终决策
+    
+    🎯 **使用场景**：对重要交易决策，通过多个角度的分析降低风险
     """)
+    
+    st.divider()
+    st.subheader("⚙️ 分析参数")
     
     # 参数
     c1, c2, c3 = st.columns(3)
     with c1:
-        symbol = st.text_input("股票代码", value="000001", key="collab_symbol")
+        symbol = st.text_input("📊 股票代码", value="000001", key="collab_symbol")
+        st.caption("输入6位代码，如 000001")
     with c2:
-        consensus_threshold = st.slider("共识阈值(%)", 50, 90, 75, 1)
+        consensus_threshold = st.slider("🎯 共识阈值(%)", 50, 90, 75, 1, 
+                                       help="当某个观点（BUY/SELL/HOLD）的智能体数量占比超过该阈值时，认为达成共识")
+        st.caption(f"当前：需要 ≥{consensus_threshold}% 的智能体同意")
     with c3:
-        rounds = st.number_input("辩论轮次", 1, 5, 3)
+        rounds = st.number_input("🔄 分析轮次", 1, 5, 3,
+                                help="运行多少轮分析，每轮都会重新调用智能体")
+        st.caption(f"将进行 {int(rounds)} 轮独立分析")
     
     # 控制按钮
     colb1, colb2 = st.columns([1,1])
@@ -228,6 +243,17 @@ def render_collaboration():
     
     # 调用TradingAgents协作（若可用），支持多轮
     integration = _get_ta_integration()
+    
+    # 显示当前模式
+    if integration:
+        mode = st.session_state.get('ta_mode', 'basic')
+        if mode == 'full_10_agents':
+            st.success("✅ 已启用：完整110个专业智能体模式")
+        else:
+            st.info("ℹ️ 已启用：基础智能体模式")
+    else:
+        st.warning("⚠️ TradingAgents 未启用，将使用演示模式")
+    
     if start_btn:
         prog = st.progress(0)
         try:
@@ -246,16 +272,18 @@ def render_collaboration():
                         "money_inflow": float(_np.random.uniform(500_000_000, 2_000_000_000)),
                         "money_outflow": float(_np.random.uniform(400_000_000, 1_800_000_000)),
                     }
-                    # 判断是否为完整10个智能体模式
-                    if st.session_state.get('ta_mode') == 'full_10_agents':
-                        res = asyncio.run(integration.analyze_comprehensive(symbol, market_data))
-                    else:
+                    try:
+                        # 调用 analyze_stock 返回字典格式
                         res = asyncio.run(integration.analyze_stock(symbol, market_data))
+                    except Exception as e:
+                        st.warning(f"第{r+1}轮分析失败: {e}")
+                        res = None
                 else:
                     res = None
+                    
                 now = datetime.now().strftime('%H:%M:%S')
                 # 记录一轮日志
-                if res and isinstance(res, dict):
+                if res and isinstance(res, dict) and 'individual_results' in res:
                     indiv = res.get('individual_results') or []
                     buy = sell = hold = 0
                     for item in indiv:
@@ -271,31 +299,36 @@ def render_collaboration():
                         else: hold += 1
                     st.session_state.collab_rounds.append({'buy': buy, 'sell': sell, 'hold': hold})
                 else:
-                    # 演示：追加一条中立信息
+                    # 演示模式：生成模拟数据
                     st.session_state.collab_logs.append({
-                        'time': now, 'agent': 'DemoAgent', 'type': '中立', 'content': 'HOLD · 演示轮次'
+                        'time': now, 'agent': '演示Agent', 'type': '中立', 'content': 'HOLD · 演示数据（TradingAgents未启用）'
                     })
                     st.session_state.collab_rounds.append({'buy': 1, 'sell': 0, 'hold': 2})
                 prog.progress((r+1)/int(rounds))
                 time.sleep(0.1)
         except Exception as e:
             st.error(f"协作调用失败: {e}")
+            import traceback
+            st.code(traceback.format_exc())
         finally:
             prog.empty()
     
-    st.subheader("🎭 实时辩论过程")
+    st.subheader("👥 各智能体的观点")
+    st.caption("展示每个智能体的分析结果和理由")
+    
     # 展示聚合日志（最近200条）
     if st.session_state.collab_logs:
         for log in st.session_state.collab_logs[-200:]:
             color_map = {"观点": "🔵", "支持": "🟢", "反驳": "🔴", "中立": "🟡", "决策": "🟣"}
             st.markdown(f"{color_map.get(log['type'], '⚪')} **{log['time']}** - *{log['agent']}* ({log['type']}): {log['content']}")
     else:
-        st.info("暂无协作记录")
+        st.info("💡 点击上方“🎬 发起协作分析”按钮开始分析")
     
     st.divider()
     
     # 共识可视化
-    st.subheader("📊 共识达成可视化")
+    st.subheader("📊 共识达成分析")
+    st.caption("展示BUY/SELL/HOLD三种观点的分布，并判断是否达成共识")
     # 按轮次聚合统计
     if st.session_state.collab_rounds:
         buy = sum(x['buy'] for x in st.session_state.collab_rounds)
@@ -304,20 +337,53 @@ def render_collaboration():
         total = max(buy + sell + hold, 1)
         consensus = max([(buy,'BUY'),(sell,'SELL'),(hold,'HOLD')], key=lambda t:t[0])
         consensus_pct = consensus[0] / total
-        # Sankey
+        # Sankey 图：显示各观点流向最终决策
+        buy_pct = (buy / total * 100) if total > 0 else 0
+        sell_pct = (sell / total * 100) if total > 0 else 0
+        hold_pct = (hold / total * 100) if total > 0 else 0
+        
         fig = go.Figure(data=[go.Sankey(
             node=dict(
-                label=["BUY", "SELL", "HOLD", "最终决策"],
-                color=["green", "red", "gray", "purple"]
+                label=[
+                    f"BUY ({buy})",
+                    f"SELL ({sell})",
+                    f"HOLD ({hold})",
+                    f"{consensus[1]}"
+                ],
+                customdata=[
+                    f"买入: {buy}个智能体 ({buy_pct:.1f}%)",
+                    f"卖出: {sell}个智能体 ({sell_pct:.1f}%)",
+                    f"持有: {hold}个智能体 ({hold_pct:.1f}%)",
+                    f"最终共识: {consensus[1]} ({consensus_pct*100:.1f}%)"
+                ],
+                hovertemplate='%{customdata}<extra></extra>',
+                color=["#4CAF50", "#F44336", "#9E9E9E", "#9C27B0"],
+                pad=25,
+                thickness=35,
+                line=dict(color="white", width=2.5)
             ),
             link=dict(
-                source=[0,1,2],
-                target=[3,3,3],
-                value=[max(buy,0.0001), max(sell,0.0001), max(hold,0.0001)]
-            )
+                source=[0, 1, 2],
+                target=[3, 3, 3],
+                value=[max(buy, 0.1), max(sell, 0.1), max(hold, 0.1)],
+                color=["rgba(76,175,80,0.35)", "rgba(244,67,54,0.35)", "rgba(158,158,158,0.35)"]
+            ),
+            textfont=dict(color="white", size=16, family="Arial Black, sans-serif")
         )])
-        fig.update_layout(title="信号流向与共识形成", height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(
+            title={
+                'text': "🔀 信号流向与共识形成",
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 20, 'color': '#2c3e50', 'family': 'Arial Black'}
+            },
+            height=450,
+            font=dict(size=15, family="Arial, sans-serif", color="white"),
+            margin=dict(l=10, r=10, t=70, b=30),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig)
         # 阈值判断
         if consensus_pct*100 >= consensus_threshold:
             st.success(f"✅ 达成共识: {consensus[1]} · {consensus_pct*100:.1f}% (阈值 {consensus_threshold}%)")
@@ -331,19 +397,50 @@ def render_collaboration():
             pct = rc[0]/rt*100
             st.caption(f"第{idx}轮: BUY={r['buy']} SELL={r['sell']} HOLD={r['hold']} → 共识 {rc[1]} {pct:.1f}%")
     else:
+        # 默认示例图：简化的 Sankey 图
         fig = go.Figure(data=[go.Sankey(
             node=dict(
-                label=["看涨观点", "看跌观点", "中立观点", "论据支持", "最终决策"],
-                color=["green", "red", "gray", "blue", "purple"]
+                label=[
+                    "BUY (45)",
+                    "SELL (25)",
+                    "HOLD (30)",
+                    "BUY"
+                ],
+                customdata=[
+                    "买入: 45个智能体 (45%)",
+                    "卖出: 25个智能体 (25%)",
+                    "持有: 30个智能体 (30%)",
+                    "最终共识: BUY (45%)"
+                ],
+                hovertemplate='%{customdata}<extra></extra>',
+                color=["#4CAF50", "#F44336", "#9E9E9E", "#9C27B0"],
+                pad=25,
+                thickness=35,
+                line=dict(color="white", width=2.5)
             ),
             link=dict(
-                source=[0, 1, 2, 0, 1],
-                target=[3, 3, 3, 4, 4],
-                value=[45, 25, 30, 40, 20]
-            )
+                source=[0, 1, 2],
+                target=[3, 3, 3],
+                value=[45, 25, 30],
+                color=["rgba(76,175,80,0.35)", "rgba(244,67,54,0.35)", "rgba(158,158,158,0.35)"]
+            ),
+            textfont=dict(color="white", size=16, family="Arial Black, sans-serif")
         )])
-        fig.update_layout(title="观点流向与共识形成", height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(
+            title={
+                'text': "🔀 观点流向与共识形成（示例）",
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 20, 'color': '#2c3e50', 'family': 'Arial Black'}
+            },
+            height=450,
+            font=dict(size=15, family="Arial, sans-serif", color="white"),
+            margin=dict(l=10, r=10, t=70, b=30),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig)
+        st.info("💡 请点击上方'🎬 发起协作分析'按钮查看真实的智能体分析结果")
 
 
 def render_information_collection():
@@ -351,22 +448,33 @@ def render_information_collection():
     st.header("📰 信息采集")
     
     st.markdown("""
-    **多源信息整合**
-    - 📰 新闻资讯 (v0.1.12智能过滤)
-    - 📊 财务数据
-    - 💬 社交媒体情绪
-    - 📈 实时行情数据
+    **📡 多源信息整合功能**
+    
+    这个功能可以从多个来源采集和过滤与股票相关的信息：
+    - 📰 **新闻资讯**：从财经新闻网站采集，智能过滤低质量内容
+    - 📊 **财务数据**：财报、业绩预告、公告等
+    - 💬 **社交媒体**：雪球、股吧等平台的情绪分析
+    - 📈 **实时行情**：价格、成交量、资金流向等
+    
+    🔧 **当前状态**：下方的指标和新闻为演示数据，真实采集功能请使用 "TradingAgents-CN 采集器"
     """)
+    
+    st.divider()
+    st.subheader("📊 概览指标（演示）")
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("今日新闻", "1,247", "+156")
+        st.caption("🎭 演示数据")
     with col2:
         st.metric("过滤后", "89", "高质量")
+        st.caption("🎭 演示数据")
     with col3:
         st.metric("情绪指数", "0.68", "偏乐观")
+        st.caption("🎭 演示数据")
     with col4:
         st.metric("数据源", "12", "多元化")
+        st.caption("🎭 演示数据")
     
     st.divider()
     
@@ -378,7 +486,8 @@ def render_information_collection():
         with col1:
             filter_mode = st.selectbox(
                 "过滤模式",
-                ["基础过滤", "增强过滤", "集成过滤"]
+                ["基础过滤", "增强过滤", "集成过滤"],
+                key="ta_info_filter_mode"
             )
             relevance_threshold = st.slider("相关性阈值", 0.0, 1.0, 0.7)
         with col2:
@@ -388,44 +497,109 @@ def render_information_collection():
     if st.button("🔍 应用过滤", type="primary"):
         st.success(f"已应用{filter_mode}，过滤出89条高质量新闻")
     
-    # 可选：调用集成的TradingAgents-CN工具进行打分
+    # 真实采集功能
     st.divider()
-    st.subheader("🧰 TradingAgents-CN 采集器（可选）")
-    symbol_ic = st.text_input("股票代码 (采集示例)", value="000001", key="ta_cn_symbol")
-    if st.button("⚡ 运行采集器并打分"):
+    st.subheader("✅ TradingAgents-CN 真实采集器")
+    st.markdown("""
+    🚀 **真实数据采集功能**
+    
+    这个采集器会真实调用TradingAgents的数据采集工具，获取指定股票的多维度信息并进行打分。
+    """)
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        symbol_ic = st.text_input("📊 输入股票代码", value="000001", key="ta_cn_symbol")
+    with col2:
+        st.write("")  # 占位空间
+        st.write("")
+    if st.button("🚀 运行真实采集器", type="primary"):
         try:
             from integrations.tradingagents_cn.tools.decision_agents import run_agents
-            with st.spinner("运行采集与打分..."):
+            with st.spinner(f"🔍 正在采集 {symbol_ic} 的数据..."):
                 scores = run_agents(symbol_ic)
             if scores:
+                st.success(f"✅ 采集完成！共获取 {len(scores)} 个智能体的评分")
                 df_scores = pd.DataFrame({"Agent": list(scores.keys()), "Score": list(scores.values())})
-                st.dataframe(df_scores, use_container_width=True, hide_index=True)
+                st.dataframe(df_scores, hide_index=True)
             else:
-                st.info("未返回评分结果")
+                st.warning("⚠️ 采集器运行成功但未返回评分结果")
+        except ImportError:
+            st.error("❌ TradingAgents-CN 采集器未安装或未配置")
+            st.info("💡 请检查 integrations/tradingagents_cn/ 目录是否存在")
         except Exception as e:
-            st.error(f"采集器运行失败: {e}")
+            st.error(f"❌ 采集器运行失败: {e}")
+            with st.expander("🔍 查看详细错误"):
+                import traceback
+                st.code(traceback.format_exc())
     
     st.divider()
     
-    # 最新新闻展示（占位）
+    # 新闻展示区域
     st.subheader("📋 过滤后的新闻")
     
-    news_data = [
-        {"time": "10:23", "title": "某公司发布Q3财报，净利润同比增长35%", "relevance": 0.92, "sentiment": "正面"},
-        {"time": "09:45", "title": "行业监管新政出台，利好龙头企业", "relevance": 0.88, "sentiment": "正面"},
-        {"time": "08:30", "title": "技术突破获得重大进展", "relevance": 0.85, "sentiment": "正面"}
-    ]
+    col_left, col_right = st.columns([3, 1])
+    with col_left:
+        st.caption("💡 提示：以下为演示数据，展示界面效果")
+    with col_right:
+        show_demo_news = st.checkbox("显示演示数据", value=False, key="show_demo_news")
     
-    for news in news_data:
-        with st.container():
-            col1, col2, col3 = st.columns([1, 4, 1])
-            with col1:
-                st.markdown(f"**{news['time']}**")
-            with col2:
-                st.markdown(f"{news['title']}")
-            with col3:
-                sentiment_emoji = "🟢" if news['sentiment'] == "正面" else "🔴" if news['sentiment'] == "负面" else "🟡"
-                st.markdown(f"{sentiment_emoji} {news['relevance']:.0%}")
+    if show_demo_news:
+        # 演示新闻数据
+        news_data = [
+            {"time": "10:23", "title": "🎭 某公司发布Q3财报，净利润同比增长35%", "relevance": 0.92, "sentiment": "正面"},
+            {"time": "09:45", "title": "🎭 行业监管新政出台，利好龙头企业", "relevance": 0.88, "sentiment": "正面"},
+            {"time": "08:30", "title": "🎭 技术突破获得重大进展", "relevance": 0.85, "sentiment": "正面"},
+            {"time": "08:15", "title": "🎭 某股获境外机构增持", "relevance": 0.80, "sentiment": "正面"},
+            {"time": "07:50", "title": "🎭 行业景气度持续回升", "relevance": 0.78, "sentiment": "中性"}
+        ]
+        
+        for news in news_data:
+            with st.container():
+                col1, col2, col3 = st.columns([1, 5, 1])
+                with col1:
+                    st.markdown(f"**{news['time']}**")
+                with col2:
+                    st.markdown(f"{news['title']}")
+                with col3:
+                    sentiment_emoji = "🟢" if news['sentiment'] == "正面" else "🔴" if news['sentiment'] == "负面" else "🟡"
+                    st.markdown(f"{sentiment_emoji} {news['relevance']:.0%}")
+    else:
+        # 显示如何接入真实新闻的指引
+        st.info("""
+        🔧 **如何接入真实新闻数据？**
+        
+        1. **接入新闻 API**：
+           - 东方财富、新浪财经等提供的新闻 API
+           - AKShare 的新闻数据接口
+           - 自建爬虫采集
+        
+        2. **实现过滤逻辑**：
+           - 关键词匹配（股票代码、公司名称）
+           - 情绪分析（正面/负面/中性）
+           - 相关性评分
+           - 去重处理
+        
+        3. **集成到系统**：
+           - 在 `data_layer/` 下创建新闻采集模块
+           - 调用新闻 API 并存储到数据库
+           - 在此页面从数据库读取并展示
+        """)
+        
+        with st.expander("💻 代码示例：如何获取新闻"):
+            st.code("""
+# 使用 AKShare 获取新闻
+import akshare as ak
+
+# 获取东方财富的财经新闻
+df_news = ak.stock_news_em(symbol="东方财富")
+
+# 过滤相关新闻
+filtered_news = df_news[df_news['title'].str.contains('某关键词')]
+
+# 展示结果
+for _, news in filtered_news.iterrows():
+    print(f"{news['time']}: {news['title']}")
+            """, language="python")
 
 
 def render_decision_analysis():
@@ -474,9 +648,9 @@ def render_decision_analysis():
         with col1:
             symbol = st.text_input("股票代码", "000001")
         with col2:
-            depth = st.selectbox("研究深度", ["简单", "标准", "深度", "极深", "完整"])
+            depth = st.selectbox("研究深度", ["简单", "标准", "深度", "极深", "完整"], key="da_single_depth")
         
-        if st.button("🚀 开始分析", type="primary", use_container_width=True):
+        if st.button("🚀 开始分析", type="primary"):
             _ensure_user_state()
             # 扣点：单股 1 点
             if st.session_state.user_points < 1:
@@ -490,40 +664,188 @@ def render_decision_analysis():
                 st.session_state.usage_logs.insert(0, {'date': datetime.now().strftime('%Y-%m-%d'),'op':'单股分析','stocks':1,'points':1})
             with st.spinner("智能体正在协作分析..."):
                 integration = _get_ta_integration()
+                mode = st.session_state.get('ta_mode', 'demo')
+                
                 if integration is not None:
                     try:
-                        market_data = _build_market_data()
-                        # Streamlit 同步环境下调用异步API
-                        result = asyncio.run(integration.analyze_stock(symbol, market_data))
+                        # 根据模式选择不同的调用方式
+                        if mode == "tradingagents_cn_plus_full":
+                            # TradingAgents-CN-Plus完整系统：调用analyze_stock_full
+                            st.info("🎓 使用 TradingAgents-CN-Plus 完整系统分析")
+                            result = asyncio.run(integration.analyze_stock_full(symbol, date=None))
+                        else:
+                            # 其他模式：调用标准analyze_stock
+                            market_data = _build_market_data()
+                            result = asyncio.run(integration.analyze_stock(symbol, market_data))
                         st.success("分析完成!")
                         # 展示结果
                         if result and isinstance(result, dict) and 'consensus' in result:
-                            st.subheader("📊 分析结果（共识）")
+                            # ==== 1. 快速概览 ====
+                            st.subheader("📊 快速概览")
                             c1, c2, c3, c4 = st.columns(4)
+                            consensus = result.get('consensus', {})
+                            signal = consensus.get('signal', 'HOLD')
+                            confidence = consensus.get('confidence', 0.0)
+                            
                             with c1:
-                                st.metric("综合评分", f"{result['consensus'].get('confidence', 0.0)*100:.1f}/100")
+                                st.metric("综合评分", f"{confidence*100:.1f}/100")
                             with c2:
-                                st.metric("建议", result['consensus'].get('signal', 'HOLD'))
+                                signal_emoji = "🟢" if signal == 'BUY' else "🔴" if signal == 'SELL' else "🟡"
+                                st.metric("最终建议", f"{signal_emoji} {signal}")
                             with c3:
-                                st.metric("目标价", "—")
+                                risk_level = "高" if confidence < 0.5 else "中" if confidence < 0.75 else "低"
+                                st.metric("风险等级", risk_level)
                             with c4:
-                                st.metric("风险等级", "—")
-                            # 细项
-                            with st.expander("🔎 参与智能体细节", expanded=False):
-                                indiv = result.get('individual_results') or []
-                                if indiv:
-                                    df = pd.DataFrame([
-                                        {
-                                            "agent": x.get("agent"),
-                                            "signal": x.get("signal"),
-                                            "confidence": x.get("confidence"),
-                                            "reasoning": x.get("reasoning", "")[:160],
-                                        }
-                                        for x in indiv
-                                    ])
-                                    st.dataframe(df, use_container_width=True, hide_index=True)
-                                else:
-                                    st.info("无个体智能体明细")
+                                indiv = result.get('individual_results', [])
+                                st.metric("参与智能体", f"{len(indiv)}个")
+                            
+                            st.divider()
+                            
+                            # ==== 2. 完整分析报告 ====
+                            st.subheader("📝 完整分析报告")
+                            
+                            # 报告头部
+                            st.markdown(f"""
+                            **股票代码**: {symbol}  
+                            **分析时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  
+                            **分析深度**: {depth}  
+                            **分析模式**: {'TradingAgents-CN-Plus完整系统' if st.session_state.get('ta_mode') == 'tradingagents_cn_plus_full' else '10个专业智能体' if st.session_state.get('ta_mode') == 'full_10_agents' else '基础智能体'}  
+                            """)
+                            
+                            st.divider()
+                            
+                            # 执行摘要
+                            st.markdown("### 🎯 执行摘要")
+                            reasoning = consensus.get('reasoning', '')
+                            if reasoning:
+                                st.info(f"💡 {reasoning}")
+                            else:
+                                st.info(f"💡 经过{len(indiv)}个智能体的协作分析，系统建议 **{signal}**，综合置信度为 **{confidence*100:.1f}%**。")
+                            
+                            # 智能体观点汇总
+                            st.markdown("### 👥 智能体观点汇总")
+                            if indiv:
+                                buy_count = sum(1 for x in indiv if (x.get('signal') or 'HOLD').upper() == 'BUY')
+                                sell_count = sum(1 for x in indiv if (x.get('signal') or 'HOLD').upper() == 'SELL')
+                                hold_count = sum(1 for x in indiv if (x.get('signal') or 'HOLD').upper() == 'HOLD')
+                                
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric("🟢 买入", f"{buy_count}个", f"{buy_count/len(indiv)*100:.0f}%")
+                                with col2:
+                                    st.metric("🔴 卖出", f"{sell_count}个", f"{sell_count/len(indiv)*100:.0f}%")
+                                with col3:
+                                    st.metric("🟡 持有", f"{hold_count}个", f"{hold_count/len(indiv)*100:.0f}%")
+                                
+                                st.markdown("#### 📊 详细分析")
+                                for idx, agent_result in enumerate(indiv, 1):
+                                    agent_name = agent_result.get('agent', 'Agent')
+                                    agent_signal = (agent_result.get('signal') or 'HOLD').upper()
+                                    agent_conf = agent_result.get('confidence', 0.0)
+                                    agent_reasoning = agent_result.get('reasoning', '')
+                                    
+                                    signal_color = "green" if agent_signal == 'BUY' else "red" if agent_signal == 'SELL' else "gray"
+                                    
+                                    with st.expander(f"{idx}. {agent_name} - {agent_signal} ({agent_conf*100:.1f}%)", expanded=False):
+                                        st.markdown(f"**观点**: :{signal_color}[{agent_signal}]")
+                                        st.markdown(f"**置信度**: {agent_conf*100:.1f}%")
+                                        st.markdown(f"**分析理由**:")
+                                        st.write(agent_reasoning if agent_reasoning else "暂无详细理由")
+                                
+                            # 风险提示
+                            st.markdown("### ⚠️ 风险提示")
+                            if confidence < 0.5:
+                                st.warning("""
+                                ⚠️ **高风险警告**
+                                - 智能体共识程度较低（<50%）
+                                - 建议谨慎决策，等待更明确信号
+                                - 可考虑增加分析深度或等待更多数据
+                                """)
+                            elif confidence < 0.75:
+                                st.info("""
+                                ℹ️ **中等风险**
+                                - 智能体达成了一定共识（50-75%）
+                                - 建议结合自身风险承受能力决策
+                                - 建议设置止损止盈
+                                """)
+                            else:
+                                st.success("""
+                                ✅ **低风险**
+                                - 智能体高度共识（>75%）
+                                - 分析结果较为可靠
+                                - 仅供参考，请自行判断
+                                """)
+                            
+                            # 下载报告
+                            st.divider()
+                            st.markdown("### 📥 导出报告")
+                            
+                            # 生成报告文本
+                            report_text = f"""
+# 股票分析报告
+
+**股票代码**: {symbol}
+**分析时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**分析深度**: {depth}
+**参与智能体**: {len(indiv)}个
+
+## 执行摘要
+
+**最终建议**: {signal}
+**综合评分**: {confidence*100:.1f}/100
+**风险等级**: {risk_level}
+
+{reasoning if reasoning else f'经过{len(indiv)}个智能体的协作分析，系统建议 {signal}，综合置信度为 {confidence*100:.1f}%。'}
+
+## 智能体观点统计
+
+- 🟢 买入: {buy_count}个 ({buy_count/len(indiv)*100:.0f}%)
+- 🔴 卖出: {sell_count}个 ({sell_count/len(indiv)*100:.0f}%)
+- 🟡 持有: {hold_count}个 ({hold_count/len(indiv)*100:.0f}%)
+
+## 详细分析
+
+"""
+                            for idx, agent_result in enumerate(indiv, 1):
+                                report_text += f"""
+### {idx}. {agent_result.get('agent', 'Agent')}
+
+- **观点**: {agent_result.get('signal', 'HOLD')}
+- **置信度**: {agent_result.get('confidence', 0.0)*100:.1f}%
+- **分析理由**: {agent_result.get('reasoning', '暂无详细理由')}
+
+"""
+                            
+                            report_text += f"""
+## 免责声明
+
+本报告由 AI 智能体系统生成，仅供参考，不构成投资建议。投资有风险，决策需谨慎。
+"""
+                            
+                            # 使用增强报告生成器
+                            from .enhanced_report_generator import create_enhanced_report
+                            enhanced_report = create_enhanced_report(symbol, result, depth)
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.download_button(
+                                    label="📝 下载完整报告 (Markdown)",
+                                    data=enhanced_report,
+                                    file_name=f"enhanced_analysis_report_{symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                                    mime="text/markdown",
+                                    help="包含团队辩论、详细分析模块和投资建议的完整报告"
+                                )
+                            with col2:
+                                # JSON格式
+                                import json
+                                json_data = json.dumps(result, ensure_ascii=False, indent=2)
+                                st.download_button(
+                                    label="📦 下载JSON数据",
+                                    data=json_data,
+                                    file_name=f"analysis_data_{symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                                    mime="application/json",
+                                    help="原始分析数据，用于程序化处理"
+                                )
                         else:
                             st.warning("未返回有效结果，已完成调用。")
                     except Exception as e:
@@ -556,7 +878,7 @@ def render_decision_analysis():
         with col2:
             parallel = st.number_input("并行数量", 1, 10, 3)
         
-        if st.button("🚀 批量分析", type="primary", use_container_width=True):
+        if st.button("🚀 批量分析", type="primary"):
             symbols = [s.strip() for s in symbols_input.split('\n') if s.strip()]
             # 扣点：按只数
             need = len(symbols)
@@ -582,7 +904,7 @@ def render_decision_analysis():
                                 sig, conf = 'HOLD', 0.0
                             batch_rows.append({"代码": s, "建议": sig, "评分(置信度)": f"{conf*100:.1f}"})
                         st.success(f"批量分析完成!共{len(symbols)}只股票")
-                        st.dataframe(pd.DataFrame(batch_rows), use_container_width=True, hide_index=True)
+                        st.dataframe(pd.DataFrame(batch_rows), hide_index=True)
                     else:
                         import time; time.sleep(2)
                         st.success(f"批量分析完成!共{len(symbols)}只股票")
@@ -594,7 +916,7 @@ def render_decision_analysis():
                             "目标价": ["¥12.50", "¥8.30", "¥15.20"][: len(symbols)],
                             "风险": ["中", "高", "低"][: len(symbols)],
                         }
-                        st.dataframe(pd.DataFrame(results_data), use_container_width=True, hide_index=True)
+                        st.dataframe(pd.DataFrame(results_data), hide_index=True)
 
 
 def render_user_management():
@@ -649,7 +971,7 @@ def render_user_management():
             ])
         else:
             df_usage = pd.DataFrame(columns=['日期','操作','股票数','消耗点数'])
-        st.dataframe(df_usage, use_container_width=True, hide_index=True)
+        st.dataframe(df_usage, hide_index=True)
     
     st.divider()
     
@@ -660,7 +982,7 @@ def render_user_management():
     with col1:
         st.markdown("**充值点数**")
         amount = st.number_input("充值数量", 10, 10000, 100, step=10)
-        if st.button("💰 充值", use_container_width=True):
+        if st.button("💰 充值"):
             store = get_user_store()
             new_pts = store.add_points(st.session_state.user_id, int(amount))
             st.session_state.user_points = new_pts
@@ -745,7 +1067,7 @@ def render_llm_integration():
     col1, col2 = st.columns(2)
     with col1:
         fig = px.pie(df, values="调用次数", names="模型", title="调用分布")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig)
     with col2:
         fig = px.bar(df, x="模型", y="成本($)", title="成本分布")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig)

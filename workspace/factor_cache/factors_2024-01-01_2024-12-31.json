@@ -1,0 +1,168 @@
+{
+  "factors": [
+    {
+      "id": "limitup_004",
+      "name": "早盘涨停",
+      "expression": "1 - (涨停分钟数 / 240)",
+      "code": "1.0 - (limit_up_minutes / 240)",
+      "category": "timing",
+      "description": "涨停时间越早，次日表现越好",
+      "expected_ic": 0.15,
+      "data_requirements": [
+        "limit_up_minutes"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    },
+    {
+      "id": "limitup_010",
+      "name": "首板优势",
+      "expression": "is_first_board * (1 + 题材热度)",
+      "code": "is_first_board * (1 + concept_heat)",
+      "category": "continuous_board",
+      "description": "首板且题材热的股票机会大",
+      "expected_ic": 0.14,
+      "data_requirements": [
+        "is_first_board",
+        "concept_heat"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    },
+    {
+      "id": "limitup_014",
+      "name": "板块联动强度",
+      "expression": "板块涨停率 * 板块资金流入",
+      "code": "sector_limitup_rate * sector_capital_inflow",
+      "category": "concept_synergy",
+      "description": "所属板块的整体强度",
+      "expected_ic": 0.13,
+      "data_requirements": [
+        "sector_limitup_rate",
+        "sector_capital_inflow"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    },
+    {
+      "id": "limitup_002",
+      "name": "连板高度因子",
+      "expression": "log(连板天数 + 1) * 量比",
+      "code": "np.log1p(continuous_board) * volume_ratio",
+      "category": "continuous_board",
+      "description": "连板高度与量能的共振",
+      "expected_ic": 0.12,
+      "data_requirements": [
+        "continuous_board",
+        "volume_ratio"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    },
+    {
+      "id": "limitup_006",
+      "name": "大单净流入",
+      "expression": "(大单买入 - 大单卖出) / 成交额",
+      "code": "(big_buy - big_sell) / turnover",
+      "category": "order_flow",
+      "description": "主力资金流向",
+      "expected_ic": 0.11,
+      "data_requirements": [
+        "big_buy",
+        "big_sell",
+        "turnover"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    },
+    {
+      "id": "limitup_003",
+      "name": "题材共振",
+      "expression": "同题材涨停数量 * 个股强度",
+      "code": "concept_count * limit_up_strength",
+      "category": "concept_synergy",
+      "description": "题材热度与个股强度结合",
+      "expected_ic": 0.1,
+      "data_requirements": [
+        "concept_count",
+        "limit_up_strength"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    },
+    {
+      "id": "limitup_015",
+      "name": "竞价强度",
+      "expression": "竞价成交量 / 流通市值",
+      "code": "auction_volume / market_cap",
+      "category": "timing",
+      "description": "集合竞价的资金参与度",
+      "expected_ic": 0.1,
+      "data_requirements": [
+        "auction_volume",
+        "market_cap"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    },
+    {
+      "id": "limitup_005",
+      "name": "量能爆发",
+      "expression": "成交量 / 20日均量",
+      "code": "volume / volume_ma20",
+      "category": "volume_pattern",
+      "description": "量能突增的力度",
+      "expected_ic": 0.09,
+      "data_requirements": [
+        "volume",
+        "volume_ma20"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    },
+    {
+      "id": "limitup_011",
+      "name": "尾盘封板强度",
+      "expression": "尾盘封单金额 / 全天平均封单",
+      "code": "tail_seal_amount / avg_seal_amount",
+      "category": "seal_strength",
+      "description": "尾盘封板资金力度",
+      "expected_ic": 0.09,
+      "data_requirements": [
+        "tail_seal_amount",
+        "avg_seal_amount"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    },
+    {
+      "id": "limitup_001",
+      "name": "封板强度",
+      "expression": "封单金额 / 流通市值",
+      "code": "seal_amount / market_cap",
+      "category": "seal_strength",
+      "description": "衡量封板资金力度，值越大表示封板越强",
+      "expected_ic": 0.08,
+      "data_requirements": [
+        "seal_amount",
+        "market_cap"
+      ],
+      "status": "discovered",
+      "discovery_date": "2025-10-30T09:39:52.423227",
+      "evaluation_period": "2024-01-01 to 2024-12-31"
+    }
+  ],
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31",
+  "created_at": "2025-10-30T09:39:52.423227",
+  "count": 10
+}

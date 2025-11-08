@@ -1,0 +1,406 @@
+{
+  "timestamp": "2025-11-07T10:43:31.832614",
+  "dashboard": {
+    "imports": {
+      "standard": [
+        "os",
+        "glob",
+        "json",
+        "datetime",
+        "pandas",
+        "numpy",
+        "streamlit",
+        "matplotlib.pyplot",
+        "matplotlib"
+      ],
+      "from": [
+        "pathlib.Path",
+        "collections.Counter"
+      ]
+    },
+    "functions": [
+      {
+        "name": "find_latest",
+        "args": [
+          "pattern"
+        ],
+        "lineno": 55,
+        "docstring": "查找最新文件",
+        "is_render": false,
+        "lines": 5
+      },
+      {
+        "name": "load_json_safe",
+        "args": [
+          "path"
+        ],
+        "lineno": 62,
+        "docstring": "安全加载JSON",
+        "is_render": false,
+        "lines": 7
+      },
+      {
+        "name": "load_csv_safe",
+        "args": [
+          "path"
+        ],
+        "lineno": 71,
+        "docstring": "安全加载CSV",
+        "is_render": false,
+        "lines": 6
+      }
+    ],
+    "components": {
+      "set_page_config": 1,
+      "markdown": 16,
+      "title": 1,
+      "tabs": 1,
+      "subheader": 5,
+      "columns": 6,
+      "warning": 5,
+      "info": 5,
+      "error": 2,
+      "pyplot": 6,
+      "dataframe": 6,
+      "expander": 1,
+      "metric": 1
+    },
+    "tabs": [
+      "📋 今日信号",
+      "🤖 AI决策过程",
+      "🧠 涨停原因解释",
+      "⚙️ RL参数推荐",
+      "📊 回测结果"
+    ],
+    "data_sources": [
+      "- [回测结果](#tab-backtest)",
+      "reports",
+      "rl_weights.json",
+      "backtest",
+      "metrics_*.json",
+      "auction_report_",
+      "*.json",
+      "未找到回测结果\n\n请运行: `python app/backtest_engine.py`",
+      "equity_curve_*.csv",
+      "trade_log_*.csv"
+    ],
+    "metrics": {
+      "total_lines": 506,
+      "total_functions": 3,
+      "total_classes": 0,
+      "render_functions": 0
+    }
+  },
+  "monitor": {
+    "imports": {
+      "standard": [
+        "streamlit",
+        "json",
+        "pandas",
+        "numpy",
+        "matplotlib.pyplot",
+        "matplotlib"
+      ],
+      "from": [
+        "pathlib.Path",
+        "datetime.datetime"
+      ]
+    },
+    "functions": [
+      {
+        "name": "render",
+        "args": [],
+        "lineno": 17,
+        "docstring": "渲染涨停板监控主界面",
+        "is_render": true,
+        "lines": 41
+      },
+      {
+        "name": "get_available_dates",
+        "args": [
+          "reports_dir"
+        ],
+        "lineno": 61,
+        "docstring": "获取可用的报告日期",
+        "is_render": false,
+        "lines": 18
+      },
+      {
+        "name": "render_today_signals",
+        "args": [
+          "reports_dir",
+          "selected_date"
+        ],
+        "lineno": 82,
+        "docstring": "Tab1: 今日信号",
+        "is_render": true,
+        "lines": 63
+      },
+      {
+        "name": "render_ai_decision",
+        "args": [
+          "reports_dir",
+          "config_dir",
+          "selected_date"
+        ],
+        "lineno": 148,
+        "docstring": "Tab2: AI决策过程",
+        "is_render": true,
+        "lines": 71
+      },
+      {
+        "name": "render_limitup_explanation",
+        "args": [
+          "reports_dir",
+          "selected_date"
+        ],
+        "lineno": 222,
+        "docstring": "Tab3: 涨停原因解释",
+        "is_render": true,
+        "lines": 56
+      },
+      {
+        "name": "render_rl_recommendations",
+        "args": [
+          "config_dir"
+        ],
+        "lineno": 281,
+        "docstring": "Tab4: RL参数推荐",
+        "is_render": true,
+        "lines": 61
+      },
+      {
+        "name": "render_backtest_results",
+        "args": [
+          "reports_dir"
+        ],
+        "lineno": 345,
+        "docstring": "Tab5: 回测结果",
+        "is_render": true,
+        "lines": 94
+      },
+      {
+        "name": "load_auction_report",
+        "args": [
+          "reports_dir",
+          "date"
+        ],
+        "lineno": 444,
+        "docstring": "加载竞价报告",
+        "is_render": false,
+        "lines": 16
+      },
+      {
+        "name": "load_rl_decision",
+        "args": [
+          "reports_dir",
+          "date"
+        ],
+        "lineno": 463,
+        "docstring": "加载RL决策结果",
+        "is_render": false,
+        "lines": 15
+      },
+      {
+        "name": "load_rl_weights",
+        "args": [
+          "config_dir"
+        ],
+        "lineno": 481,
+        "docstring": "加载RL权重配置",
+        "is_render": false,
+        "lines": 11
+      }
+    ],
+    "components": {
+      "header": 1,
+      "caption": 1,
+      "tabs": 1,
+      "subheader": 18,
+      "columns": 6,
+      "divider": 7,
+      "pyplot": 6,
+      "text_input": 2,
+      "warning": 7,
+      "info": 8,
+      "metric": 18,
+      "dataframe": 5,
+      "selectbox": 1,
+      "expander": 1,
+      "error": 3,
+      "write": 2
+    },
+    "tabs": [
+      "📋 今日信号",
+      "🤖 AI决策过程",
+      "🧠 涨停原因解释",
+      "⚙️ RL参数推荐",
+      "📊 回测结果"
+    ],
+    "data_sources": [
+      "backtest",
+      "*.json",
+      "文件位置: `config/rl_weights.json`",
+      "请先运行: `python app/backtest_engine.py`",
+      "metrics_*.json",
+      "equity_curve_*.csv",
+      "trade_log_*.csv",
+      "auction_report_",
+      "_*.json",
+      "rl_weights.json",
+      "reports"
+    ],
+    "metrics": {
+      "total_lines": 492,
+      "total_functions": 10,
+      "total_classes": 0,
+      "render_functions": 6
+    }
+  },
+  "differences": {
+    "tabs": {
+      "common": [
+        "⚙️ RL参数推荐",
+        "📋 今日信号",
+        "🤖 AI决策过程",
+        "📊 回测结果",
+        "🧠 涨停原因解释"
+      ],
+      "dashboard_only": [],
+      "monitor_only": [],
+      "coverage_rate": 1.0
+    },
+    "functions": {
+      "common": [],
+      "dashboard_only": [
+        "load_csv_safe",
+        "find_latest",
+        "load_json_safe"
+      ],
+      "monitor_only": [
+        "render_today_signals",
+        "get_available_dates",
+        "render_limitup_explanation",
+        "render",
+        "render_backtest_results",
+        "load_rl_decision",
+        "render_ai_decision",
+        "load_auction_report",
+        "load_rl_weights",
+        "render_rl_recommendations"
+      ],
+      "coverage_rate": 0.0
+    },
+    "components": {
+      "warning": {
+        "dashboard": 5,
+        "monitor": 7,
+        "diff": 2
+      },
+      "dataframe": {
+        "dashboard": 6,
+        "monitor": 5,
+        "diff": -1
+      },
+      "header": {
+        "dashboard": 0,
+        "monitor": 1,
+        "diff": 1
+      },
+      "metric": {
+        "dashboard": 1,
+        "monitor": 18,
+        "diff": 17
+      },
+      "write": {
+        "dashboard": 0,
+        "monitor": 2,
+        "diff": 2
+      },
+      "expander": {
+        "dashboard": 1,
+        "monitor": 1,
+        "diff": 0
+      },
+      "info": {
+        "dashboard": 5,
+        "monitor": 8,
+        "diff": 3
+      },
+      "subheader": {
+        "dashboard": 5,
+        "monitor": 18,
+        "diff": 13
+      },
+      "title": {
+        "dashboard": 1,
+        "monitor": 0,
+        "diff": -1
+      },
+      "pyplot": {
+        "dashboard": 6,
+        "monitor": 6,
+        "diff": 0
+      },
+      "divider": {
+        "dashboard": 0,
+        "monitor": 7,
+        "diff": 7
+      },
+      "caption": {
+        "dashboard": 0,
+        "monitor": 1,
+        "diff": 1
+      },
+      "text_input": {
+        "dashboard": 0,
+        "monitor": 2,
+        "diff": 2
+      },
+      "tabs": {
+        "dashboard": 1,
+        "monitor": 1,
+        "diff": 0
+      },
+      "set_page_config": {
+        "dashboard": 1,
+        "monitor": 0,
+        "diff": -1
+      },
+      "markdown": {
+        "dashboard": 16,
+        "monitor": 0,
+        "diff": -16
+      },
+      "columns": {
+        "dashboard": 6,
+        "monitor": 6,
+        "diff": 0
+      },
+      "error": {
+        "dashboard": 2,
+        "monitor": 3,
+        "diff": 1
+      },
+      "selectbox": {
+        "dashboard": 0,
+        "monitor": 1,
+        "diff": 1
+      }
+    },
+    "metrics_comparison": {
+      "dashboard": {
+        "total_lines": 506,
+        "total_functions": 3,
+        "total_classes": 0,
+        "render_functions": 0
+      },
+      "monitor": {
+        "total_lines": 492,
+        "total_functions": 10,
+        "total_classes": 0,
+        "render_functions": 6
+      }
+    }
+  }
+}

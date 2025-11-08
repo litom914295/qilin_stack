@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="5" skipped="1" tests="20" time="16.966" timestamp="2025-11-07T17:41:15.182491+08:00" hostname="WIN-5IHKTB75JPV"><testcase classname="" name="tests.unit.test_decision_engine" time="0.000"><skipped message="collection skipped">('G:\\test\\qilin_stack\\tests\\unit\\test_decision_engine.py', 2, 'Skipped: Outdated tests for old DecisionEngine API; skipped until updated to current FusedSignal/SignalSource design.')</skipped></testcase><testcase classname="tests.unit.test_agents.TestZTQualityAgent" name="test_analyze" time="0.013" /><testcase classname="tests.unit.test_agents.TestZTQualityAgent" name="test_high_quality_zt" time="0.006" /><testcase classname="tests.unit.test_agents.TestLeaderAgent" name="test_leader_identification" time="0.004" /><testcase classname="tests.unit.test_agents.TestIntegratedDecisionAgent" name="test_parallel_analysis" time="0.009" /><testcase classname="tests.unit.test_agents.TestIntegratedDecisionAgent" name="test_decision_making" time="0.011"><failure message="AssertionError: assert 'watch' in ['buy', 'strong_buy']">tests\unit\test_agents.py:163: in test_decision_making
+    assert decision['action'] in ['buy', 'strong_buy']
+E   AssertionError: assert 'watch' in ['buy', 'strong_buy']</failure></testcase><testcase classname="tests.unit.test_agents.TestAgentIntegration" name="test_multiple_agents" time="0.017" /><testcase classname="tests.unit.test_agents" name="test_performance" time="0.084" /><testcase classname="tests.unit.test_backtest_smoke" name="test_backtest_engine_smoke" time="5.139"><failure message="AttributeError: 'BacktestEngine' object has no attribute '_compute_fill_ratio'">tests\unit\test_backtest_smoke.py:44: in test_backtest_engine_smoke
+    metrics = await engine.run_backtest([symbol], str(dates.min().date()), str(dates.max().date()), data)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backtest\engine.py:129: in run_backtest
+    await self._execute_decision(
+backtest\engine.py:211: in _execute_decision
+    fill_ratio = self._compute_fill_ratio(symbol, date, prev_date)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'BacktestEngine' object has no attribute '_compute_fill_ratio'</failure></testcase><testcase classname="tests.unit.test_config.TestSystemConfig" name="test_default_config" time="0.002" /><testcase classname="tests.unit.test_config.TestSystemConfig" name="test_custom_config" time="0.003" /><testcase classname="tests.unit.test_config.TestTradingConfig" name="test_default_trading_config" time="0.006" /><testcase classname="tests.unit.test_config.TestTradingConfig" name="test_empty_symbols_validation" time="0.004" /><testcase classname="tests.unit.test_config.TestTradingConfig" name="test_position_size_validation" time="0.004" /><testcase classname="tests.unit.test_config.TestTradingConfig" name="test_risk_params_bounds" time="0.005" /><testcase classname="tests.unit.test_config.TestAgentWeights" name="test_default_weights" time="0.004" /><testcase classname="tests.unit.test_config.TestAgentWeights" name="test_weights_sum_validation" time="0.003" /><testcase classname="tests.unit.test_config.TestSettings" name="test_from_yaml" time="0.057"><failure message="pydantic_core._pydantic_core.ValidationError: 26 validation errors for Settings&#10;anthropic_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_anthropic_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;perplexity_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_perplexity_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;openai_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;openai_api_base&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.deepseek.com', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;llm_provider&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='openai', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;llm_model&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;google_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='AIzaSyBvkOWiGmUII2CCCnQoVYHmrbUnOxLJOew', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;mistral_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_mistral_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;xai_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_XAI_KEY_HERE', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;groq_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_GROQ_KEY_HERE', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;openrouter_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_OPENROUTER_KEY_HERE', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;azure_openai_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_azure_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;ollama_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_ollama_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;github_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_github_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;deep_think_llm&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;quick_think_llm&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;chat_model&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek/deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;deepseek_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;embedding_model&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='litellm_proxy/BAAI/bge-m3', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;litellm_proxy_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='sk-wvzkowtvqllufqyrcyyrj...dzwasuptachbzurgfcmupyr', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;litellm_proxy_api_base&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.siliconflow.cn/v1', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;http_proxy&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;https_proxy&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;all_proxy&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;qlib_serving_url&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:9000', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;mlflow_tracking_uri&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:5000', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden">tests\unit\test_config.py:153: in test_from_yaml
+    settings = Settings.from_yaml(str(config_file))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+config\settings.py:270: in from_yaml
+    return cls(**settings_dict)
+           ^^^^^^^^^^^^^^^^^^^^
+C:\ProgramData\anaconda3\Lib\site-packages\pydantic_settings\main.py:152: in __init__
+    super().__init__(
+E   pydantic_core._pydantic_core.ValidationError: 26 validation errors for Settings
+E   anthropic_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_anthropic_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   perplexity_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_perplexity_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   openai_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   openai_api_base
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.deepseek.com', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   llm_provider
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='openai', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   llm_model
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   google_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='AIzaSyBvkOWiGmUII2CCCnQoVYHmrbUnOxLJOew', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   mistral_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_mistral_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   xai_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_XAI_KEY_HERE', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   groq_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_GROQ_KEY_HERE', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   openrouter_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_OPENROUTER_KEY_HERE', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   azure_openai_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_azure_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   ollama_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_ollama_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   github_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_github_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   deep_think_llm
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   quick_think_llm
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   chat_model
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek/deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   deepseek_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   embedding_model
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='litellm_proxy/BAAI/bge-m3', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   litellm_proxy_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='sk-wvzkowtvqllufqyrcyyrj...dzwasuptachbzurgfcmupyr', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   litellm_proxy_api_base
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.siliconflow.cn/v1', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   http_proxy
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   https_proxy
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   all_proxy
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   qlib_serving_url
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:9000', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   mlflow_tracking_uri
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:5000', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden</failure></testcase><testcase classname="tests.unit.test_config.TestSettings" name="test_to_dict" time="0.022"><failure message="pydantic_core._pydantic_core.ValidationError: 26 validation errors for Settings&#10;anthropic_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_anthropic_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;perplexity_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_perplexity_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;openai_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;openai_api_base&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.deepseek.com', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;llm_provider&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='openai', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;llm_model&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;google_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='AIzaSyBvkOWiGmUII2CCCnQoVYHmrbUnOxLJOew', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;mistral_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_mistral_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;xai_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_XAI_KEY_HERE', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;groq_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_GROQ_KEY_HERE', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;openrouter_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_OPENROUTER_KEY_HERE', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;azure_openai_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_azure_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;ollama_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_ollama_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;github_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_github_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;deep_think_llm&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;quick_think_llm&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;chat_model&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek/deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;deepseek_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;embedding_model&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='litellm_proxy/BAAI/bge-m3', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;litellm_proxy_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='sk-wvzkowtvqllufqyrcyyrj...dzwasuptachbzurgfcmupyr', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;litellm_proxy_api_base&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.siliconflow.cn/v1', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;http_proxy&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;https_proxy&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;all_proxy&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;qlib_serving_url&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:9000', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;mlflow_tracking_uri&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:5000', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden">tests\unit\test_config.py:161: in test_to_dict
+    settings = Settings()
+               ^^^^^^^^^^
+C:\ProgramData\anaconda3\Lib\site-packages\pydantic_settings\main.py:152: in __init__
+    super().__init__(
+E   pydantic_core._pydantic_core.ValidationError: 26 validation errors for Settings
+E   anthropic_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_anthropic_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   perplexity_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_perplexity_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   openai_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   openai_api_base
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.deepseek.com', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   llm_provider
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='openai', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   llm_model
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   google_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='AIzaSyBvkOWiGmUII2CCCnQoVYHmrbUnOxLJOew', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   mistral_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_mistral_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   xai_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_XAI_KEY_HERE', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   groq_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_GROQ_KEY_HERE', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   openrouter_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_OPENROUTER_KEY_HERE', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   azure_openai_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_azure_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   ollama_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_ollama_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   github_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_github_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   deep_think_llm
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   quick_think_llm
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   chat_model
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek/deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   deepseek_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   embedding_model
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='litellm_proxy/BAAI/bge-m3', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   litellm_proxy_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='sk-wvzkowtvqllufqyrcyyrj...dzwasuptachbzurgfcmupyr', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   litellm_proxy_api_base
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.siliconflow.cn/v1', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   http_proxy
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   https_proxy
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   all_proxy
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   qlib_serving_url
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:9000', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   mlflow_tracking_uri
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:5000', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden</failure></testcase><testcase classname="tests.unit.test_config.TestSettings" name="test_get_settings_singleton" time="0.074"><failure message="pydantic_core._pydantic_core.ValidationError: 27 validation errors for Settings&#10;agents.decision_thresholds&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value={'strong_buy': {'score': ... 'watch': {'score': 40}}, input_type=dict]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;anthropic_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_anthropic_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;perplexity_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_perplexity_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;openai_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;openai_api_base&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.deepseek.com', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;llm_provider&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='openai', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;llm_model&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;google_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='AIzaSyBvkOWiGmUII2CCCnQoVYHmrbUnOxLJOew', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;mistral_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_mistral_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;xai_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_XAI_KEY_HERE', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;groq_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_GROQ_KEY_HERE', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;openrouter_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_OPENROUTER_KEY_HERE', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;azure_openai_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_azure_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;ollama_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_ollama_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;github_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='your_github_api_key_here', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;deep_think_llm&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;quick_think_llm&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;chat_model&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek/deepseek-chat', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;deepseek_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;embedding_model&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='litellm_proxy/BAAI/bge-m3', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;litellm_proxy_api_key&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='sk-wvzkowtvqllufqyrcyyrj...dzwasuptachbzurgfcmupyr', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;litellm_proxy_api_base&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.siliconflow.cn/v1', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;http_proxy&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;https_proxy&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;all_proxy&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;qlib_serving_url&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:9000', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden&#10;mlflow_tracking_uri&#10;  Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:5000', input_type=str]&#10;    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden">tests\unit\test_config.py:171: in test_get_settings_singleton
+    settings1 = get_settings()
+                ^^^^^^^^^^^^^^
+config\settings.py:409: in get_settings
+    _settings = Settings.from_yaml(config_path)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+config\settings.py:270: in from_yaml
+    return cls(**settings_dict)
+           ^^^^^^^^^^^^^^^^^^^^
+C:\ProgramData\anaconda3\Lib\site-packages\pydantic_settings\main.py:152: in __init__
+    super().__init__(
+E   pydantic_core._pydantic_core.ValidationError: 27 validation errors for Settings
+E   agents.decision_thresholds
+E     Extra inputs are not permitted [type=extra_forbidden, input_value={'strong_buy': {'score': ... 'watch': {'score': 40}}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   anthropic_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_anthropic_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   perplexity_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_perplexity_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   openai_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   openai_api_base
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.deepseek.com', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   llm_provider
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='openai', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   llm_model
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   google_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='AIzaSyBvkOWiGmUII2CCCnQoVYHmrbUnOxLJOew', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   mistral_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_mistral_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   xai_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_XAI_KEY_HERE', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   groq_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_GROQ_KEY_HERE', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   openrouter_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='YOUR_OPENROUTER_KEY_HERE', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   azure_openai_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_azure_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   ollama_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_ollama_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   github_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='your_github_api_key_here', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   deep_think_llm
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   quick_think_llm
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   chat_model
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='deepseek/deepseek-chat', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   deepseek_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='sk-04104c2d50864c30b307e6f6cfdf8fb4', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   embedding_model
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='litellm_proxy/BAAI/bge-m3', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   litellm_proxy_api_key
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='sk-wvzkowtvqllufqyrcyyrj...dzwasuptachbzurgfcmupyr', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   litellm_proxy_api_base
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='https://api.siliconflow.cn/v1', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   http_proxy
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   https_proxy
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   all_proxy
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://127.0.0.1:7890', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   qlib_serving_url
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:9000', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+E   mlflow_tracking_uri
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='http://localhost:5000', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden</failure></testcase></testsuite></testsuites>

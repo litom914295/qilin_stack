@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # Jaeger All-in-One (适合开发和测试环境)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: qilin-jaeger
+    restart: unless-stopped
+    ports:
+      # Jaeger UI
+      - "16686:16686"
+      # Jaeger Collector HTTP
+      - "14268:14268"
+      # Jaeger Collector gRPC
+      - "14250:14250"
+      # Jaeger Agent Zipkin Thrift
+      - "5775:5775/udp"
+      # Jaeger Agent Compact Thrift
+      - "6831:6831/udp"
+      # Jaeger Agent Binary Thrift
+      - "6832:6832/udp"
+      # Jaeger Agent Config
+      - "5778:5778"
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+      - ES_TAGS_AS_FIELDS_ALL=true
+      - LOG_LEVEL=info
+    networks:
+      - qilin-monitoring
+    depends_on:
+      - elasticsearch
+
+  # Jaeger Agent (可选，用于生产环境)
+  jaeger-agent:
+    image: jaegertracing/jaeger-agent:latest
+    container_name: qilin-jaeger-agent
+    restart: unless-stopped
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+    environment:
+      - REPORTER_GRPC_HOST_PORT=jaeger-collector:14250
+    networks:
+      - qilin-monitoring
+
+  # Jaeger Collector (可选，用于生产环境)
+  jaeger-collector:
+    image: jaegertracing/jaeger-collector:latest
+    container_name: qilin-jaeger-collector
+    restart: unless-stopped
+    ports:
+      - "14269:14269"
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    networks:
+      - qilin-monitoring
+    depends_on:
+      - elasticsearch
+
+  # Jaeger Query (可选，用于生产环境)
+  jaeger-query:
+    image: jaegertracing/jaeger-query:latest
+    container_name: qilin-jaeger-query
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "16687:16687"
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+    networks:
+      - qilin-monitoring
+    depends_on:
+      - elasticsearch
+
+  # Elasticsearch (用于存储追踪数据)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: qilin-elasticsearch-jaeger
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch-jaeger-data:/usr/share/elasticsearch/data
+    networks:
+      - qilin-monitoring
+
+networks:
+  qilin-monitoring:
+    external: true
+
+volumes:
+  elasticsearch-jaeger-data:

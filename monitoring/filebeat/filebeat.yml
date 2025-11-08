@@ -1,0 +1,96 @@
+filebeat.inputs:
+  # Docker容器日志
+  - type: container
+    enabled: true
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    
+    # 添加Docker元数据
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+      
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+      
+      # 添加自定义标签
+      - add_tags:
+          tags: ["qilin-stack", "docker"]
+      
+      # 删除不需要的字段
+      - drop_fields:
+          fields: ["agent", "ecs", "host.name"]
+
+  # 应用日志文件
+  - type: log
+    enabled: true
+    paths:
+      - '/var/log/qilin/*.log'
+      - '/var/log/qilin/*/*.log'
+    
+    # JSON格式日志解析
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    
+    # 多行日志处理（Python traceback）
+    multiline.pattern: '^[[:space:]]+(at|\.{3})\b|^Caused by:'
+    multiline.negate: false
+    multiline.match: after
+    
+    # 添加字段
+    fields:
+      log_type: application
+      environment: production
+    
+    processors:
+      - add_tags:
+          tags: ["qilin-app", "file"]
+
+# 输出到Logstash
+output.logstash:
+  hosts: ["logstash:5044"]
+  
+  # 启用负载均衡
+  loadbalance: true
+  
+  # 连接参数
+  compression_level: 3
+  bulk_max_size: 2048
+  
+  # 重试策略
+  max_retries: 3
+  timeout: 30
+
+# 输出到Elasticsearch（可选，注释掉如果使用Logstash）
+# output.elasticsearch:
+#   hosts: ["elasticsearch:9200"]
+#   index: "filebeat-%{[agent.version]}-%{+yyyy.MM.dd}"
+#   
+#   # 索引生命周期管理
+#   ilm.enabled: true
+#   ilm.rollover_alias: "filebeat"
+#   ilm.pattern: "{now/d}-000001"
+
+# 监控配置
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+
+# 日志配置
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# 处理器
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_kubernetes_metadata: ~

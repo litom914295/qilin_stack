@@ -9,6 +9,12 @@ from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import logging
+import sys
+from pathlib import Path
+
+# 添加项目路径
+sys.path.append(str(Path(__file__).parent.parent))
+from risk_management.market_timing import is_safe_environment
 
 logger = logging.getLogger(__name__)
 
@@ -378,7 +384,9 @@ class EnhancedLimitUpSelector:
         max_open_times: int = 2,
         min_seal_ratio: float = 0.03,
         prefer_first_board: bool = True,
-        prefer_sector_leader: bool = True
+        prefer_sector_leader: bool = True,
+        check_market_timing: bool = True,
+        current_date: Optional[str] = None
     ) -> List[LimitUpStock]:
         """
         筛选优质涨停股
@@ -391,17 +399,50 @@ class EnhancedLimitUpSelector:
             min_seal_ratio: 最低封单比例
             prefer_first_board: 优先首板
             prefer_sector_leader: 优先龙头
+            check_market_timing: 是否检查市场择时
+            current_date: 当前日期，用于市场择时检查
             
         Returns:
             筛选后的股票列表(按质量分排序)
         """
+        # 第一步：市场择时检查（顶层风控）
+        if check_market_timing:
+            if current_date is None:
+                current_date = datetime.now().strftime('%Y-%m-%d')
+            
+            if not is_safe_environment(current_date):
+                self.logger.warning(f"市场环境不安全 ({current_date})，不建议操作")
+                # 市场不安全时，返回空列表或只返回极少数最优质的股票
+                # 这里选择返回空列表，完全避险
+                return []
+        
         qualified = []
         
         for stock in candidates:
-            # 基础条件
+            # 第二步：强化的烂板过滤（一票否决）
+            # 开板次数超过2次的直接剔除，不管其他指标多好
+            if stock.open_times > 2:
+                self.logger.info(f"剔除烂板股票 {stock.symbol}: 开板次数={stock.open_times}")
+                continue
+            
+            # 特殊情况：开板2次但封单弱的也剔除
+            if stock.open_times == 2 and stock.seal_ratio < 0.05:
+                self.logger.info(f"剔除弱势板 {stock.symbol}: 开板2次且封单比={stock.seal_ratio:.3f}")
+                continue
+            
+            # 涨停时间过晚（14:00以后）且不是一字板的剔除
+            if stock.limit_up_time and not stock.is_one_word:
+                time_parts = stock.limit_up_time.split(':')
+                if len(time_parts) >= 2:
+                    hour = int(time_parts[0])
+                    minute = int(time_parts[1])
+                    if hour >= 14 and minute > 0:
+                        self.logger.info(f"剔除尾盘板 {stock.symbol}: 涨停时间={stock.limit_up_time}")
+                        continue
+            
+            # 第三步：基础条件筛选
             if (stock.quality_score >= min_quality_score and
                 stock.confidence >= min_confidence and
-                stock.open_times <= max_open_times and
                 stock.seal_ratio >= min_seal_ratio):
                 
                 # 加分项
@@ -410,6 +451,10 @@ class EnhancedLimitUpSelector:
                     bonus += 5
                 if prefer_sector_leader and stock.is_sector_leader:
                     bonus += 5
+                
+                # 对于零开板的强势股额外加分
+                if stock.open_times == 0:
+                    bonus += 10
                 
                 # 调整后的质量分
                 adjusted_score = stock.quality_score + bonus

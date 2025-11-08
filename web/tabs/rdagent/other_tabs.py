@@ -197,7 +197,94 @@ def render_kaggle_agent():
         with st.spinner(f"正在处理 {competition} 竞赛..."):
             import time; time.sleep(2)
         st.success("Agent已启动!正在进行特征工程和模型训练")
-
+    
+    st.divider()
+    
+    # RD-Agent Kaggle RDLoop 运行
+    st.subheader("🧪 RD-Agent Kaggle RDLoop 运行")
+    
+    # 基础参数
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        step_n = st.number_input("每轮步数 step_n", min_value=1, max_value=20, value=5, key="kaggle_step_n")
+    with col_b:
+        loop_n = st.number_input("循环次数 loop_n", min_value=1, max_value=20, value=3, key="kaggle_loop_n")
+    with col_c:
+        if 'kaggle_stop' not in st.session_state:
+            st.session_state.kaggle_stop = False
+        stop_flag = st.toggle("⏹️ 允许中途停止", value=st.session_state.kaggle_stop, key="kaggle_stop_toggle")
+        st.session_state.kaggle_stop = stop_flag
+    
+    # 高级选项
+    with st.expander("⚙️ RD-Agent 高级配置", expanded=False):
+        col_opt1, col_opt2 = st.columns(2)
+        with col_opt1:
+            auto_submit = st.checkbox(
+                "🚀 自动提交",
+                value=False,
+                help="开启后，RD-Agent会自动将实验结果上传并提交到Kaggle平台",
+                key="kaggle_auto_submit"
+            )
+            if auto_submit:
+                st.caption("⚠️ 需要先配置 Kaggle API：")
+                st.caption("1. 下载 kaggle.json 到 ~/.kaggle/")
+                st.caption("2. 运行 `kaggle competitions list` 验证")
+                st.caption("3. 注意提交次数配额限制（每日5次）")
+        with col_opt2:
+            use_graph_rag = st.checkbox(
+                "🧠 图知识库RAG",
+                value=False,
+                help="启用基于图的高级RAG知识管理系统",
+                key="kaggle_use_graph_rag"
+            )
+            if use_graph_rag:
+                st.caption("📚 需要准备知识库文件：")
+                st.caption("- 路径：$RDAGENT_PATH/scenarios/kaggle/knowledge_base/")
+                st.caption("- 格式：支持 txt/md/json")
+    
+    run_clicked = st.button("▶️ 运行 RDLoop", type="primary", key="run_kaggle_rdloop")
+    log_box = st.empty()
+    prog = st.empty()
+    
+    if run_clicked:
+        from .rdagent_api import RDAgentAPI
+        api = RDAgentAPI()
+        submitted = 0
+        best_score = 0.0
+        
+        # 显示配置信息
+        config_info = f"配置: step_n={step_n}, loop_n={loop_n}"
+        if auto_submit:
+            config_info += ", auto_submit=True"
+        if use_graph_rag:
+            config_info += ", Graph RAG=Enabled"
+        log_box.info(config_info)
+        
+        with st.spinner("运行中...这可能需要一段时间"):
+            for info in api.run_kaggle_rdloop_stream(
+                competition, 
+                int(step_n), 
+                int(loop_n),
+                auto_submit=auto_submit,
+                use_graph_rag=use_graph_rag
+            ):
+                if st.session_state.get('kaggle_stop'):
+                    st.warning("已停止")
+                    break
+                # 更新进度
+                pct = 0.0
+                try:
+                    pct = info['loop'] / max(1, info['total_loops'])
+                except Exception:
+                    pass
+                prog.progress(min(1.0, pct))
+                submitted = info.get('submissions', submitted)
+                best_score = max(best_score, info.get('best_score', 0.0))
+                # 追加日志
+                log_box.info(f"[Loop {info.get('loop')}/{info.get('total_loops')}] Submissions={submitted}, BestScore={best_score:.5f} - {info.get('message','')}")
+            else:
+                st.success("RDLoop已完成")
+    
 
 def render_rd_coordination():
     """研发协同tab"""

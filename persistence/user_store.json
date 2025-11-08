@@ -2,10 +2,165 @@
   "users": {
     "admin": {
       "user_id": "admin",
-      "points": 200,
+      "points": 178,
       "level": "VIP",
       "created_at": "2025-10-28T22:22:24.254494"
     }
   },
-  "logs": []
+  "logs": [
+    {
+      "date": "2025-10-29",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-29",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-29",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-29",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-29",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-29",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-10-30",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    },
+    {
+      "date": "2025-11-07",
+      "op": "单股分析",
+      "stocks": 1,
+      "points": 1,
+      "user_id": "admin"
+    }
+  ]
 }

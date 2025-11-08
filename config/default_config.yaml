@@ -1,0 +1,156 @@
+# Qilin量化交易系统 - 默认配置文件
+# 使用YAML格式，支持注释和层级结构
+
+# ==================== 系统配置 ====================
+system:
+  project_name: qilin_limitup_ai
+  version: 1.0.0
+  log_level: INFO
+  debug: false
+
+# ==================== 数据配置 ====================
+data:
+  data_dir: ./data
+  cache_dir: ./cache
+  output_dir: ./output
+
+# ==================== 模型配置 ====================
+model:
+  model_dir: ./models
+  model_type: lightgbm
+  n_estimators: 100
+  learning_rate: 0.05
+  max_depth: 7
+  random_state: 42
+
+# ==================== 特征配置 ====================
+features:
+  feature_version: v1
+  n_features: 100
+  feature_selection: true
+  cache_features: true
+
+# ==================== 训练配置 ====================
+training:
+  train_start_date: '2020-01-01'
+  train_end_date: '2023-12-31'
+  val_ratio: 0.2
+  test_ratio: 0.1
+  cv_folds: 5
+
+# ==================== 预测配置 ====================
+prediction:
+  confidence_threshold: 0.5
+  top_k: 10
+  enable_risk_filter: true
+
+# ==================== 回测配置 ====================
+backtest:
+  initial_capital: 1000000.0
+  commission: 0.0003
+  slippage: 0.001
+  position_size: 0.1
+
+# ==================== 风控配置 ====================
+risk:
+  max_position_pct: 0.3
+  max_drawdown_pct: 0.2
+  stop_loss_pct: 0.05
+  take_profit_pct: 0.15
+
+# ==================== MLflow配置 ====================
+mlflow:
+  tracking_uri: ./mlruns
+  experiment_name: limitup_ai
+  enable_logging: true
+
+# ==================== 缓存配置 ====================
+cache:
+  cache_dir: ./feature_cache
+  ttl_hours: 24
+  max_size_gb: 10.0
+
+# ==================== 工作流配置 ====================
+workflow:
+  enable_t_day_screening: true       # 启用T日筛选
+  enable_t1_auction_monitor: true    # 启用T+1竞价监控
+  enable_t1_buy: true                # 启用T+1买入
+  enable_t2_sell: true               # 启用T+2卖出
+  auto_mode: false                   # 自动模式（慎用）
+
+# ==================== 筛选配置 ====================
+screening:
+  min_seal_strength: 3.0             # 最小封单强度
+  min_prediction_score: 0.6          # 最小预测得分
+  max_candidates: 30                 # 最大候选数量
+  min_volume: 100000000              # 最小成交额（元）
+  exclude_st: true                   # 排除ST股票
+  exclude_new_stock_days: 60         # 排除上市N天内新股
+
+# ==================== 竞价配置 ====================
+auction:
+  min_auction_strength: 0.6          # 最小竞价强度
+  monitor_start_time: '09:15'        # 监控开始时间
+  monitor_end_time: '09:25'          # 监控结束时间
+  min_buy_ratio: 0.5                 # 最小买盘比例
+  max_price_premium: 0.03            # 最大价格溢价
+
+# ==================== 买入配置 ====================
+buy:
+  total_capital: 1000000             # 总资金（元）
+  max_position_per_stock: 0.10       # 单股最大仓位
+  min_position_per_stock: 0.02       # 单股最小仓位
+  max_total_position: 0.80           # 总仓位上限
+  enable_layered_buy: true           # 启用分层买入
+  layer_count: 3                     # 分层数量
+
+# ==================== 卖出配置 ====================
+sell:
+  enable_partial_sell: true          # 启用部分卖出
+  profit_target: 0.05                # 止盈目标（5%）
+  stop_loss: -0.03                   # 止损线（-3%）
+  trailing_stop: true                # 启用移动止损
+  trailing_stop_trigger: 0.03        # 移动止损触发（3%）
+  trailing_stop_distance: 0.02       # 移动止损距离（2%）
+
+# ==================== Kelly仓位管理配置 ====================
+kelly:
+  enable_kelly: true                 # 启用Kelly准则
+  kelly_fraction: 0.5                # Kelly分数（保守）
+  max_kelly_position: 0.15           # Kelly最大仓位
+  min_kelly_position: 0.02           # Kelly最小仓位
+  confidence_weight: 0.3             # 置信度权重
+
+# ==================== 市场熔断配置 ====================
+market_breaker:
+  enable_breaker: true               # 启用市场熔断
+  index_drop_threshold: -0.02        # 指数下跌阈值（-2%）
+  limit_down_ratio_threshold: 0.05   # 跌停比例阈值（5%）
+  continuous_loss_threshold: 3       # 连续亏损天数阈值
+  max_drawdown_threshold: -0.10      # 最大回撤阈值（-10%）
+
+# ==================== 消息推送配置 ====================
+notification:
+  enable_notification: true          # 启用消息推送
+  channels: []                       # 推送渠道：['wechat', 'dingtalk', 'email']
+  wechat_webhook: ''                 # 企业微信Webhook URL
+  dingtalk_webhook: ''               # 钉钉Webhook URL
+  email_smtp_server: ''              # 邮件SMTP服务器
+  email_smtp_port: 587               # SMTP端口
+  email_from: ''                     # 发件人邮箱
+  email_to: []                       # 收件人列表
+
+# ==================== 定时任务配置 ====================
+scheduler:
+  enable_scheduler: true             # 启用定时任务
+  t_day_screening_time: '15:30'      # T日筛选时间
+  t1_auction_monitor_time: '09:15'   # T+1竞价监控时间
+  t2_sell_time: '09:30'              # T+2卖出时间
+  timezone: 'Asia/Shanghai'          # 时区
+
+# ==================== 交易日志配置 ====================
+journal:
+  enable_journal: true               # 启用交易日志
+  db_path: 'data/trading_journal.db' # 数据库路径
+  auto_backup: true                  # 自动备份
+  backup_days: 30                    # 备份保留天数

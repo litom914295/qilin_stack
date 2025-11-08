@@ -1,0 +1,53 @@
+{
+  "timestamp": "2025-10-30T09:45:35.689415",
+  "prompt": "请为A股涨停板'一进二'策略设计 3 个新的量化因子。\n\n重点关注以下领域：封板强度、连板动量、题材共振\n\n额外上下文：重点关注短线强势特征\n\n\n要求：\n1. 因子要有创新性，不是简单的价量指标\n2. 充分考虑涨停板的特殊性（价格封死、成交受限）\n3. 结合A股市场特点（T+1、涨跌停限制、情绪驱动）\n4. 提供完整的实现代码\n5. 估计合理的IC值（通常0.05-0.15）\n\n请以JSON格式输出因子列表。\n",
+  "response": "```json\n{\n  \"factors\": [\n    {\n      \"name\": \"封板强度梯度因子\",\n      \"expression\": \"封板强度梯度 = (当前封单金额 / 流通市值) / (前5分钟平均封单金额 / 流通市值) × 封板时间权重\",\n      \"code\": \"def calculate_seal_strength_gradient(stock_data):\\n    \\\"\\\"\\\"\\n    计算封板强度梯度因子\\n    \\n    Parameters:\\n    stock_data: DataFrame包含以下字段\\n        - seal_amount: 当前封单金额(万元)\\n        - float_market_cap: 流通市值(万元)\\n        - seal_amount_5min_avg: 前5分钟平均封单金额(万元)\\n        - seal_time: 封板时间(分钟，从开盘算起)\\n        - is_first_limit: 是否首板涨停\\n    \\\"\\\"\\\"\\n    # 计算当前封板强度\\n    current_strength = stock_data['seal_amount'] / stock_data['float_market_cap']\\n    \\n    # 计算前5分钟平均封板强度\\n    avg_strength_5min = stock_data['seal_amount_5min_avg'] / stock_data['float_market_cap']\\n    \\n    # 封板时间权重：越早封板权重越高\\n    time_weight = 1.0 - (stock_data['seal_time'] / 240)  # 240分钟交易时间\\n    time_weight = np.maximum(time_weight, 0.1)  # 最小权重0.1\\n    \\n    # 首板额外加成\\n    first_limit_bonus = 1.2 if stock_data['is_first_limit'] else 1.0\\n    \\n    # 封板强度梯度\\n    seal_gradient = (current_strength / avg_strength_5min) * time_weight * first_limit_bonus\\n    \\n    return seal_gradient\",\n      \"category\": \"封板强度\",\n      \"logic\": \"该因子捕捉封板强度的动态变化特征。传统封单强度只关注静态值，而梯度因子关注封单强度的增强过程。在涨停板价格受限的情况下，封单强度的持续增强表明资金认可度提升，次日继续涨停概率更高。结合封板时间权重，早盘强势封板的股票更具溢价效应。\",\n      \"expected_ic\": 0.08,\n      \"data_requirements\": [\"seal_amount\", \"float_market_cap\", \"seal_amount_5min_avg\", \"seal_time\", \"is_first_limit\"]\n    },\n    {\n      \"name\": \"连板动量共振因子\",\n      \"expression\": \"连板动量共振 = ln(当前连板高度) × 板块连板梯度 × 历史连板成功率调整\",\n      \"code\": \"def calculate_limit_momentum_resonance(stock_data):\\n    \\\"\\\"\\\"\\n    计算连板动量共振因子\\n    \\n    Parameters:\\n    stock_data: DataFrame包含以下字段\\n        - current_limit_height: 当前连板高度\\n        - sector_limit_gradient: 板块连板梯度(板块内连板股票数量变化率)\\n        - historical_success_rate: 历史连板成功率(该股票过去一进二成功次数/总次数)\\n        - market_sentiment: 市场情绪指数(0-1)\\n        - is_sector_leader: 是否为板块龙头\\n    \\\"\\\"\\\"\\n    import numpy as np\\n    \\n    # 连板高度对数变换，边际效应递减\\n    height_component = np.log(stock_data['current_limit_height'] + 1)\\n    \\n    # 板块连板梯度，反映板块热度扩散\\n    sector_gradient = stock_data['sector_limit_gradient']\\n    \\n    # 历史成功率调整，考虑个股连板基因\\n    success_adjustment = 1.0 + (stock_data['historical_success_rate'] - 0.5) * 0.5\\n    \\n    # 龙头地位加成\\n    leader_bonus = 1.3 if stock_data['is_sector_leader'] else 1.0\\n    \\n    # 市场情绪调节\\n    sentiment_factor = 0.8 + stock_data['market_sentiment'] * 0.4\\n    \\n    # 连板动量共振\\n    momentum_resonance = height_component * sector_gradient * success_adjustment * leader_bonus * sentiment_factor\\n    \\n    return momentum_resonance\",\n      \"category\": \"连板动量\",\n      \"logic\": \"该因子从多维度捕捉连板动量。不仅关注个股连板高度，更强调板块联动效应和个股历史表现。在A股T+1制度下，连板股票往往形成板块效应，板块内连板梯度变化反映资金轮动方向。结合个股历史连板成功率，识别具有'连板基因'的股票。龙头地位和市场情绪作为调节因子，增强策略适应性。\",\n      \"expected_ic\": 0.12,\n      \"data_requirements\": [\"current_limit_height\", \"sector_limit_gradient\", \"historical_success_rate\", \"market_sentiment\", \"is_sector_leader\"]\n    },\n    {\n      \"name\": \"题材热度传导因子\",\n      \"expression\": \"题材热度传导 = 概念强度指数 × 资金流入集中度 × 媒体关注度衰减因子\",\n      \"code\": \"def calculate_theme_heat_transmission(stock_data):\\n    \\\"\\\"\\\"\\n    计算题材热度传导因子\\n    \\n    Parameters:\\n    stock_data: DataFrame包含以下字段\\n        - concept_strength: 概念强度指数(0-1)\\n        - capital_inflow_concentration: 资金流入集中度(大单净流入/总成交)\\n        - media_attention: 媒体关注度(新闻数量标准化)\\n        - attention_decay: 关注度衰减因子(时间衰减)\\n        - concept_novelty: 概念新颖度(0-1)\\n    \\\"\\\"\\\"\\n    # 概念强度基础分\\n    concept_base = stock_data['concept_strength']\\n    \\n    # 资金流入集中度，反映大资金认可度\\n    capital_concentration = stock_data['capital_inflow_concentration']\\n    \\n    # 媒体关注度经时间衰减调整\\n    media_attention_decayed = stock_data['media_attention'] * stock_data['attention_decay']\\n    \\n    # 概念新颖度加成，新概念更具爆发力\\n    novelty_bonus = 1.0 + stock_data['concept_novelty'] * 0.5\\n    \\n    # 题材热度传导综合得分\\n    theme_heat = concept_base * capital_concentration * (1 + media_attention_decayed) * novelty_bonus\\n    \\n    return theme_heat\",\n      \"category\": \"题材共振\",\n      \"logic\": \"该因子量化题材热度的传导效率。在A股情绪驱动市场中，题材炒作是涨停板的重要驱动力。因子不仅考虑概念强度，更关注资金流入的集中度和媒体关注度的时效性。通过衰减因子避免过度追高旧题材，强调新概念的爆发潜力。资金流入集中度反映大资金对题材的认可程度，是次日延续性的重要指标。\",\n      \"expected_ic\": 0.10,\n      \"data_requirements\": [\"concept_strength\", \"capital_inflow_concentration\", \"media_attention\", \"attention_decay\", \"concept_novelty\"]\n    }\n  ]\n}\n```",
+  "factors_generated": 3,
+  "factors": [
+    {
+      "name": "封板强度梯度因子",
+      "expression": "封板强度梯度 = (当前封单金额 / 流通市值) / (前5分钟平均封单金额 / 流通市值) × 封板时间权重",
+      "code": "def calculate_seal_strength_gradient(stock_data):\n    \"\"\"\n    计算封板强度梯度因子\n    \n    Parameters:\n    stock_data: DataFrame包含以下字段\n        - seal_amount: 当前封单金额(万元)\n        - float_market_cap: 流通市值(万元)\n        - seal_amount_5min_avg: 前5分钟平均封单金额(万元)\n        - seal_time: 封板时间(分钟，从开盘算起)\n        - is_first_limit: 是否首板涨停\n    \"\"\"\n    # 计算当前封板强度\n    current_strength = stock_data['seal_amount'] / stock_data['float_market_cap']\n    \n    # 计算前5分钟平均封板强度\n    avg_strength_5min = stock_data['seal_amount_5min_avg'] / stock_data['float_market_cap']\n    \n    # 封板时间权重：越早封板权重越高\n    time_weight = 1.0 - (stock_data['seal_time'] / 240)  # 240分钟交易时间\n    time_weight = np.maximum(time_weight, 0.1)  # 最小权重0.1\n    \n    # 首板额外加成\n    first_limit_bonus = 1.2 if stock_data['is_first_limit'] else 1.0\n    \n    # 封板强度梯度\n    seal_gradient = (current_strength / avg_strength_5min) * time_weight * first_limit_bonus\n    \n    return seal_gradient",
+      "category": "封板强度",
+      "logic": "该因子捕捉封板强度的动态变化特征。传统封单强度只关注静态值，而梯度因子关注封单强度的增强过程。在涨停板价格受限的情况下，封单强度的持续增强表明资金认可度提升，次日继续涨停概率更高。结合封板时间权重，早盘强势封板的股票更具溢价效应。",
+      "expected_ic": 0.08,
+      "data_requirements": [
+        "seal_amount",
+        "float_market_cap",
+        "seal_amount_5min_avg",
+        "seal_time",
+        "is_first_limit"
+      ]
+    },
+    {
+      "name": "连板动量共振因子",
+      "expression": "连板动量共振 = ln(当前连板高度) × 板块连板梯度 × 历史连板成功率调整",
+      "code": "def calculate_limit_momentum_resonance(stock_data):\n    \"\"\"\n    计算连板动量共振因子\n    \n    Parameters:\n    stock_data: DataFrame包含以下字段\n        - current_limit_height: 当前连板高度\n        - sector_limit_gradient: 板块连板梯度(板块内连板股票数量变化率)\n        - historical_success_rate: 历史连板成功率(该股票过去一进二成功次数/总次数)\n        - market_sentiment: 市场情绪指数(0-1)\n        - is_sector_leader: 是否为板块龙头\n    \"\"\"\n    import numpy as np\n    \n    # 连板高度对数变换，边际效应递减\n    height_component = np.log(stock_data['current_limit_height'] + 1)\n    \n    # 板块连板梯度，反映板块热度扩散\n    sector_gradient = stock_data['sector_limit_gradient']\n    \n    # 历史成功率调整，考虑个股连板基因\n    success_adjustment = 1.0 + (stock_data['historical_success_rate'] - 0.5) * 0.5\n    \n    # 龙头地位加成\n    leader_bonus = 1.3 if stock_data['is_sector_leader'] else 1.0\n    \n    # 市场情绪调节\n    sentiment_factor = 0.8 + stock_data['market_sentiment'] * 0.4\n    \n    # 连板动量共振\n    momentum_resonance = height_component * sector_gradient * success_adjustment * leader_bonus * sentiment_factor\n    \n    return momentum_resonance",
+      "category": "连板动量",
+      "logic": "该因子从多维度捕捉连板动量。不仅关注个股连板高度，更强调板块联动效应和个股历史表现。在A股T+1制度下，连板股票往往形成板块效应，板块内连板梯度变化反映资金轮动方向。结合个股历史连板成功率，识别具有'连板基因'的股票。龙头地位和市场情绪作为调节因子，增强策略适应性。",
+      "expected_ic": 0.12,
+      "data_requirements": [
+        "current_limit_height",
+        "sector_limit_gradient",
+        "historical_success_rate",
+        "market_sentiment",
+        "is_sector_leader"
+      ]
+    },
+    {
+      "name": "题材热度传导因子",
+      "expression": "题材热度传导 = 概念强度指数 × 资金流入集中度 × 媒体关注度衰减因子",
+      "code": "def calculate_theme_heat_transmission(stock_data):\n    \"\"\"\n    计算题材热度传导因子\n    \n    Parameters:\n    stock_data: DataFrame包含以下字段\n        - concept_strength: 概念强度指数(0-1)\n        - capital_inflow_concentration: 资金流入集中度(大单净流入/总成交)\n        - media_attention: 媒体关注度(新闻数量标准化)\n        - attention_decay: 关注度衰减因子(时间衰减)\n        - concept_novelty: 概念新颖度(0-1)\n    \"\"\"\n    # 概念强度基础分\n    concept_base = stock_data['concept_strength']\n    \n    # 资金流入集中度，反映大资金认可度\n    capital_concentration = stock_data['capital_inflow_concentration']\n    \n    # 媒体关注度经时间衰减调整\n    media_attention_decayed = stock_data['media_attention'] * stock_data['attention_decay']\n    \n    # 概念新颖度加成，新概念更具爆发力\n    novelty_bonus = 1.0 + stock_data['concept_novelty'] * 0.5\n    \n    # 题材热度传导综合得分\n    theme_heat = concept_base * capital_concentration * (1 + media_attention_decayed) * novelty_bonus\n    \n    return theme_heat",
+      "category": "题材共振",
+      "logic": "该因子量化题材热度的传导效率。在A股情绪驱动市场中，题材炒作是涨停板的重要驱动力。因子不仅考虑概念强度，更关注资金流入的集中度和媒体关注度的时效性。通过衰减因子避免过度追高旧题材，强调新概念的爆发潜力。资金流入集中度反映大资金对题材的认可程度，是次日延续性的重要指标。",
+      "expected_ic": 0.1,
+      "data_requirements": [
+        "concept_strength",
+        "capital_inflow_concentration",
+        "media_attention",
+        "attention_decay",
+        "concept_novelty"
+      ]
+    }
+  ]
+}

@@ -20,16 +20,27 @@ if TA_PATH and TA_PATH.exists():
 
 # 导入tradingagents组件
 try:
-    from tradingagents.agents import BaseAgent
-    from tradingagents.llm.base import BaseLLM
-    from tradingagents.tools import SearchTool, CalculatorTool, ChartTool, DataAnalysisTool
-    from tradingagents.dataflows import DataFlow
-    from tradingagents.utils.logging_utils import get_logger
+    # TradingAgents-CN-Plus 使用 LangGraph 架构，不需要 BaseAgent
+    from tradingagents.agents import (
+        create_trader,
+        create_research_manager,
+        create_risk_manager,
+        AgentState,
+        Toolkit  # Toolkit is in agents module
+    )
+    from tradingagents.utils.logging_init import get_logger
     TRADINGAGENTS_AVAILABLE = True
+    # 为兼容性创建占位符
+    BaseAgent = object
 except Exception as e:
     print(f"Warning: Could not import tradingagents components: {e}")
     TRADINGAGENTS_AVAILABLE = False
     BaseAgent = object  # 占位符
+    Toolkit = None
+    create_trader = None
+    create_research_manager = None
+    create_risk_manager = None
+    AgentState = None
 
 # 导入麒麟堆栈组件（容错导入）
 try:
@@ -111,14 +122,14 @@ class TradingAgentsAdapter:
         self.data_access = DataAccessLayer(self.config.get("data", {}))
         self.qlib_engine = QlibIntegrationEngine(self.config)
         
-        # TradingAgents工具
-        if TRADINGAGENTS_AVAILABLE:
-            self.ta_tools = {
-                'search': SearchTool(),
-                'calculator': CalculatorTool(),
-                'chart': ChartTool(),
-                'data_analysis': DataAnalysisTool()
-            }
+        # TradingAgents工具 (TradingAgents-CN-Plus uses Toolkit)
+        if TRADINGAGENTS_AVAILABLE and Toolkit is not None:
+            try:
+                self.ta_toolkit = Toolkit()
+                self.ta_tools = {'toolkit': self.ta_toolkit}
+            except Exception as e:
+                self.logger.warning(f"Failed to initialize Toolkit: {e}")
+                self.ta_tools = {}
         else:
             self.ta_tools = {}
     

@@ -1,0 +1,71 @@
+{
+  "total_tests": 5,
+  "passed_tests": 0,
+  "failed_tests": 5,
+  "success_rate": 0.0,
+  "total_duration": 0.010999202728271484,
+  "test_results": [
+    {
+      "test_name": "并发订单压力测试 (100个订单)",
+      "success": false,
+      "details": {
+        "num_orders": 100,
+        "results": [],
+        "memory_start": {
+          "rss": 38.921875,
+          "vms": 34.125,
+          "percent": 0.11896299228937378
+        },
+        "error": "LiveTradingSystem.__init__() got an unexpected keyword argument 'broker_config'"
+      },
+      "duration": 0.0,
+      "timestamp": "2025-11-07T14:49:15.396034"
+    },
+    {
+      "test_name": "长时间稳定性测试 (2分钟)",
+      "success": false,
+      "details": {
+        "duration_minutes": 2,
+        "samples": [],
+        "memory_start": {
+          "rss": 39.078125,
+          "vms": 34.2265625,
+          "percent": 0.11944056351494332
+        },
+        "error": "LiveTradingSystem.__init__() got an unexpected keyword argument 'broker_config'"
+      },
+      "duration": 0.0009999275207519531,
+      "timestamp": "2025-11-07T14:49:15.397034"
+    },
+    {
+      "test_name": "内存泄漏检测",
+      "success": false,
+      "details": {
+        "iterations": [],
+        "error": "LiveTradingSystem.__init__() got an unexpected keyword argument 'broker_config'"
+      },
+      "duration": 0.009999275207519531,
+      "timestamp": "2025-11-07T14:49:15.407033"
+    },
+    {
+      "test_name": "异常恢复测试",
+      "success": false,
+      "details": {
+        "scenarios": [],
+        "error": "LiveTradingSystem.__init__() got an unexpected keyword argument 'broker_config'"
+      },
+      "duration": 0.0,
+      "timestamp": "2025-11-07T14:49:15.407033"
+    },
+    {
+      "test_name": "因子计算性能测试",
+      "success": false,
+      "details": {
+        "error": "name 'FastFactorCalculator' is not defined"
+      },
+      "duration": 0.0,
+      "timestamp": "2025-11-07T14:49:15.407033"
+    }
+  ],
+  "timestamp": "2025-11-07T14:49:15.407033"
+}

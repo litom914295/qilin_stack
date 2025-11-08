@@ -266,11 +266,30 @@ trading_agents:
 
 ```yaml
 rd_agent:
+  # P0-1: 会话恢复配置
+  checkpoint:
+    checkpoint_path: "./checkpoints/limitup_factor_loop.pkl"  # Checkpoint文件路径
+    enable_auto_checkpoint: true                               # 启用自动保存
+    checkpoint_interval: 5                                     # 每5轮保存一次
+  
+  # 因子研究配置
   factor_research:
     max_factors: 50
     min_ic: 0.03
     min_icir: 0.5
     correlation_threshold: 0.8
+    
+    # P0-6: 扩展字段配置
+    factor_categories:                  # 因子类别列表
+      - "technical"                     # 技术指标
+      - "momentum"                      # 动量因子
+      - "volume"                        # 成交量因子
+      - "limit_up"                      # 涨停板专属因子
+      - "sentiment"                     # 情绪因子
+    
+    prediction_targets:                 # 预测目标列表
+      - "next_day_return"               # 次日收益率
+      - "next_day_limit_up"             # 次日是否涨停
   
   model_experiment:
     models:
@@ -284,6 +303,143 @@ rd_agent:
     model: "gpt-5-thinking-all"
     api_base: "https://api.tu-zi.com"
 ```
+
+### P0-1: 会话恢复详细说明
+
+会话恢复功能允许从 checkpoint 恢复研发流程,防止意外中断导致进度丢失。
+
+#### checkpoint_path
+
+**类型**: `Optional[str]`  
+**默认值**: `None`  
+**说明**: Checkpoint 文件保存路径
+
+**推荐配置**:
+```yaml
+# 固定路径
+checkpoint_path: "./checkpoints/factor_loop.pkl"
+
+# 动态路径 (带时间戳)
+checkpoint_path: "./checkpoints/factor_{timestamp}.pkl"
+```
+
+**使用场景**:
+- ✅ 长时间运行的因子发现任务 (> 30分钟)
+- ✅ 需要增量式研发的场景
+- ✅ 不稳定网络环境下的 LLM 调用
+- ❌ 短任务 (< 5轮) 不需要 checkpoint
+
+#### enable_auto_checkpoint
+
+**类型**: `bool`  
+**默认值**: `True`  
+**说明**: 是否启用自动 checkpoint 保存
+
+**配置示例**:
+```yaml
+# 启用自动保存 (推荐)
+enable_auto_checkpoint: true
+
+# 禁用自动保存 (需手动保存)
+enable_auto_checkpoint: false
+```
+
+#### checkpoint_interval
+
+**类型**: `int`  
+**默认值**: `5`  
+**说明**: Checkpoint 保存间隔 (单位: 研发轮次)
+
+**推荐值**:
+- 短任务 (< 10 轮): `2-3`
+- 中等任务 (10-50 轮): `5`
+- 长任务 (> 50 轮): `10`
+
+**示例**:
+```yaml
+# 每5轮保存一次 (推荐)
+checkpoint_interval: 5
+```
+
+**恢复示例**:
+```python
+from rd_agent.official_integration import OfficialRDAgentManager
+
+config = {
+    "checkpoint_path": "./checkpoints/factor_loop.pkl",
+    "enable_auto_checkpoint": True,
+    "checkpoint_interval": 5
+}
+
+manager = OfficialRDAgentManager(config)
+
+# 从 checkpoint 恢复
+factor_loop = manager.resume_from_checkpoint(mode="factor")
+```
+
+### P0-6: 扩展字段详细说明
+
+涨停板专属配置,支持自定义因子类别和预测目标。
+
+#### factor_categories
+
+**类型**: `List[str]`  
+**默认值**: `["technical", "momentum", "volume", "limit_up"]`  
+**说明**: 因子类别列表,指导 LLM 生成特定类别的因子
+
+**支持类别**:
+- `technical`: 技术指标 (RSI, MACD, 布林带等)
+- `momentum`: 动量因子 (收益率, 动量指标)
+- `volume`: 成交量因子 (量比, 换手率)
+- `limit_up`: 涨停板专属因子 (封单金额、连板天数、题材热度)
+- `fundamental`: 基本面因子 (市盈率, 市净率)
+- `sentiment`: 情绪因子 (题材热度, 资金流向)
+
+**配置示例**:
+```yaml
+# 涨停板策略: 强调 limit_up 和 sentiment
+factor_categories:
+  - "limit_up"          # 优先级最高
+  - "sentiment"
+  - "momentum"
+  - "volume"
+
+# 全市场策略: 均衡配置
+factor_categories:
+  - "technical"
+  - "momentum"
+  - "volume"
+  - "fundamental"
+```
+
+**影响**: LLM 会根据类别列表生成对应的因子代码,类别越靠前优先级越高。
+
+#### prediction_targets
+
+**类型**: `List[str]`  
+**默认值**: `["next_day_return", "next_day_limit_up"]`  
+**说明**: 预测目标列表,定义因子要预测的指标
+
+**支持目标**:
+- `next_day_return`: 次日收益率 (连续值)
+- `next_day_limit_up`: 次日是否涨停 (0/1 分类)
+- `intraday_return`: 日内收益率
+- `max_drawdown`: 最大回撤
+
+**配置示例**:
+```yaml
+# 涨停板策略: 关注次日涨停
+prediction_targets:
+  - "next_day_limit_up"   # 主要目标
+  - "next_day_return"     # 辅助目标
+
+# 全市场策略: 关注收益率
+prediction_targets:
+  - "next_day_return"
+  - "intraday_return"
+```
+
+**影响**: 因子评估时会计算对应的性能指标 (如 `next_day_limit_up_rate`)
 
 ---
 

@@ -1,0 +1,285 @@
+# 一进二涨停策略配置模板
+# Task 13: 一进二策略专项优化
+
+qlib_init:
+  provider_uri: "~/.qlib/qlib_data/cn_data"
+  region: "cn"
+  expression_cache: "DiskExpressionCache"
+  dataset_cache: "DiskDatasetCache"
+
+market:
+  name: "csi300"
+  universe: "csi300"
+  start_time: "2022-01-01"
+  end_time: "2024-06-30"
+
+# 一进二标签定义
+label:
+  # 方法1: 低开涨停 (经典一进二)
+  classic_yinjiner: |
+    If(
+      $close / $open - 1 < 0.02,
+      If($close / Ref($close, 1) - 1 > 0.095, 1, 0),
+      0
+    )
+  
+  # 方法2: 涨停+封板 (强度更高)
+  strong_yinjiner: |
+    If(
+      $close / Ref($close, 1) - 1 > 0.095,
+      If($close == $high, 1, 0),
+      0
+    )
+  
+  # 方法3: 连续涨停 (多日筛选)
+  continuous_limitup: |
+    If(
+      Sum(If($close / Ref($close, 1) - 1 > 0.095, 1, 0), 3) >= 2,
+      1,
+      0
+    )
+  
+  # 方法4: 开板后反包 (次日收益)
+  open_board_reverse: |
+    If(
+      Ref(If($close == $high, 1, 0), 1) == 1,
+      If($close / $open - 1 < 0, Ref($close, -1) / $close - 1, 0),
+      0
+    )
+
+# 特征工程 (Alpha 因子)
+features:
+  # 基础价格特征
+  - $close / Ref($close, 1) - 1  # 日收益率
+  - $close / Ref($close, 5) - 1  # 5日收益率
+  - $close / Ref($close, 20) - 1  # 20日收益率
+  
+  # 涨停相关特征
+  - If($close / Ref($close, 1) - 1 > 0.095, 1, 0)  # 涨停标记
+  - If($close == $high, 1, 0)  # 封板标记
+  - Sum(If($close / Ref($close, 1) - 1 > 0.095, 1, 0), 5)  # 5日涨停次数
+  - Sum(If($close / Ref($close, 1) - 1 > 0.095, 1, 0), 20)  # 20日涨停次数
+  
+  # 量能特征
+  - $volume / Mean($volume, 5) - 1  # 5日量比
+  - $volume / Mean($volume, 20) - 1  # 20日量比
+  - Corr($close, $volume, 5)  # 5日价量相关性
+  - Corr($close, $volume, 20)  # 20日价量相关性
+  
+  # 技术指标
+  - ($close - Mean($close, 5)) / Std($close, 5)  # 5日Z-Score
+  - ($close - Mean($close, 20)) / Std($close, 20)  # 20日Z-Score
+  - Mean($close, 5) / Mean($close, 20) - 1  # 5/20均线差
+  - (Max($high, 20) - $close) / $close  # 距离20日高点
+  - ($close - Min($low, 20)) / (Max($high, 20) - Min($low, 20) + 1e-6)  # 威廉指标
+  
+  # 涨停强度特征
+  - ($close - $open) / ($high - $low + 1e-6)  # 实体比例
+  - If($close / Ref($close, 1) - 1 > 0.095, ($volume / Ref($volume, 1)), 0)  # 涨停量比
+  - If($close / Ref($close, 1) - 1 > 0.095, ($close - $open) / $open, 0)  # 涨停幅度
+  
+  # 开板特征
+  - If(Ref(If($close == $high, 1, 0), 1) == 1, If($close < $high, 1, 0), 0)  # 昨封今开
+  - If($close < $high, ($high - $close) / $close, 0)  # 开板幅度
+
+# 样本过滤
+filter:
+  # 排除ST股票
+  exclude_st: true
+  
+  # 排除新股 (上市60天内)
+  exclude_new_stock_days: 60
+  
+  # 最小价格 (排除仙股)
+  min_price: 3.0
+  
+  # 最小成交量 (排除流动性差的股票)
+  min_volume: 1000000  # 100万股
+  
+  # 最小市值 (排除小盘股)
+  min_market_cap: 1000000000  # 10亿元
+  
+  # 涨停筛选
+  only_limitup: false  # 是否只保留涨停股票
+  
+  # 一进二筛选
+  only_yinjiner: true  # 只保留一进二标的
+
+# 数据集划分
+data_handler:
+  class: "DataHandlerLP"
+  module_path: "qlib.data.dataset.handler"
+  kwargs:
+    start_time: "2022-01-01"
+    end_time: "2024-06-30"
+    fit_start_time: "2022-01-01"
+    fit_end_time: "2023-12-31"
+    instruments: "csi300"
+    
+    # 标签配置
+    label: ["Ref($close, -2) / $close - 1"]  # 隔日收盘收益率 (T+2)
+
+segments:
+  train: ["2022-01-01", "2023-06-30"]
+  valid: ["2023-07-01", "2023-12-31"]
+  test: ["2024-01-01", "2024-06-30"]
+
+# 模型配置
+model:
+  class: "LGBModel"
+  module_path: "qlib.contrib.model.gbdt"
+  kwargs:
+    loss: "mse"
+    num_leaves: 64
+    learning_rate: 0.05
+    max_depth: 8
+    n_estimators: 200
+    subsample: 0.8
+    colsample_bytree: 0.8
+    lambda_l1: 10
+    lambda_l2: 20
+    random_state: 42
+    n_jobs: 8
+
+# 回测策略配置
+strategy:
+  class: "TopkDropoutStrategy"
+  module_path: "qlib.contrib.strategy.signal_strategy"
+  kwargs:
+    topk: 10  # 每日持仓10只
+    n_drop: 3  # 每日最多换手3只
+    
+    # 一进二专用参数
+    hold_thresh: 2  # 持仓天数: T+2
+    only_tradable: true  # 只交易可交易股票
+
+# 回测执行器配置
+executor:
+  class: "SimulatorExecutor"
+  module_path: "qlib.backtest.executor"
+  kwargs:
+    time_per_step: "day"
+    generate_portfolio_metrics: true
+    verbose: true
+    
+    # 一进二执行参数
+    indicator_config:
+      show_indicator: true
+      
+    # 考虑开板成本
+    trade_type: "order"  # 限价单
+    
+# 交易所配置
+exchange:
+  class: "Exchange"
+  module_path: "qlib.backtest.exchange"
+  kwargs:
+    freq: "day"
+    limit_threshold: 0.095  # 涨跌停阈值 9.5%
+    deal_price: "close"  # 成交价格: 收盘价
+    
+    # 手续费配置
+    open_cost: 0.0005  # 买入手续费 0.05%
+    close_cost: 0.0015  # 卖出手续费 0.15% (含印花税)
+    min_cost: 5  # 最小手续费 5元
+    
+    # 涨跌停规则
+    trade_unit: 100  # 交易单位 (手)
+    
+    # 一进二特殊规则
+    limitup_buy_threshold: 0.095  # 涨停买入阈值
+    open_board_cost_premium: 0.01  # 开板成本溢价 1%
+
+# 回测配置
+backtest:
+  start_time: "2024-01-01"
+  end_time: "2024-06-30"
+  account: 10000000  # 初始资金 1000万
+  benchmark: "SH000300"  # 沪深300基准
+  
+  # 一进二回测参数
+  exchange_kwargs:
+    freq: "day"
+    limit_threshold: 0.095
+    deal_price: "close"
+    open_cost: 0.0005
+    close_cost: 0.0015
+    min_cost: 5
+
+# 评估指标
+metrics:
+  # 基础指标
+  - annualized_return
+  - information_ratio
+  - max_drawdown
+  - sharpe_ratio
+  - sortino_ratio
+  
+  # 一进二专用指标
+  - hit_rate  # 命中率 (涨停次日收益>0的比例)
+  - avg_profit_per_trade  # 平均单笔收益
+  - hold_period_distribution  # 持有期分布
+  - next_day_jump  # 隔日开盘跳空
+  - tradability_rate  # 成交可得性 (能否买入)
+  
+# 可视化配置
+visualization:
+  # 收益曲线
+  plot_cumulative_return: true
+  
+  # 回撤曲线
+  plot_drawdown: true
+  
+  # 月度热力图
+  plot_monthly_heatmap: true
+  
+  # 一进二专用可视化
+  plot_limitup_distribution: true  # 涨停分布
+  plot_hold_period: true  # 持有期分布
+  plot_hit_rate_by_month: true  # 月度命中率
+  plot_profit_distribution: true  # 收益分布
+
+# 输出配置
+output:
+  save_pred: true  # 保存预测结果
+  save_position: true  # 保存持仓
+  save_report: true  # 保存报告
+  
+  # 输出路径
+  pred_path: "outputs/limitup_yinjiner/predictions.pkl"
+  position_path: "outputs/limitup_yinjiner/positions.pkl"
+  report_path: "outputs/limitup_yinjiner/report.pkl"
+  
+  # MLflow 记录
+  mlflow_tracking_uri: "mlruns"
+  experiment_name: "limitup_yinjiner_strategy"
+  run_name: "yinjiner_v1_lgb"
+
+# 性能基线 (用于对比)
+baseline:
+  # 基准策略: 买入沪深300指数
+  benchmark_return: 0.10  # 预期年化收益 10%
+  benchmark_sharpe: 0.8  # 预期夏普比率 0.8
+  benchmark_max_drawdown: -0.20  # 预期最大回撤 -20%
+  
+  # 一进二策略目标
+  target_hit_rate: 0.55  # 目标命中率 55%
+  target_avg_profit: 0.03  # 目标平均单笔收益 3%
+  target_tradability: 0.80  # 目标成交可得性 80%
+
+# 风险控制
+risk_control:
+  # 单股最大持仓比例
+  max_position_per_stock: 0.15  # 15%
+  
+  # 行业集中度限制
+  max_industry_exposure: 0.40  # 单行业最大40%
+  
+  # 止损止盈
+  stop_loss: -0.07  # 止损 -7%
+  take_profit: 0.15  # 止盈 15%
+  
+  # 涨停专用风控
+  max_consecutive_limitup: 3  # 最多连续持有3个涨停
+  avoid_st_stocks: true  # 避开ST股票
+  min_liquidity: 5000000  # 最小流动性 500万股/日

@@ -734,6 +734,31 @@ class DecisionEngine:
         
         logger.info("✅ 智能决策引擎初始化完成")
     
+    def update_weights(self, new_weights: Dict[str, float]) -> None:
+        """更新信号融合权重
+        
+        Args:
+            new_weights: 新的权重字典, key为SignalSource或字符串, value为权重值
+        
+        Raises:
+            ValueError: 如果SignalFuser未初始化或权重无效
+        """
+        if not self.fuser:
+            raise ValueError("SignalFuser未初始化")
+        
+        # 验证权重
+        total = sum(new_weights.values())
+        if total <= 0:
+            raise ValueError(f"权重总和必须大于0, 当前: {total}")
+        
+        # 归一化权重
+        normalized_weights = {k: v/total for k, v in new_weights.items()}
+        
+        # 更新fuser的权重
+        self.fuser.update_weights(normalized_weights)
+        
+        logger.info(f"✅ 权重已更新: {normalized_weights}")
+    
     async def make_decisions(self, symbols: List[str], date: str) -> List[FusedSignal]:
         """
         生成交易决策（支持并行优化）

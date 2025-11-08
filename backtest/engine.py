@@ -56,6 +56,12 @@ class BacktestEngine:
         self.config = config or BacktestConfig()
         self.decision_engine = get_decision_engine()
         
+        # 初始化涨停排队模拟器（可选）
+        self.queue_simulator = None
+        if self.config.fill_model == 'queue':
+            from qilin_stack.backtest.limit_up_queue_simulator import LimitUpQueueSimulator
+            self.queue_simulator = LimitUpQueueSimulator()
+        
         # 状态
         self.capital = self.config.initial_capital
         self.positions: Dict[str, Position] = {}
@@ -69,6 +75,7 @@ class BacktestEngine:
             'orders_unfilled': 0,
             'shares_planned': 0,
             'shares_filled': 0,
+            'fill_ratios': [],  # 记录每次成交比例
         }
         
         
@@ -204,8 +211,13 @@ class BacktestEngine:
                         fill_ratio = self._compute_fill_ratio(symbol, date, prev_date)
                     elif self.config.fill_model == 'prob':
                         fill_ratio = self._compute_fill_ratio_prob(symbol, date, prev_date)
+                    elif self.config.fill_model == 'queue' and self.queue_simulator:
+                        # 使用涨停排队模拟器
+                        fill_ratio = self._compute_fill_ratio_queue(symbol, date, prev_date)
 
                 quantity = int((plan_qty * fill_ratio) / 100) * 100
+                # 记录成交比例
+                self.stats['fill_ratios'].append(fill_ratio)
                 # 若有成交概率但整百后为0，则尝试最小100股
                 if quantity == 0 and fill_ratio > 0 and plan_qty >= 100 and self.capital >= 100 * current_price:
                     quantity = 100
@@ -215,16 +227,24 @@ class BacktestEngine:
                     eff_price = current_price * (1.0 + abs(self.config.slippage))
                     self._open_position(symbol, eff_price, quantity, date)
                     self.stats['shares_filled'] += quantity
-                    mon = _get_monitor() if callable(_get_monitor) else None
-                    if mon:
+                    # 监控指标记录 (可选)
+                    try:
+                        from monitoring.metrics import get_monitor
+                        mon = get_monitor()
                         mon.collector.increment_counter("orders_attempted_total")
                         mon.collector.increment_counter("orders_filled_total")
+                    except Exception:
+                        pass  # 监控模块不可用时跳过
                 else:
                     self.stats['orders_unfilled'] += 1
-                    mon = _get_monitor() if callable(_get_monitor) else None
-                    if mon:
+                    # 监控指标记录 (可选)
+                    try:
+                        from monitoring.metrics import get_monitor
+                        mon = get_monitor()
                         mon.collector.increment_counter("orders_attempted_total")
                         mon.collector.increment_counter("orders_unfilled_total")
+                    except Exception:
+                        pass  # 监控模块不可用时跳过
         
         # 卖出信号
         elif signal in [SignalType.SELL, SignalType.STRONG_SELL]:
@@ -313,9 +333,36 @@ class BacktestEngine:
             pass
         raise ValueError(f"无价格数据: {symbol} @ {date}")
     
+    def _get_stock_type(self, symbol: str) -> 'StockType':
+        """根据股票代码判断股票类型"""
+        from qilin_stack.backtest.limit_up_queue_simulator import StockType
+        
+        # ST股票（名称中包含ST）
+        if 'ST' in symbol.upper():
+            return StockType.ST
+        
+        # 创业板（3开头）和科创板（688开头） - 20%涨停
+        if symbol.startswith('3') or symbol.startswith('688'):
+            return StockType.CHINEXT
+        
+        # 其他为主板 - 10%涨停
+        return StockType.MAIN_BOARD
+    
+    def _get_limit_up_ratio(self, symbol: str) -> float:
+        """获取涨停板比例"""
+        stock_type = self._get_stock_type(symbol)
+        from qilin_stack.backtest.limit_up_queue_simulator import StockType
+        
+        if stock_type == StockType.ST:
+            return 0.05  # 5%
+        elif stock_type == StockType.CHINEXT:
+            return 0.20  # 20%
+        else:
+            return 0.10  # 10%
+    
     def _approx_is_limit_up_open(self, data: pd.DataFrame, symbol: str, date: datetime, prev_date: datetime) -> bool:
         """近似判断是否开盘涨停（一字/无法成交）。
-        简化规则：若开盘/前收 >= 1.098 视为涨停（未区分20%或ST 5%）。
+        支持不同涨停板类型：10%、 20%、ST 5%。
         """
         try:
             prev = data[(data['symbol'] == symbol) & (data['date'] == prev_date)]
@@ -323,13 +370,112 @@ class BacktestEngine:
             if len(prev) > 0 and len(today) > 0:
                 prev_close = float(prev.iloc[0]['close'])
                 open_price = float(today.iloc[0]['open'])
-                if prev_close > 0 and (open_price / prev_close) >= 1.098:
+                
+                # 根据股票类型获取涨停板比例
+                limit_ratio = self._get_limit_up_ratio(symbol)
+                limit_threshold = 1.0 + limit_ratio - 0.002  # 留一点缓冲
+                
+                if prev_close > 0 and (open_price / prev_close) >= limit_threshold:
                     return True
         except Exception:
             return False
         return False
 
+    def _compute_fill_ratio_queue(self, symbol: str, exec_date: datetime, prev_date: Optional[datetime]) -> float:
+        """使用涨停排队模拟器计算成交比例"""
+        try:
+            if prev_date is None or not self.queue_simulator:
+                return 1.0
+            
+            # 计算计划买入金额
+            position_value = self.capital * self.config.max_position_size
+            
+            # 获取前一日封板强度
+            from rd_agent.limit_up_data import LimitUpDataInterface
+            data_if = LimitUpDataInterface(data_source='qlib')
+            feats = data_if.get_limit_up_features([symbol], prev_date.strftime('%Y-%m-%d'))
+            
+            if feats is None or feats.empty:
+                return 0.5  # 无数据时默认一半概率
+            
+            row = feats.iloc[0]
+            seal_quality = float(row.get('seal_quality', row.get('seal_strength', 0.6) * 10.0))
+            cont_board = int(row.get('continuous_board', row.get('board_height', 1.0)))
+            
+            # 根据封板质量判断强度
+            from qilin_stack.backtest.limit_up_queue_simulator import LimitUpStrength
+            if seal_quality > 8:
+                strength = LimitUpStrength.STRONG
+            elif seal_quality > 5:
+                strength = LimitUpStrength.MEDIUM
+            else:
+                strength = LimitUpStrength.WEAK
+            
+            # 获取股票类型
+            stock_type = self._get_stock_type(symbol)
+            
+            # 模拟排队
+            can_buy, reason = self.queue_simulator.can_buy(
+                limit_up_strength=strength,
+                my_capital=position_value,  # 使用计划买入金额
+                total_seal_amount=seal_quality * 1e8,  # 粗略估算封单金额
+                stock_type=stock_type  # 传入股票类型
+            )
+            
+            if can_buy:
+                # 可以买入，但根据排队位置决定成交比例
+                queue_position = self.queue_simulator.estimate_queue_position(
+                    my_capital=position_value,
+                    total_seal_amount=seal_quality * 1e8
+                )
+                # 根据排队位置计算成交比例
+                if queue_position < 0.2:  # 排在前20%
+                    return 1.0
+                elif queue_position < 0.5:  # 排在20%-50%
+                    return 0.7
+                elif queue_position < 0.8:  # 排在50%-80%
+                    return 0.3
+                else:
+                    return 0.1
+            else:
+                return 0.0  # 不能买入
+            
+        except Exception as e:
+            logger.warning(f"队列模拟器计算失败: {e}")
+            return 0.5  # 出错时默认一半概率
+    
     def _compute_fill_ratio(self, symbol: str, exec_date: datetime, prev_date: Optional[datetime]) -> float:
+        """计算订单成交比例的基础实现(确定性)
+        
+        根据配置的fill_model选择不同的成交模型:
+        - deterministic: 使用确定性基础比例(基于前一日特征)
+        - probability: 使用概率性成交比例
+        - queue: 使用涨停排队模拟器
+        """
+        if self.config.fill_model == 'queue':
+            return self._compute_fill_ratio_queue(symbol, exec_date, prev_date)
+        elif self.config.fill_model == 'probability':
+            return self._compute_fill_ratio_prob_original(symbol, exec_date, prev_date)
+        else:
+            # deterministic 模式 - 返回确定性比例
+            return self._compute_fill_ratio_prob_original(symbol, exec_date, prev_date)
+    
+    def _compute_fill_ratio_prob(self, symbol: str, exec_date: datetime, prev_date: Optional[datetime]) -> float:
+        """概率性成交比例 - 基于随机概率"""
+        # 先获取确定性基础比例
+        base_ratio = self._compute_fill_ratio_prob_original(symbol, exec_date, prev_date)
+        
+        # 加入随机性
+        if base_ratio > 0:
+            # 使用Beta分布生成随机成交比例
+            # alpha和beta参数根据基础比例调整
+            alpha = base_ratio * 4  # 控制分布形状
+            beta = (1 - base_ratio) * 4
+            random_ratio = np.random.beta(alpha, beta)
+            return random_ratio
+        return 0.0
+    
+    def _compute_fill_ratio_prob_original(self, symbol: str, exec_date: datetime, prev_date: Optional[datetime]) -> float:
         """确定性成交比例（0~1）。基于前一交易日的“一进二”相关特征。
         规则：高位连板（>2）降低；封板质量/量能/题材热度提高；范围压缩在[0.3, 1.0]。
         取值完全确定，不引入随机数，保证回测稳定。
@@ -407,6 +553,14 @@ class BacktestEngine:
         
         win_rate = len(winning_trades) / len([t for t in self.trades if t.pnl]) if self.trades else 0
         
+        # 计算未成交率和平均成交比例
+        unfilled_rate = 0.0
+        avg_fill_ratio = 1.0
+        if self.stats['fill_ratios']:
+            avg_fill_ratio = np.mean(self.stats['fill_ratios'])
+            # 未成交率：成交比例 < 1% 的订单比例
+            unfilled_rate = len([r for r in self.stats['fill_ratios'] if r < 0.01]) / len(self.stats['fill_ratios'])
+        
         metrics = {
             'initial_capital': self.config.initial_capital,
             'final_equity': equity[-1],
@@ -422,10 +576,8 @@ class BacktestEngine:
             # 执行/撮合统计
             'orders_attempted': self.stats.get('orders_attempted', 0),
             'orders_unfilled': self.stats.get('orders_unfilled', 0),
-            'unfilled_rate': (
-                self.stats['orders_unfilled'] / self.stats['orders_attempted']
-                if self.stats.get('orders_attempted', 0) > 0 else 0.0
-            ),
+            'unfilled_rate': unfilled_rate,  # 未成交率
+            'avg_fill_ratio': avg_fill_ratio,  # 平均成交比例
             'fill_ratio_realized': (
                 self.stats['shares_filled'] / self.stats['shares_planned']
                 if self.stats.get('shares_planned', 0) > 0 else 0.0
@@ -453,6 +605,9 @@ class BacktestEngine:
             f"胜率: {metrics['win_rate']:.2%}",
             f"盈利交易: {metrics['winning_trades']}",
             f"亏损交易: {metrics['losing_trades']}",
+            "成交统计:",
+            f"未成交率: {metrics.get('unfilled_rate', 0):.2%}",
+            f"平均成交比例: {metrics.get('avg_fill_ratio', 1):.2%}",
             "="*60,
         ]
         logger.info("\n".join(lines))
@@ -487,7 +642,8 @@ async def run_simple_backtest():
         initial_capital=1000000.0,
         max_position_size=0.3,
         stop_loss=-0.05,
-        take_profit=0.10
+        take_profit=0.10,
+        fill_model='queue'  # 使用队列模拟模式
     )
     
     engine = BacktestEngine(config)

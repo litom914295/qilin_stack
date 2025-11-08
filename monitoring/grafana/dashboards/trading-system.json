@@ -1,0 +1,304 @@
+{
+  "dashboard": {
+    "title": "麒麟量化系统 - 交易系统",
+    "tags": ["qilin", "trading", "performance"],
+    "timezone": "Asia/Shanghai",
+    "schemaVersion": 27,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "交易订单量",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(trading_orders_total[5m]))",
+            "legendFormat": "订单总量",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(trading_orders_success_total[5m]))",
+            "legendFormat": "成功订单",
+            "refId": "B"
+          },
+          {
+            "expr": "sum(rate(trading_orders_failed_total[5m]))",
+            "legendFormat": "失败订单",
+            "refId": "C"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "订单失败率",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(trading_orders_failed_total[5m])) / sum(rate(trading_orders_total[5m])) * 100",
+            "legendFormat": "订单失败率",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [10], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]}
+            }
+          ],
+          "name": "订单失败率告警"
+        }
+      },
+      {
+        "id": 3,
+        "title": "T日候选股票数",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "trading_candidate_stocks_count",
+            "legendFormat": "T日候选",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 4,
+        "title": "T+1日买入成交数",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(trading_t1_buy_orders_total)",
+            "legendFormat": "T+1买入",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 5,
+        "title": "T+2日卖出成交数",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(trading_t2_sell_orders_total)",
+            "legendFormat": "T+2卖出",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 6,
+        "title": "当前持仓数",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "trading_current_positions_count",
+            "legendFormat": "持仓数",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 7,
+        "title": "模型预测延迟 (P95)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(model_prediction_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95延迟",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(model_prediction_duration_seconds_bucket[5m]))",
+            "legendFormat": "P99延迟",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "s"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [0.5], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]}
+            }
+          ],
+          "name": "模型预测延迟告警"
+        }
+      },
+      {
+        "id": 8,
+        "title": "特征提取延迟 (P95)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(feature_extraction_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95延迟",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "s"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 9,
+        "title": "数据管道处理速率",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(data_pipeline_processed_total[5m])",
+            "legendFormat": "{{pipeline}} - 处理速率",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 10,
+        "title": "竞价强度分布",
+        "type": "piechart",
+        "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (auction_level) (trading_auction_level_count)",
+            "legendFormat": "{{auction_level}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "当日累计盈亏",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 28, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(trading_daily_profit_total)",
+            "legendFormat": "累计盈亏",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyCNY",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "red"},
+                {"value": 0, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "胜率统计",
+        "type": "stat",
+        "gridPos": {"x": 8, "y": 28, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(trading_profitable_trades_total) / sum(trading_total_trades_closed) * 100",
+            "legendFormat": "胜率",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 50, "color": "yellow"},
+                {"value": 60, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "平均收益率",
+        "type": "stat",
+        "gridPos": {"x": 16, "y": 28, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(trading_total_profit) / sum(trading_total_cost) * 100",
+            "legendFormat": "平均收益率",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "red"},
+                {"value": 0, "color": "yellow"},
+                {"value": 5, "color": "green"}
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

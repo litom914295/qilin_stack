@@ -1,0 +1,140 @@
+# 涨停板因子场景 Prompt 模板
+# Author: Qilin Stack Team
+# Created: 2025-01-07
+
+limitup_factor_background: |-
+  涨停板（Limit Up）是 A股市场特有的交易机制，每日涨幅限制为 10%（ST 股 5%/20%，北交所 30%，科创板 20%）。
+  "一进二"策略：寻找今日涨停、明日有望继续涨停或高溢价开盘的股票。
+  
+  关键因素：
+  1. **封单强度**：封单金额越大，资金承接力越强
+  2. **连板高度**：连板天数反映市场情绪延续性  
+  3. **题材共振**：同题材涨停股数量体现板块热度
+  4. **涨停时机**：早盘涨停强度优于尾盘
+  5. **量能爆发**：成交量突增反映资金进场力度
+  6. **资金承接**：大单净流入体现主力态度
+  
+  您需要生成能够预测以下目标的因子：
+  - next_day_limit_up: 次日是否涨停（二分类）
+  - next_day_high_return: 次日最高收益率
+  - open_premium: 开盘溢价百分比
+  - continuous_probability: 继续连板概率
+
+limitup_factor_source_data: |-
+  可用数据字段（基于 Qlib + AKShare）：
+  
+  **基础量价**（Qlib）：
+  - open, close, high, low, volume, amount, vwap
+  - 技术指标：ma5, ma10, ma20, rsi, macd
+  
+  **涨停板特有**（LimitUpDataInterface）：
+  - seal_amount: 封单金额（万元）
+  - seal_quality: 封板质量（封单/流通市值）
+  - continuous_board: 连板天数（0=首板，1=二板，...）
+  - limit_up_minutes: 涨停时刻（距开盘分钟数，0-240）
+  - concept_heat: 同题材涨停股数量
+  - large_buy / large_sell: 大单买入/卖出金额（万元）
+  - open_count: 开板次数（0=一字板，>=1=开板涨停）
+  
+  **A股特化**：
+  - is_st: 是否 ST/*ST 股（高风险）
+  - list_days: 上市天数（<60 为次新股）
+  - industry: 行业分类（申万一级）
+  - concept_tags: 题材标签列表
+  - turnover_rate: 换手率
+  
+  **注意事项**：
+  - 涨停识别：close / prev_close - 1 >= 0.095
+  - 一字板排除：open == close == high == low
+  - ST 股涨幅：5%（老ST）或 20%（*ST）
+  - 北交所/科创板：30%/20% 涨幅
+
+limitup_factor_interface: |-
+  因子代码接口规范：
+  
+  1. **导入数据接口**：
+     ```python
+     from rd_agent.limit_up_data import LimitUpDataInterface
+     data_interface = LimitUpDataInterface()
+     df = data_interface.get_limit_up_features(start_date, end_date)
+     ```
+  
+  2. **输出格式**：
+     - MultiIndex: (datetime, instrument)
+     - 单列因子值（float64）
+     - 列名为因子名称
+  
+  3. **注意事项**：
+     - 排除一字板：df[df['seal_amount'] > 0]
+     - 排除 ST 股：df[~df['is_st']]
+     - 排除次新股：df[df['list_days'] > 60]
+     - 处理缺失值：fillna(0) 或 dropna()
+
+limitup_factor_output_format: |-
+  输出 DataFrame 示例：
+  
+  ```
+  datetime    instrument
+  2024-01-02  SZ000001     0.825
+              SZ000002     1.342
+  2024-01-03  SZ000001     0.756
+  ```
+  
+  类型：pandas.DataFrame
+  索引：MultiIndex(datetime, instrument)
+  列：单列（因子名称）
+  数据类型：float64
+
+limitup_factor_simulator: |-
+  因子评估流程：
+  
+  1. **因子计算**：基于历史涨停板数据计算因子值
+  2. **目标标签**：
+     - next_day_limit_up: 次日是否涨停（1/0）
+     - next_day_return: 次日收益率
+  3. **性能指标**：
+     - IC: 因子值与次日收益相关系数
+     - IR: IC 均值 / IC 标准差
+     - next_day_limit_up_rate: 因子 Top20% 的次日涨停率
+  4. **回测策略**：
+     - 每日选择因子值 Top N 的涨停股
+     - 次日开盘买入，收盘卖出
+     - 计算年化收益/最大回撤/胜率
+
+limitup_factor_strategy: |-
+  数据处理策略（涨停板专属）：
+  
+  1. **交易日对齐**：
+     ```python
+     from qlib.data import D
+     trade_dates = D.calendar(start_date, end_date, freq="day")
+     ```
+  
+  2. **涨停板识别**：
+     ```python
+     df['limit_up'] = (
+         (df['close'] / df['prev_close'] - 1 >= 0.095) &
+         (df['open'] < df['close']) &
+         (~df['is_st'])
+     )
+     ```
+  
+  3. **连板计算**：
+     ```python
+     df['continuous_board'] = df.groupby('instrument')['limit_up'].apply(
+         lambda x: x.rolling(window=10, min_periods=1).sum()
+     )
+     ```
+
+limitup_factor_experiment_setting: |-
+  实验设置：
+  
+  | 项目 | 配置 |
+  |-----|------|
+  | **数据集** | A股涨停板历史数据（2020-2024） |
+  | **训练集** | 2020-01-01 至 2023-12-31 |
+  | **验证集** | 2024-01-01 至 2024-06-30 |
+  | **测试集** | 2024-07-01 至 2024-12-31 |
+  | **模型** | LightGBM / XGBoost（二分类/回归） |
+  | **评估指标** | IC, IR, next_day_limit_up_rate, 年化收益, 最大回撤, 胜率 |
+  | **交易规则** | 次日开盘买入，收盘卖出；单只最大仓位 30%；止损 -5% |

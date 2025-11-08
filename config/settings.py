@@ -116,6 +116,9 @@ class AgentConfig(BaseSettings):
     parallel: bool = Field(True, description="是否并行执行")
     timeout: conint(gt=0) = Field(30, description="超时时间(秒)")
     weights: AgentWeights = Field(default_factory=AgentWeights, description="权重配置")
+    
+    class Config:
+        extra = "allow"  # 允许额外字段,兼容decision_thresholds等
 
 
 class DatabaseConfig(BaseSettings):
@@ -251,6 +254,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "allow"  # 允许额外字段,兼容YAML配置文件中的其他字段
         
     @classmethod
     def from_yaml(cls, config_path: str = "config/default.yaml") -> "Settings":

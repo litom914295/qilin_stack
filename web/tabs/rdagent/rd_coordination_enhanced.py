@@ -179,21 +179,23 @@ def render_rd_coordination_enhanced():
     
     col_filter1, col_filter2, col_filter3 = st.columns(3)
     with col_filter1:
-        trace_type = st.selectbox("类型过滤", ["All", "Research", "Development", "Experiment"])
+        trace_type = st.selectbox("类型过滤", ["All", "Research", "Development", "Experiment"], key="rdc_trace_type")
     with col_filter2:
-        trace_status = st.selectbox("状态过滤", ["All", "Success", "Failed", "Running"])
+        trace_status = st.selectbox("状态过滤", ["All", "Success", "Failed", "Running"], key="rdc_trace_status")
     with col_filter3:
         date_range = st.date_input("日期范围", value=(datetime.now().date(), datetime.now().date()))
     
     if st.button("🔍 查询Trace历史"):
         from .rdagent_api import RDAgentAPI
+        import asyncio
+        
         api = RDAgentAPI()
         
         with st.spinner("正在查询Trace历史..."):
-            result = api.get_rd_loop_trace(
+            result = asyncio.run(api.get_rd_loop_trace(
                 trace_type=trace_type if trace_type != "All" else None,
                 status=trace_status if trace_status != "All" else None
-            )
+            ))
         
         if result['success']:
             st.session_state.rd_trace_history = result['traces']
@@ -337,9 +339,9 @@ def render_mle_bench_enhanced():
     
     col_config1, col_config2, col_config3 = st.columns(3)
     with col_config1:
-        difficulty = st.selectbox("难度级别", ["All", "Low", "Medium", "High"])
+        difficulty = st.selectbox("难度级别", ["All", "Low", "Medium", "High"], key="rdc_mle_difficulty")
     with col_config2:
-        task_type = st.selectbox("任务类型", ["All", "Classification", "Regression", "Time Series"])
+        task_type = st.selectbox("任务类型", ["All", "Classification", "Regression", "Time Series"], key="rdc_mle_task_type")
     with col_config3:
         timeout = st.number_input("超时时间(分钟)", min_value=5, max_value=120, value=30)
     

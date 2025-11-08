@@ -1,0 +1,24 @@
+# 信号推送配置 - Phase 5.3
+
+enabled_channels:
+  - webhook  # 启用webhook推送
+
+email:
+  enabled: false
+  smtp_server: smtp.example.com
+  smtp_port: 465
+  username: your@email.com
+  password: your_password
+  to: receiver@email.com
+
+wechat:
+  enabled: false
+  webhook_url: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY
+
+dingtalk:
+  enabled: false
+  webhook_url: https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN
+
+webhook:
+  enabled: true
+  url: http://localhost:8000/api/signals

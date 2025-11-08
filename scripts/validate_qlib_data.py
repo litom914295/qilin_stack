@@ -20,20 +20,22 @@ def validate_qlib_data(provider_uri='~/.qlib/qlib_data/cn_data'):
     print(f"{'='*60}\n")
     
     try:
-        # 初始化Qlib
-        print(f"1️⃣ 初始化Qlib: {provider_uri}")
-        qlib.init(provider_uri=provider_uri)
+        # 初始化Qlib（展开 ~ 到绝对路径，兼容Windows）
+        resolved_uri = str(Path(provider_uri).expanduser())
+        print(f"1️⃣ 初始化Qlib: {resolved_uri}")
+        qlib.init(provider_uri=resolved_uri)
         print("   ✅ 初始化成功")
         
         # 测试获取股票列表
         print("\n2️⃣ 获取股票列表...")
         instruments = D.instruments(market='csi300')
-        print(f"   ✅ CSI300成分股数量: {len(instruments)}")
-        print(f"   示例股票: {list(instruments[:5])}")
+        stock_list = D.list_instruments(instruments=instruments, as_list=True)
+        print(f"   ✅ CSI300成分股数量: {len(stock_list)}")
+        print(f"   示例股票: {stock_list[:5]}")
         
         # 测试获取特征数据
         print("\n3️⃣ 获取特征数据...")
-        test_symbols = list(instruments[:3])
+        test_symbols = stock_list[:3]
         features = D.features(
             test_symbols, 
             ['$close', '$volume', '$open', '$high', '$low'],
@@ -73,10 +75,10 @@ def validate_qlib_data(provider_uri='~/.qlib/qlib_data/cn_data'):
         print(f"\n❌ 验证失败: {e}")
         print("\n建议:")
         print("1. 下载Qlib数据:")
-        print("   python -m qlib.run.get_data qlib_data --target_dir ~/.qlib/qlib_data/cn_data --region cn")
+        print("   python -m qlib.cli.data qlib_data --target_dir ~/.qlib/qlib_data/cn_data --region cn")
+        
         print("\n2. 检查数据路径是否正确")
         print("\n3. 确保有足够的磁盘空间")
-        return False
 
 
 def download_qlib_data():
@@ -85,10 +87,11 @@ def download_qlib_data():
     print("这可能需要几分钟时间，请耐心等待...\n")
     
     import subprocess
+    target_dir = str(Path.home() / '.qlib' / 'qlib_data' / 'cn_data')
     cmd = [
-        sys.executable, '-m', 'qlib.run.get_data',
+        sys.executable, '-m', 'qlib.cli.data',
         'qlib_data',
-        '--target_dir', str(Path.home() / '.qlib/qlib_data/cn_data'),
+        '--target_dir', target_dir,
         '--region', 'cn'
     ]
     
@@ -98,10 +101,11 @@ def download_qlib_data():
             print("✅ 数据下载成功！")
             return True
         else:
-            print(f"❌ 下载失败: {result.stderr}")
+            print(f"❌ 下载失败: {result.stderr or result.stdout}")
             return False
     except Exception as e:
         print(f"❌ 下载出错: {e}")
+        print("可尝试命令行下载: python -m qlib.cli.data qlib_data --target_dir ~/.qlib/qlib_data/cn_data --region cn")
         return False
 
 

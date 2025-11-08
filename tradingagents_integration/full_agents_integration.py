@@ -34,6 +34,13 @@ def setup_tradingagents_path(config: TradingAgentsConfig):
     
     logger.info(f"TradingAgents路径已添加: {ta_path}")
 
+# 在导入前加载配置并设置路径（若失败则在导入阶段抛出，便于上层回退）
+try:
+    _config_for_import = load_config()
+    setup_tradingagents_path(_config_for_import)
+except Exception as _e:
+    # 让异常在模块导入阶段冒泡，使调用方（如Web Tabs）可以回退到基础模式
+    raise
 
 # 导入10个专业智能体
 try:
@@ -56,10 +63,9 @@ try:
     FULL_AGENTS_AVAILABLE = True
     logger.info("✅ 成功导入TradingAgents的10个专业智能体")
     
-except ImportError as e:
-    logger.error(f"❌ 无法导入完整智能体: {e}")
-    FULL_AGENTS_AVAILABLE = False
-    # 不再抛出异常，回退到基础集成
+except Exception as e:
+    # 在导入阶段直接失败，交由上层捕获并回退
+    raise ImportError(f"无法导入TradingAgents完整智能体: {e}") from e
 
 
 # ============================================================================
@@ -267,6 +273,63 @@ class FullAgentsIntegration:
         
         logger.info(f"✅ 分析完成: {result.final_signal.signal_type.value}")
         return result
+    
+    async def analyze_stock(self, 
+                          symbol: str,
+                          market_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        分析股票（兼容接口，返回字典格式）
+        
+        这是为了向后兼容旧的调用方式。内部调用 analyze_comprehensive 并转换结果格式。
+        
+        Args:
+            symbol: 股票代码
+            market_data: 市场数据
+            
+        Returns:
+            分析结果字典，包含 consensus 和 individual_results
+        """
+        # 调用完整分析
+        result = await self.analyze_comprehensive(symbol, market_data)
+        
+        # 转换为兼容格式
+        return {
+            "consensus": {
+                "signal": result.final_signal.signal_type.value if result.final_signal else "HOLD",
+                "confidence": result.confidence,
+                "reasoning": result.reasoning
+            },
+            "individual_results": [
+                {"agent": "市场生态", "signal": result.market_ecology_signal.signal_type.value if result.market_ecology_signal else "HOLD",
+                 "confidence": result.market_ecology_signal.confidence if result.market_ecology_signal else 0,
+                 "reasoning": result.market_ecology_signal.reason if result.market_ecology_signal else ""},
+                {"agent": "竞价博弈", "signal": result.auction_game_signal.signal_type.value if result.auction_game_signal else "HOLD",
+                 "confidence": result.auction_game_signal.confidence if result.auction_game_signal else 0,
+                 "reasoning": result.auction_game_signal.reason if result.auction_game_signal else ""},
+                {"agent": "成交量分析", "signal": result.volume_signal.signal_type.value if result.volume_signal else "HOLD",
+                 "confidence": result.volume_signal.confidence if result.volume_signal else 0,
+                 "reasoning": result.volume_signal.reason if result.volume_signal else ""},
+                {"agent": "技术指标", "signal": result.technical_signal.signal_type.value if result.technical_signal else "HOLD",
+                 "confidence": result.technical_signal.confidence if result.technical_signal else 0,
+                 "reasoning": result.technical_signal.reason if result.technical_signal else ""},
+                {"agent": "市场情绪", "signal": result.sentiment_signal.signal_type.value if result.sentiment_signal else "HOLD",
+                 "confidence": result.sentiment_signal.confidence if result.sentiment_signal else 0,
+                 "reasoning": result.sentiment_signal.reason if result.sentiment_signal else ""},
+                {"agent": "形态识别", "signal": result.pattern_signal.signal_type.value if result.pattern_signal else "HOLD",
+                 "confidence": result.pattern_signal.confidence if result.pattern_signal else 0,
+                 "reasoning": result.pattern_signal.reason if result.pattern_signal else ""},
+                {"agent": "宏观经济", "signal": result.macroeconomic_signal.signal_type.value if result.macroeconomic_signal else "HOLD",
+                 "confidence": result.macroeconomic_signal.confidence if result.macroeconomic_signal else 0,
+                 "reasoning": result.macroeconomic_signal.reason if result.macroeconomic_signal else ""},
+                {"agent": "套利机会", "signal": result.arbitrage_signal.signal_type.value if result.arbitrage_signal else "HOLD",
+                 "confidence": result.arbitrage_signal.confidence if result.arbitrage_signal else 0,
+                 "reasoning": result.arbitrage_signal.reason if result.arbitrage_signal else ""}
+            ],
+            "position_advice": result.position_advice,
+            "risk_assessment": result.risk_assessment,
+            "symbol": symbol,
+            "timestamp": result.timestamp.isoformat()
+        }
     
     async def batch_analyze(self, 
                           symbols: List[str],

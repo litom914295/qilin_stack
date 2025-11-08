@@ -31,7 +31,7 @@ from qlib.workflow import R
 from qlib.workflow.record_temp import SignalRecord, PortAnaRecord
 from qlib.contrib.model.pytorch_alstm import ALSTM
 from qlib.contrib.model.pytorch_gru import GRU
-from qlib.contrib.model.lightgbm import LGBModel
+from qlib.contrib.model.gbdt import LGBModel
 from qlib.contrib.model.pytorch_nn import DNNModel
 from qlib.contrib.model.pytorch_transformer import Transformer
 from qlib.contrib.strategy import TopkDropoutStrategy, WeightStrategyBase

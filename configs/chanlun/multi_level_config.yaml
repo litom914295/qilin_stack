@@ -1,0 +1,24 @@
+# 多级别联合分析配置 - Phase 5.1
+
+# 基础配置
+default:
+  levels:
+    - DAY    # 日线
+    - M60    # 60分
+    - M30    # 30分
+  
+  min_resonance_level: 2  # 最小共振级别
+  trend_consistency_threshold: 0.7
+  enable_resonance: true
+
+# 回测场景
+backtest:
+  levels: [DAY, M60, M30, M15]
+  min_resonance_level: 3
+  trend_consistency_threshold: 0.8
+
+# 实时场景
+realtime:
+  levels: [M60, M30, M15]
+  min_resonance_level: 2
+  trend_consistency_threshold: 0.6

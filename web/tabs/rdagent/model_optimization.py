@@ -102,11 +102,13 @@ class ModelOptimizationTab:
             with col1:
                 search_space = st.selectbox(
                     "搜索空间",
-                    ["LSTM变体", "Transformer变体", "CNN-RNN混合", "自定义"]
+                    ["LSTM变体", "Transformer变体", "CNN-RNN混合", "自定义"],
+                    key="mo_search_space"
                 )
                 search_method = st.selectbox(
                     "搜索方法",
-                    ["ENAS", "DARTS", "随机搜索", "贝叶斯优化"]
+                    ["ENAS", "DARTS", "随机搜索", "贝叶斯优化"],
+                    key="mo_search_method"
                 )
             
             with col2:
@@ -134,7 +136,7 @@ class ModelOptimizationTab:
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🚀 开始搜索", type="primary", use_container_width=True):
+            if st.button("🚀 开始搜索", type="primary", use_container_width=True, key="mo_start_search"):
                 self.start_architecture_search(
                     search_space=search_space,
                     search_method=search_method,
@@ -144,7 +146,7 @@ class ModelOptimizationTab:
                     search_budget=float(search_budget)
                 )
         with col2:
-            if st.button("⏸️ 停止", use_container_width=True):
+            if st.button("⏸️ 停止", use_container_width=True, key="mo_stop_search"):
                 st.session_state.optimization_running = False
         
         # 搜索结果
@@ -223,12 +225,13 @@ class ModelOptimizationTab:
             
             tuning_method = st.selectbox(
                 "调优方法",
-                ["Bayesian Optimization", "Optuna", "Random Search", "Grid Search"]
+                ["Bayesian Optimization", "Optuna", "Random Search", "Grid Search"],
+                key="mo_tuning_method"
             )
             
             max_evals = st.slider("最大评估次数", 10, 200, 50)
         
-        if st.button("🎯 开始调优", type="primary", use_container_width=True):
+        if st.button("🎯 开始调优", type="primary", use_container_width=True, key="mo_start_tuning"):
             with st.spinner("正在调优超参数..."):
                 self.start_hyperparameter_tuning(
                     tuning_method=tuning_method,
@@ -297,7 +300,8 @@ class ModelOptimizationTab:
             with col1:
                 ensemble_method = st.selectbox(
                     "集成方法",
-                    ["Voting", "Stacking", "Blending", "Boosting"]
+                    ["Voting", "Stacking", "Blending", "Boosting"],
+                    key="mo_ensemble_method"
                 )
                 
                 selected_models = st.multiselect(
@@ -309,7 +313,8 @@ class ModelOptimizationTab:
             with col2:
                 weight_method = st.selectbox(
                     "权重计算",
-                    ["均匀权重", "性能加权", "优化权重", "自适应权重"]
+                    ["均匀权重", "性能加权", "优化权重", "自适应权重"],
+                    key="mo_weight_method"
                 )
                 
                 diversity_weight = st.slider(
@@ -320,10 +325,10 @@ class ModelOptimizationTab:
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🚀 创建Ensemble", type="primary", use_container_width=True):
+            if st.button("🚀 创建Ensemble", type="primary", use_container_width=True, key="mo_create_ensemble"):
                 self.create_ensemble()
         with col2:
-            if st.button("📊 评估性能", use_container_width=True):
+            if st.button("📊 评估性能", use_container_width=True, key="mo_eval_ensemble"):
                 st.info("正在评估ensemble性能...")
         
         # Ensemble结果
@@ -564,7 +569,8 @@ class ModelOptimizationTab:
             with col2:
                 baseline = st.selectbox(
                     "基线选择",
-                    ["均值", "中位数", "零值"]
+                    ["均值", "中位数", "零值"],
+                    key="mo_shap_baseline"
                 )
             
             if st.button("🚀 计算SHAP值", key="calc_shap"):

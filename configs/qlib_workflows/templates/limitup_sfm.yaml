@@ -1,0 +1,34 @@
+task:
+  model:
+    class: SFM
+    module_path: qlib.contrib.model.pytorch_sfm
+    kwargs:
+      d_feat: 360
+      hidden_size: 256
+      embed_dim: 32
+      dropout: 0.2
+      lr: 0.001
+      reg: 1e-5
+      n_epochs: 150
+      GPU: 0
+  dataset:
+    class: DatasetH
+    kwargs:
+      handler:
+        class: Alpha360
+        kwargs:
+          instruments: csi500
+          start_time: 2018-01-01
+          end_time: 2023-12-31
+          label: Ref($close, -1) / $close - 1 > 0.095
+      segments:
+        train: [2019-01-01, 2021-12-31]
+        valid: [2022-01-01, 2022-12-31]
+        test:  [2023-01-01, 2023-12-31]
+strategy:
+  class: TopkDropoutStrategy
+  module_path: qlib.contrib.strategy
+  kwargs:
+    signal: <PRED>
+    topk: 35
+    n_drop: 5

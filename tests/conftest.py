@@ -19,6 +19,35 @@ sys.path.insert(0, str(project_root))
 # 允许引用上层仓库根目录下的 app/* 模块（如 app.pool）
 sys.path.insert(0, str(project_root.parent))
 
+# ============================================================================
+# Qlib 初始化 (Session 级别,整个测试会话只初始化一次)
+# ============================================================================
+
+@pytest.fixture(scope="session", autouse=True)
+def init_qlib():
+    """初始化Qlib数据源 (自动执行)"""
+    try:
+        import qlib
+        from qlib.config import REG_CN
+        import os
+        
+        # 从环境变量或默认路径获取qlib数据路径
+        qlib_data_path = os.getenv("QLIB_DATA_PATH", "~/.qlib/qlib_data/cn_data")
+        
+        # 尝试初始化qlib
+        try:
+            qlib.init(provider_uri=qlib_data_path, region=REG_CN)
+            print(f"✅ Qlib初始化成功: {qlib_data_path}")
+        except Exception as e:
+            print(f"⚠️ Qlib初始化失败: {e}")
+            print("⚠️ 将以Mock模式运行测试，部分功能受限")
+            # 不阻塞测试,允许以mock模式运行
+    except ImportError:
+        print("⚠️ Qlib未安装，跳过初始化")
+    
+    yield
+    # Teardown: 如果需要清理可以在这里添加
+
 @pytest.fixture(scope="session")
 def event_loop():
     """创建事件循环用于异步测试"""

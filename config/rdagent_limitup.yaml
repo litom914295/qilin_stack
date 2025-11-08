@@ -2,7 +2,7 @@ rdagent:
   # 涨停板场景专用配置
   
   # RD-Agent路径
-  rdagent_path: "D:/test/Qlib/RD-Agent"
+  rdagent_path: "G:/test/RD-Agent"
   
   # LLM配置 - 涨停板专用高级模型
   llm_provider: "openai"

@@ -5,18 +5,24 @@ TradingAgents项目整合模块
 
 import sys
 from pathlib import Path
+from .config import load_config
 
-# 添加tradingagents项目路径
-TRADINGAGENTS_PATH = Path("D:/test/Qlib/tradingagents")
-if str(TRADINGAGENTS_PATH) not in sys.path:
+# 添加tradingagents项目路径（优先读取配置/环境变量）
+_config = load_config()
+TRADINGAGENTS_PATH = Path(_config.tradingagents_path)
+if TRADINGAGENTS_PATH.exists() and str(TRADINGAGENTS_PATH) not in sys.path:
     sys.path.insert(0, str(TRADINGAGENTS_PATH))
 
-# 导入tradingagents核心组件
+# 导入tradingagents核心组件 (TradingAgents-CN-Plus uses LangGraph architecture)
 try:
-    from tradingagents.agents import BaseAgent
-    from tradingagents.llm.base import BaseLLM
-    from tradingagents.tools.base import BaseTool
-    from tradingagents.utils.logging_utils import get_logger
+    from tradingagents.agents import (
+        create_trader,
+        create_research_manager,
+        create_risk_manager,
+        AgentState,
+        Toolkit
+    )
+    from tradingagents.utils.logging_init import get_logger
     TRADINGAGENTS_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Could not import tradingagents: {e}")

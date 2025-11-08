@@ -32,6 +32,11 @@ akshare>=1.8.0
 yfinance>=0.2.18
 ccxt>=3.0.0
 
+# AI/LLM框架
+langgraph>=0.0.1  # LangGraph for TradingAgents integration
+langchain>=0.1.0
+langchain-core>=0.1.0
+
 # Web框架
 fastapi>=0.95.0
 uvicorn>=0.20.0

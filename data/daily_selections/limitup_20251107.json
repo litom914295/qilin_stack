@@ -1,0 +1,92 @@
+{
+  "date": "2025-11-07",
+  "total_limitup": 6,
+  "qualified_count": 5,
+  "stocks": [
+    {
+      "symbol": "000858",
+      "name": "股票000858",
+      "quality_score": 82.0,
+      "confidence": 0.7325846334884575,
+      "limit_up_time": "09:50:00",
+      "open_times": 0,
+      "seal_ratio": 0.27272549071034025,
+      "consecutive_days": 2,
+      "is_first_board": true,
+      "sector": "科技板块",
+      "themes": [
+        "人工智能",
+        "芯片"
+      ],
+      "sector_limit_count": 5
+    },
+    {
+      "symbol": "300750",
+      "name": "股票300750",
+      "quality_score": 79.0,
+      "confidence": 0.7498409894594382,
+      "limit_up_time": "09:55:00",
+      "open_times": 1,
+      "seal_ratio": 0.23561491589264646,
+      "consecutive_days": 2,
+      "is_first_board": true,
+      "sector": "科技板块",
+      "themes": [
+        "人工智能",
+        "芯片"
+      ],
+      "sector_limit_count": 10
+    },
+    {
+      "symbol": "000001",
+      "name": "股票000001",
+      "quality_score": 71.0,
+      "confidence": 0.8180771331886387,
+      "limit_up_time": "09:30:00",
+      "open_times": 2,
+      "seal_ratio": 0.09880570275179158,
+      "consecutive_days": 2,
+      "is_first_board": false,
+      "sector": "科技板块",
+      "themes": [
+        "人工智能",
+        "芯片"
+      ],
+      "sector_limit_count": 10
+    },
+    {
+      "symbol": "600000",
+      "name": "股票600000",
+      "quality_score": 67.0,
+      "confidence": 0.7100429881919101,
+      "limit_up_time": "09:40:00",
+      "open_times": 1,
+      "seal_ratio": 0.06069553303198476,
+      "consecutive_days": 2,
+      "is_first_board": true,
+      "sector": "科技板块",
+      "themes": [
+        "人工智能",
+        "芯片"
+      ],
+      "sector_limit_count": 8
+    },
+    {
+      "symbol": "600519",
+      "name": "股票600519",
+      "quality_score": 67.0,
+      "confidence": 0.7247069562108942,
+      "limit_up_time": "09:45:00",
+      "open_times": 2,
+      "seal_ratio": 0.10936558782318576,
+      "consecutive_days": 2,
+      "is_first_board": true,
+      "sector": "科技板块",
+      "themes": [
+        "人工智能",
+        "芯片"
+      ],
+      "sector_limit_count": 5
+    }
+  ]
+}

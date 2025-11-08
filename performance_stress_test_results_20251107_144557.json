@@ -1,0 +1,71 @@
+{
+  "total_tests": 5,
+  "passed_tests": 0,
+  "failed_tests": 5,
+  "success_rate": 0.0,
+  "total_duration": 0.012181282043457031,
+  "test_results": [
+    {
+      "test_name": "并发订单压力测试 (100个订单)",
+      "success": false,
+      "details": {
+        "num_orders": 100,
+        "results": [],
+        "memory_start": {
+          "rss": 39.87890625,
+          "vms": 35.76953125,
+          "percent": 0.12188811604598723
+        },
+        "error": "LiveTradingSystem.__init__() got an unexpected keyword argument 'broker_config'"
+      },
+      "duration": 0.001096963882446289,
+      "timestamp": "2025-11-07T14:45:57.763528"
+    },
+    {
+      "test_name": "长时间稳定性测试 (2分钟)",
+      "success": false,
+      "details": {
+        "duration_minutes": 2,
+        "samples": [],
+        "memory_start": {
+          "rss": 39.9140625,
+          "vms": 35.76953125,
+          "percent": 0.12199556957174038
+        },
+        "error": "LiveTradingSystem.__init__() got an unexpected keyword argument 'broker_config'"
+      },
+      "duration": 0.0005309581756591797,
+      "timestamp": "2025-11-07T14:45:57.764605"
+    },
+    {
+      "test_name": "内存泄漏检测",
+      "success": false,
+      "details": {
+        "iterations": [],
+        "error": "LiveTradingSystem.__init__() got an unexpected keyword argument 'broker_config'"
+      },
+      "duration": 0.010000467300415039,
+      "timestamp": "2025-11-07T14:45:57.774606"
+    },
+    {
+      "test_name": "异常恢复测试",
+      "success": false,
+      "details": {
+        "scenarios": [],
+        "error": "LiveTradingSystem.__init__() got an unexpected keyword argument 'broker_config'"
+      },
+      "duration": 0.0005528926849365234,
+      "timestamp": "2025-11-07T14:45:57.775159"
+    },
+    {
+      "test_name": "因子计算性能测试",
+      "success": false,
+      "details": {
+        "error": "name 'FastFactorCalculator' is not defined"
+      },
+      "duration": 0.0,
+      "timestamp": "2025-11-07T14:45:57.775159"
+    }
+  ],
+  "timestamp": "2025-11-07T14:45:57.775700"
+}

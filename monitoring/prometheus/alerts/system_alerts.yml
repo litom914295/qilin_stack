@@ -1,0 +1,319 @@
+# 系统级告警规则
+# 麒麟量化交易系统
+
+groups:
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # CPU使用率告警
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "高CPU使用率 (instance {{ $labels.instance }})"
+          description: "CPU使用率持续5分钟超过80% (当前值: {{ $value }}%)"
+
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "严重CPU使用率 (instance {{ $labels.instance }})"
+          description: "CPU使用率持续2分钟超过95% (当前值: {{ $value }}%)"
+
+      # 内存使用率告警
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "高内存使用率 (instance {{ $labels.instance }})"
+          description: "内存使用率持续5分钟超过80% (当前值: {{ $value }}%)"
+
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "严重内存使用率 (instance {{ $labels.instance }})"
+          description: "内存使用率持续2分钟超过95% (当前值: {{ $value }}%)"
+
+      # 磁盘使用率告警
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|vfat"} / node_filesystem_size_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "高磁盘使用率 (instance {{ $labels.instance }}, mountpoint {{ $labels.mountpoint }})"
+          description: "磁盘使用率持续5分钟超过80% (当前值: {{ $value }}%)"
+
+      - alert: CriticalDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs|vfat"} / node_filesystem_size_bytes)) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "严重磁盘使用率 (instance {{ $labels.instance }}, mountpoint {{ $labels.mountpoint }})"
+          description: "磁盘使用率持续2分钟超过90% (当前值: {{ $value }}%)"
+
+      # 磁盘IO告警
+      - alert: HighDiskIOWait
+        expr: rate(node_disk_io_time_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "高磁盘IO等待 (instance {{ $labels.instance }})"
+          description: "磁盘IO等待时间持续5分钟异常 (当前值: {{ $value }})"
+
+      # 网络流量告警
+      - alert: HighNetworkTraffic
+        expr: rate(node_network_receive_bytes_total[5m]) > 100000000  # 100MB/s
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "高网络流量 (instance {{ $labels.instance }}, interface {{ $labels.device }})"
+          description: "网络接收流量持续5分钟超过100MB/s (当前值: {{ $value | humanize }}B/s)"
+
+      # 节点宕机告警
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "实例宕机 (instance {{ $labels.instance }})"
+          description: "实例 {{ $labels.instance }} 已宕机超过1分钟"
+
+      # 节点重启告警
+      - alert: NodeReboot
+        expr: node_boot_time_seconds != node_boot_time_seconds offset 5m
+        for: 1m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "节点重启 (instance {{ $labels.instance }})"
+          description: "节点 {{ $labels.instance }} 最近发生了重启"
+
+  - name: application_alerts
+    interval: 30s
+    rules:
+      # 应用服务健康检查
+      - alert: ServiceDown
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: application
+        annotations:
+          summary: "服务不可用 (instance {{ $labels.instance }})"
+          description: "服务 {{ $labels.instance }} 健康检查失败超过2分钟"
+
+      # HTTP响应时间告警
+      - alert: SlowHTTPResponse
+        expr: probe_duration_seconds{job="blackbox-http"} > 3
+        for: 5m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "HTTP响应缓慢 (instance {{ $labels.instance }})"
+          description: "HTTP响应时间持续5分钟超过3秒 (当前值: {{ $value }}s)"
+
+      # 应用错误率告警
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "高错误率 (service {{ $labels.service }})"
+          description: "5xx错误率持续5分钟超过5% (当前值: {{ $value | humanizePercentage }})"
+
+      - alert: CriticalErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+          category: application
+        annotations:
+          summary: "严重错误率 (service {{ $labels.service }})"
+          description: "5xx错误率持续2分钟超过10% (当前值: {{ $value | humanizePercentage }})"
+
+      # 请求延迟告警
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "高请求延迟 (service {{ $labels.service }})"
+          description: "P95请求延迟持续5分钟超过1秒 (当前值: {{ $value }}s)"
+
+      # 请求量异常告警
+      - alert: LowRequestRate
+        expr: rate(http_requests_total[5m]) < 1
+        for: 10m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "请求量异常低 (service {{ $labels.service }})"
+          description: "请求量持续10分钟低于1 req/s，可能存在问题"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # Redis连接数告警
+      - alert: HighRedisConnections
+        expr: redis_connected_clients / redis_config_maxclients > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Redis连接数过高 (instance {{ $labels.instance }})"
+          description: "Redis连接数超过最大连接数的80% (当前值: {{ $value | humanizePercentage }})"
+
+      # Redis内存使用告警
+      - alert: HighRedisMemory
+        expr: redis_memory_used_bytes / redis_config_maxmemory_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Redis内存使用率高 (instance {{ $labels.instance }})"
+          description: "Redis内存使用率超过90% (当前值: {{ $value | humanizePercentage }})"
+
+      # PostgreSQL连接数告警
+      - alert: HighPostgreSQLConnections
+        expr: pg_stat_activity_count / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL连接数过高 (instance {{ $labels.instance }})"
+          description: "PostgreSQL连接数超过最大连接数的80%"
+
+      # PostgreSQL慢查询告警
+      - alert: HighPostgreSQLSlowQueries
+        expr: rate(pg_stat_statements_mean_time_seconds[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL慢查询增多 (instance {{ $labels.instance }})"
+          description: "PostgreSQL平均查询时间超过1秒"
+
+      # MongoDB连接数告警
+      - alert: HighMongoDBConnections
+        expr: mongodb_connections_current / mongodb_connections_available > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "MongoDB连接数过高 (instance {{ $labels.instance }})"
+          description: "MongoDB连接数超过可用连接数的80%"
+
+  - name: message_queue_alerts
+    interval: 30s
+    rules:
+      # Kafka消费延迟告警
+      - alert: HighKafkaConsumerLag
+        expr: kafka_consumergroup_lag > 10000
+        for: 5m
+        labels:
+          severity: warning
+          category: messaging
+        annotations:
+          summary: "Kafka消费延迟过高 (consumergroup {{ $labels.consumergroup }})"
+          description: "Kafka消费延迟超过10000条消息 (当前值: {{ $value }})"
+
+      # RabbitMQ队列堆积告警
+      - alert: HighRabbitMQQueueMessages
+        expr: rabbitmq_queue_messages > 10000
+        for: 5m
+        labels:
+          severity: warning
+          category: messaging
+        annotations:
+          summary: "RabbitMQ队列消息堆积 (queue {{ $labels.queue }})"
+          description: "RabbitMQ队列消息数超过10000 (当前值: {{ $value }})"
+
+      # RabbitMQ消费者数量告警
+      - alert: NoRabbitMQConsumers
+        expr: rabbitmq_queue_consumers == 0
+        for: 5m
+        labels:
+          severity: critical
+          category: messaging
+        annotations:
+          summary: "RabbitMQ无消费者 (queue {{ $labels.queue }})"
+          description: "RabbitMQ队列 {{ $labels.queue }} 没有消费者"
+
+  - name: trading_alerts
+    interval: 30s
+    rules:
+      # 交易系统特定告警
+      - alert: HighOrderFailureRate
+        expr: rate(trading_orders_failed_total[5m]) / rate(trading_orders_total[5m]) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          category: trading
+        annotations:
+          summary: "订单失败率过高"
+          description: "订单失败率持续5分钟超过10% (当前值: {{ $value | humanizePercentage }})"
+
+      - alert: AbnormalTradingVolume
+        expr: abs(rate(trading_volume_total[5m]) - rate(trading_volume_total[5m] offset 1h)) / rate(trading_volume_total[5m] offset 1h) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          category: trading
+        annotations:
+          summary: "交易量异常"
+          description: "交易量与1小时前相比变化超过50%"
+
+      - alert: ModelPredictionLatency
+        expr: histogram_quantile(0.95, rate(model_prediction_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          category: trading
+        annotations:
+          summary: "模型预测延迟过高"
+          description: "P95模型预测延迟超过500ms (当前值: {{ $value }}s)"
+
+      - alert: DataPipelineStuck
+        expr: rate(data_pipeline_processed_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+          category: trading
+        annotations:
+          summary: "数据管道停滞"
+          description: "数据管道持续10分钟没有处理任何数据"
